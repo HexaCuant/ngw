@@ -150,7 +150,7 @@ if ($activeCharacterId) {
                             
                             <?php if ((int)$char['creator_id'] === $userId): ?>
                                 <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" 
-                                      onsubmit="return confirm('¿Confirmar eliminación?');">
+                                      class="delete-character-form" data-charname="<?= e($char['name']) ?>">
                                     <input type="hidden" name="char_action" value="delete">
                                     <input type="hidden" name="char_id" value="<?= e($char['id']) ?>">
                                     <input type="hidden" name="confirm" value="1">
@@ -189,3 +189,18 @@ if ($activeCharacterId) {
         <button type="submit" class="btn-success">Crear Carácter</button>
     </form>
 </div>
+
+<script>
+// Handle delete character confirmation
+document.querySelectorAll('.delete-character-form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+        const charName = this.getAttribute('data-charname');
+        const message = '¿Estás seguro de eliminar el carácter "' + charName + '"?\n\nEsta acción no se puede deshacer y eliminará todos los genes asociados.';
+        
+        if (!confirm(message)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>

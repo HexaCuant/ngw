@@ -113,7 +113,7 @@ if ($activeProjectId) {
                             </form>
                             
                             <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" 
-                                  onsubmit="return confirm('¿Confirmar eliminación del proyecto?');">
+                                  class="delete-project-form" data-projectname="<?= e($project['name']) ?>">
                                 <input type="hidden" name="project_action" value="delete">
                                 <input type="hidden" name="project_id" value="<?= e($project['id']) ?>">
                                 <input type="hidden" name="confirm" value="1">
@@ -141,3 +141,18 @@ if ($activeProjectId) {
         <button type="submit" class="btn-success">Crear Proyecto</button>
     </form>
 </div>
+
+<script>
+// Handle delete project confirmation
+document.querySelectorAll('.delete-project-form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+        const projectName = this.getAttribute('data-projectname');
+        const message = '¿Estás seguro de eliminar el proyecto "' + projectName + '"?\n\nEsta acción no se puede deshacer y eliminará todos los caracteres asociados al proyecto.';
+        
+        if (!confirm(message)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
