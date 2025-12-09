@@ -198,7 +198,7 @@ $allUsers = $auth->getAllUsers();
                     <td>
                         <?php if ((int)$user['is_admin'] === 0 && (int)$user['id'] !== $session->getUserId()): ?>
                             <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
-                                  onsubmit="return confirm('¿Estás seguro de eliminar al usuario <?= e($user['username']) ?>? Esta acción no se puede deshacer.');">
+                                  onsubmit="return confirm('¿Estás seguro de eliminar al usuario \'<?= htmlspecialchars($user['username'], ENT_QUOTES) ?>\'?\n\nEsta acción no se puede deshacer.');">
                                 <input type="hidden" name="admin_action" value="delete_user">
                                 <input type="hidden" name="user_id" value="<?= e($user['id']) ?>">
                                 <input type="hidden" name="confirm" value="1">
