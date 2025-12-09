@@ -142,4 +142,4 @@ CREATE INDEX IF NOT EXISTS idx_generations_project ON generations(project_id);
 -- Create default admin user (password: admin123 - CHANGE THIS!)
 -- Password hash for 'admin123'
 INSERT OR IGNORE INTO users (id, username, password, email, is_admin, is_approved)
-VALUES (1, 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin@ngw.local', 1, 1);
+VALUES (1, 'admin', '$2y$12$umyb2vcbXnSQp8421JF95eUqbxAOvMTc5YHGe2qcPv1i776TzRn2y', 'admin@ngw.local', 1, 1);
