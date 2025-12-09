@@ -64,7 +64,7 @@ class RegistrationRequest
     /**
      * Get all requests (for admin)
      */
-    public function getAll(string $status = null): array
+    public function getAll(?string $status = null): array
     {
         if ($status) {
             $sql = "SELECT * FROM registration_requests WHERE status = :status ORDER BY requested_at DESC";
