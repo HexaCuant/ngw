@@ -228,7 +228,7 @@ if ($session->isAuthenticated()) {
                 <h3>Solicitar Cuenta Nueva</h3>
                 <p>Si no tienes cuenta, solicita acceso. Un administrador revisará tu solicitud.</p>
                 
-                <form method="post">
+                <form method="post" id="registration-form">
                     <div class="form-group">
                         <label for="new_username">Usuario deseado</label>
                         <input type="text" id="new_username" name="username" required>
@@ -248,6 +248,7 @@ if ($session->isAuthenticated()) {
                     <div class="form-group">
                         <label for="password_confirm">Confirmar contraseña</label>
                         <input type="password" id="password_confirm" name="password_confirm" required minlength="6">
+                        <small id="password-match-indicator" style="font-size: 0.875rem; display: none;"></small>
                     </div>
                     
                     <div class="form-group">
@@ -255,10 +256,43 @@ if ($session->isAuthenticated()) {
                         <textarea id="reason" name="reason" rows="3" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 0.25rem;"></textarea>
                     </div>
                     
-                    <button type="submit" name="action" value="request_account" class="btn-success">
+                    <button type="submit" name="action" value="request_account" class="btn-success" id="submit-btn">
                         Solicitar Cuenta
                     </button>
                 </form>
+                
+                <script>
+                const passwordInput = document.getElementById('new_password');
+                const confirmInput = document.getElementById('password_confirm');
+                const indicator = document.getElementById('password-match-indicator');
+                const submitBtn = document.getElementById('submit-btn');
+                
+                function checkPasswordMatch() {
+                    const password = passwordInput.value;
+                    const confirm = confirmInput.value;
+                    
+                    if (confirm.length === 0) {
+                        indicator.style.display = 'none';
+                        submitBtn.disabled = false;
+                        return;
+                    }
+                    
+                    indicator.style.display = 'block';
+                    
+                    if (password === confirm) {
+                        indicator.textContent = '✓ Las contraseñas coinciden';
+                        indicator.style.color = '#10b981';
+                        submitBtn.disabled = false;
+                    } else {
+                        indicator.textContent = '✗ Las contraseñas no coinciden';
+                        indicator.style.color = '#ef4444';
+                        submitBtn.disabled = true;
+                    }
+                }
+                
+                passwordInput.addEventListener('input', checkPasswordMatch);
+                confirmInput.addEventListener('input', checkPasswordMatch);
+                </script>
             </div>
             
             <div class="alert alert-info" style="max-width: 500px; margin: 0 auto;">
