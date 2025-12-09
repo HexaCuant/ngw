@@ -53,7 +53,7 @@ if ($activeProjectId) {
     <?php if ($activeProject): ?>
         <!-- Active project details -->
         <div class="alert alert-info">
-            <strong>Proyecto activo:</strong> <?= e($activeProject['proname']) ?> (ID: <?= e($activeProject['id']) ?>)
+            <strong>Proyecto activo:</strong> <?= e($activeProject['name']) ?> (ID: <?= e($activeProject['id']) ?>)
             <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;">
                 <input type="hidden" name="project_action" value="close">
                 <button type="submit" class="btn-secondary btn-small" style="margin-left: 1rem;">Cerrar Proyecto</button>
@@ -73,9 +73,9 @@ if ($activeProjectId) {
                 <tbody>
                     <?php foreach ($projectCharacters as $char): ?>
                         <tr>
-                            <td><?= e($char['caracter_id']) ?></td>
+                            <td><?= e($char['character_id']) ?></td>
                             <td><?= e($char['name']) ?></td>
-                            <td><?= e($char['ambiente']) ?></td>
+                            <td><?= e($char['environment']) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -104,7 +104,7 @@ if ($activeProjectId) {
                 <?php foreach ($projects as $project): ?>
                     <tr>
                         <td><?= e($project['id']) ?></td>
-                        <td><?= e($project['proname']) ?></td>
+                        <td><?= e($project['name']) ?></td>
                         <td>
                             <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;">
                                 <input type="hidden" name="project_action" value="open">

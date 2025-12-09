@@ -21,8 +21,8 @@ class Project
      */
     public function getUserProjects(int $userId): array
     {
-        $sql = "SELECT * FROM proyectos WHERE userid = :userid ORDER BY id";
-        return $this->db->fetchAll($sql, ['userid' => $userId]);
+        $sql = "SELECT * FROM projects WHERE user_id = :user_id ORDER BY id";
+        return $this->db->fetchAll($sql, ['user_id' => $userId]);
     }
 
     /**
@@ -30,19 +30,19 @@ class Project
      */
     public function getById(int $id): ?array
     {
-        $sql = "SELECT * FROM proyectos WHERE id = :id";
+        $sql = "SELECT * FROM projects WHERE id = :id";
         return $this->db->fetchOne($sql, ['id' => $id]);
     }
 
     /**
      * Create new project
      */
-    public function create(string $name, int $userId): int
+    public function create(string $name, int $userId, string $description = ''): int
     {
-        $sql = "INSERT INTO proyectos (proname, userid) VALUES (:proname, :userid)";
-        $this->db->execute($sql, ['proname' => $name, 'userid' => $userId]);
+        $sql = "INSERT INTO projects (name, description, user_id) VALUES (:name, :description, :user_id)";
+        $this->db->execute($sql, ['name' => $name, 'description' => $description, 'user_id' => $userId]);
         
-        $projectId = (int) $this->db->lastInsertId('proyecto_id');
+        $projectId = (int) $this->db->lastInsertId();
         
         // Create project directory
         $this->createProjectDirectory($projectId);
@@ -55,7 +55,7 @@ class Project
      */
     public function delete(int $id): bool
     {
-        $sql = "DELETE FROM proyectos WHERE id = :id";
+        $sql = "DELETE FROM projects WHERE id = :id";
         return $this->db->execute($sql, ['id' => $id]) > 0;
     }
 
@@ -64,9 +64,9 @@ class Project
      */
     public function isOwner(int $projectId, int $userId): bool
     {
-        $sql = "SELECT userid FROM proyectos WHERE id = :id";
+        $sql = "SELECT user_id FROM projects WHERE id = :id";
         $result = $this->db->fetchOne($sql, ['id' => $projectId]);
-        return $result && (int) $result['userid'] === $userId;
+        return $result && (int) $result['user_id'] === $userId;
     }
 
     /**
@@ -97,25 +97,25 @@ class Project
      */
     public function getCharacters(int $projectId): array
     {
-        $sql = "SELECT cp.caracter_id, cp.ambiente, c.name 
-                FROM caracteres_proy cp 
-                JOIN caracteres c ON cp.caracter_id = c.id 
-                WHERE cp.proyecto_id = :proyecto_id 
-                ORDER BY cp.caracter_id";
-        return $this->db->fetchAll($sql, ['proyecto_id' => $projectId]);
+        $sql = "SELECT pc.character_id, pc.environment, c.name 
+                FROM project_characters pc 
+                JOIN characters c ON pc.character_id = c.id 
+                WHERE pc.project_id = :project_id 
+                ORDER BY pc.character_id";
+        return $this->db->fetchAll($sql, ['project_id' => $projectId]);
     }
 
     /**
      * Add character to project
      */
-    public function addCharacter(int $projectId, int $characterId, int $ambiente = 0): bool
+    public function addCharacter(int $projectId, int $characterId, int $environment = 0): bool
     {
-        $sql = "INSERT INTO caracteres_proy (caracter_id, proyecto_id, ambiente) 
-                VALUES (:caracter_id, :proyecto_id, :ambiente)";
+        $sql = "INSERT INTO project_characters (character_id, project_id, environment) 
+                VALUES (:character_id, :project_id, :environment)";
         return $this->db->execute($sql, [
-            'caracter_id' => $characterId,
-            'proyecto_id' => $projectId,
-            'ambiente' => $ambiente
+            'character_id' => $characterId,
+            'project_id' => $projectId,
+            'environment' => $environment
         ]) > 0;
     }
 
@@ -124,26 +124,26 @@ class Project
      */
     public function removeCharacter(int $projectId, int $characterId): bool
     {
-        $sql = "DELETE FROM caracteres_proy 
-                WHERE caracter_id = :caracter_id AND proyecto_id = :proyecto_id";
+        $sql = "DELETE FROM project_characters 
+                WHERE character_id = :character_id AND project_id = :project_id";
         return $this->db->execute($sql, [
-            'caracter_id' => $characterId,
-            'proyecto_id' => $projectId
+            'character_id' => $characterId,
+            'project_id' => $projectId
         ]) > 0;
     }
 
     /**
-     * Update character ambiente in project
+     * Update character environment in project
      */
-    public function updateCharacterAmbiente(int $projectId, int $characterId, int $ambiente): bool
+    public function updateCharacterEnvironment(int $projectId, int $characterId, int $environment): bool
     {
-        $sql = "UPDATE caracteres_proy 
-                SET ambiente = :ambiente 
-                WHERE caracter_id = :caracter_id AND proyecto_id = :proyecto_id";
+        $sql = "UPDATE project_characters 
+                SET environment = :environment 
+                WHERE character_id = :character_id AND project_id = :project_id";
         return $this->db->execute($sql, [
-            'ambiente' => $ambiente,
-            'caracter_id' => $characterId,
-            'proyecto_id' => $projectId
+            'environment' => $environment,
+            'character_id' => $characterId,
+            'project_id' => $projectId
         ]) > 0;
     }
 }

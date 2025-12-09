@@ -27,17 +27,22 @@ class Auth
             return null;
         }
 
-        $sql = "SELECT id, username, pass, cod_auth FROM users WHERE username = :username";
+        $sql = "SELECT id, username, password, email, is_admin, is_approved FROM users WHERE username = :username";
         $user = $this->db->fetchOne($sql, ['username' => $username]);
 
         if (!$user) {
             return null;
         }
 
+        // Check if user is approved
+        if (!$user['is_approved']) {
+            throw new \RuntimeException("Tu cuenta está pendiente de aprobación");
+        }
+
         // Verify password using password_verify for hashed passwords
-        if (password_verify($password, $user['pass'])) {
+        if (password_verify($password, $user['password'])) {
             // Remove password from returned data
-            unset($user['pass']);
+            unset($user['password']);
             return $user;
         }
 
@@ -45,11 +50,11 @@ class Auth
     }
 
     /**
-     * Create new user with hashed password
+     * Create new user with hashed password (admin only)
      * 
      * @return int|null User ID if created, null on failure
      */
-    public function createUser(string $username, string $password): ?int
+    public function createUser(string $username, string $password, string $email = '', bool $isAdmin = false): ?int
     {
         if (empty(trim($username)) || empty(trim($password))) {
             throw new \InvalidArgumentException("Username and password cannot be empty");
@@ -66,15 +71,18 @@ class Auth
         // Hash password
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        // Insert new user
-        $sql = "INSERT INTO users (cod_auth, username, pass) VALUES (:cod_auth, :username, :pass)";
+        // Insert new user (approved by default if created by admin)
+        $sql = "INSERT INTO users (username, password, email, is_admin, is_approved, approved_at) 
+                VALUES (:username, :password, :email, :is_admin, 1, datetime('now'))";
+        
         $this->db->execute($sql, [
-            'cod_auth' => 1,
             'username' => $username,
-            'pass' => $hashedPassword
+            'password' => $hashedPassword,
+            'email' => $email,
+            'is_admin' => $isAdmin ? 1 : 0
         ]);
 
-        return (int) $this->db->lastInsertId('users_id_seq');
+        return (int) $this->db->lastInsertId();
     }
 
     /**
@@ -82,7 +90,7 @@ class Auth
      */
     public function getUserById(int $id): ?array
     {
-        $sql = "SELECT id, username, cod_auth FROM users WHERE id = :id";
+        $sql = "SELECT id, username, email, is_admin, is_approved FROM users WHERE id = :id";
         return $this->db->fetchOne($sql, ['id' => $id]);
     }
 
@@ -102,7 +110,17 @@ class Auth
     public function updatePassword(int $userId, string $newPassword): bool
     {
         $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-        $sql = "UPDATE users SET pass = :pass WHERE id = :id";
-        return $this->db->execute($sql, ['pass' => $hashedPassword, 'id' => $userId]) > 0;
+        $sql = "UPDATE users SET password = :password, updated_at = datetime('now') WHERE id = :id";
+        return $this->db->execute($sql, ['password' => $hashedPassword, 'id' => $userId]) > 0;
+    }
+
+    /**
+     * Check if user is admin
+     */
+    public function isAdmin(int $userId): bool
+    {
+        $sql = "SELECT is_admin FROM users WHERE id = :id";
+        $result = $this->db->fetchOne($sql, ['id' => $userId]);
+        return $result && (int) $result['is_admin'] === 1;
     }
 }

@@ -1,16 +1,27 @@
 ; Configuration file for GenWeb NG
-; Copy this to .env and customize
+; Copy this to config.ini and customize
 
 [database]
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=genweb
-DB_USER=genweb
-DB_PASSWORD=genweb
+; SQLite (default and recommended)
+DB_DRIVER=sqlite
+DB_PATH=../data/ngw.db
+
+; PostgreSQL (legacy, for migration only)
+;DB_DRIVER=pgsql
+;DB_HOST=localhost
+;DB_PORT=5432
+;DB_NAME=genweb
+;DB_USER=genweb
+;DB_PASSWORD=genweb
 
 [app]
 APP_ENV=development
 APP_DEBUG=true
+APP_NAME=GenWeb NG
 
 [paths]
 PROJECTS_PATH=/var/www/proyectosGengine
+
+[admin]
+; Default admin username (created during init)
+ADMIN_USERNAME=admin

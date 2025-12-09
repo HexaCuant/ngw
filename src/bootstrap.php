@@ -23,13 +23,24 @@ $config = parse_ini_file($configFile, true);
 
 // Initialize database
 $dbConfig = $config['database'] ?? [];
-$db = new \Ngw\Database\Database([
-    'host' => $dbConfig['DB_HOST'] ?? 'localhost',
-    'port' => $dbConfig['DB_PORT'] ?? 5432,
-    'name' => $dbConfig['DB_NAME'] ?? 'genweb',
-    'user' => $dbConfig['DB_USER'] ?? 'genweb',
-    'password' => $dbConfig['DB_PASSWORD'] ?? 'genweb',
-]);
+$driver = $dbConfig['DB_DRIVER'] ?? 'sqlite';
+
+if ($driver === 'sqlite') {
+    $db = new \Ngw\Database\Database([
+        'driver' => 'sqlite',
+        'path' => $dbConfig['DB_PATH'] ?? __DIR__ . '/../data/ngw.db',
+    ]);
+} else {
+    // PostgreSQL fallback
+    $db = new \Ngw\Database\Database([
+        'driver' => 'pgsql',
+        'host' => $dbConfig['DB_HOST'] ?? 'localhost',
+        'port' => $dbConfig['DB_PORT'] ?? 5432,
+        'name' => $dbConfig['DB_NAME'] ?? 'genweb',
+        'user' => $dbConfig['DB_USER'] ?? 'genweb',
+        'password' => $dbConfig['DB_PASSWORD'] ?? 'genweb',
+    ]);
+}
 
 // Initialize session manager
 $session = new \Ngw\Auth\SessionManager();

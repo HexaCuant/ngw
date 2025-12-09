@@ -78,15 +78,15 @@ if ($activeCharacterId) {
             </tr>
             <tr>
                 <td>Visible</td>
-                <td><?= $activeCharacter['visible'] === 't' ? 'Sí' : 'No' ?></td>
+                <td><?= $activeCharacter['is_visible'] == 1 ? 'Sí' : 'No' ?></td>
             </tr>
             <tr>
                 <td>Público</td>
-                <td><?= $activeCharacter['public'] === 't' ? 'Sí' : 'No' ?></td>
+                <td><?= $activeCharacter['is_public'] == 1 ? 'Sí' : 'No' ?></td>
             </tr>
             <tr>
                 <td>Sustratos</td>
-                <td><?= e($activeCharacter['sustratos'] ?? 0) ?></td>
+                <td><?= e($activeCharacter['substrates'] ?? 0) ?></td>
             </tr>
         </table>
         
@@ -105,11 +105,11 @@ if ($activeCharacterId) {
                 <tbody>
                     <?php foreach ($genes as $gene): ?>
                         <tr>
-                            <td><?= e($gene['idglobal']) ?></td>
+                            <td><?= e($gene['id']) ?></td>
                             <td><?= e($gene['name']) ?></td>
-                            <td><?= e($gene['chr']) ?></td>
-                            <td><?= e($gene['pos']) ?></td>
-                            <td><?= e($gene['cod']) ?></td>
+                            <td><?= e($gene['chromosome']) ?></td>
+                            <td><?= e($gene['position']) ?></td>
+                            <td><?= e($gene['code']) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -140,7 +140,7 @@ if ($activeCharacterId) {
                     <tr>
                         <td><?= e($char['id']) ?></td>
                         <td><?= e($char['name']) ?></td>
-                        <td><?= $char['public'] === 't' ? 'Sí' : 'No' ?></td>
+                        <td><?= $char['is_public'] == 1 ? 'Sí' : 'No' ?></td>
                         <td>
                             <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;">
                                 <input type="hidden" name="char_action" value="open">
@@ -148,7 +148,7 @@ if ($activeCharacterId) {
                                 <button type="submit" class="btn-primary btn-small">Abrir</button>
                             </form>
                             
-                            <?php if ((int)$char['creatorid'] === $userId): ?>
+                            <?php if ((int)$char['creator_id'] === $userId): ?>
                                 <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" 
                                       onsubmit="return confirm('¿Confirmar eliminación?');">
                                     <input type="hidden" name="char_action" value="delete">

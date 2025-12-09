@@ -123,7 +123,7 @@ class SessionManager
         $this->set('authenticated', true);
         $this->set('user_id', $userData['id']);
         $this->set('username', $userData['username']);
-        $this->set('cod_auth', $userData['cod_auth'] ?? 1);
+        $this->set('is_admin', $userData['is_admin'] ?? 0);
     }
 
     /**
@@ -140,6 +140,14 @@ class SessionManager
     public function getUsername(): ?string
     {
         return $this->isAuthenticated() ? $this->get('username') : null;
+    }
+
+    /**
+     * Check if current user is admin
+     */
+    public function isAdmin(): bool
+    {
+        return $this->isAuthenticated() && (int) $this->get('is_admin') === 1;
     }
 
     /**

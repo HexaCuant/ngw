@@ -35,23 +35,45 @@ class Database
     private function connect(): void
     {
         try {
-            $dsn = sprintf(
-                "pgsql:host=%s;port=%s;dbname=%s",
-                $this->config['host'] ?? 'localhost',
-                $this->config['port'] ?? 5432,
-                $this->config['name'] ?? 'genweb'
-            );
-
-            self::$connection = new PDO(
-                $dsn,
-                $this->config['user'] ?? 'genweb',
-                $this->config['password'] ?? '',
-                [
+            $driver = $this->config['driver'] ?? 'sqlite';
+            
+            if ($driver === 'sqlite') {
+                $dbPath = $this->config['path'] ?? __DIR__ . '/../../data/ngw.db';
+                $dsn = "sqlite:" . $dbPath;
+                
+                // Ensure data directory exists
+                $dataDir = dirname($dbPath);
+                if (!is_dir($dataDir)) {
+                    mkdir($dataDir, 0755, true);
+                }
+                
+                self::$connection = new PDO($dsn, null, null, [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                ]
-            );
+                ]);
+                
+                // Enable foreign keys for SQLite
+                self::$connection->exec('PRAGMA foreign_keys = ON');
+            } else {
+                // PostgreSQL fallback (for compatibility)
+                $dsn = sprintf(
+                    "pgsql:host=%s;port=%s;dbname=%s",
+                    $this->config['host'] ?? 'localhost',
+                    $this->config['port'] ?? 5432,
+                    $this->config['name'] ?? 'genweb'
+                );
+
+                self::$connection = new PDO(
+                    $dsn,
+                    $this->config['user'] ?? 'genweb',
+                    $this->config['password'] ?? '',
+                    [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        PDO::ATTR_EMULATE_PREPARES => false,
+                    ]
+                );
+            }
         } catch (PDOException $e) {
             error_log("Database connection error: " . $e->getMessage());
             throw new \RuntimeException("Could not connect to database");
@@ -100,9 +122,10 @@ class Database
     /**
      * Get last insert ID
      */
-    public function lastInsertId(string $name = null): string
+    public function lastInsertId(?string $name = null): string
     {
-        return $this->getConnection()->lastInsertId($name);
+        // SQLite doesn't use sequences, ignore $name parameter
+        return $this->getConnection()->lastInsertId();
     }
 
     /**
