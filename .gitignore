@@ -1,0 +1,36 @@
+# PHP artifacts
+/vendor/
+composer.phar
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/logs/
+
+# Testing
+/phpunit.xml
+/.phpunit.cache/
+/coverage/
+
+# Build artifacts
+/build/
+/dist/
+
+# Temporary files
+/tmp/
+*.tmp
