@@ -262,6 +262,7 @@ if ($session->isAuthenticated()) {
                 </form>
                 
                 <script>
+                const registrationForm = document.getElementById('registration-form');
                 const passwordInput = document.getElementById('new_password');
                 const confirmInput = document.getElementById('password_confirm');
                 const indicator = document.getElementById('password-match-indicator');
@@ -274,21 +275,43 @@ if ($session->isAuthenticated()) {
                     if (confirm.length === 0) {
                         indicator.style.display = 'none';
                         submitBtn.disabled = false;
-                        return;
+                        return false;
                     }
                     
                     indicator.style.display = 'block';
                     
-                    if (password === confirm) {
+                    if (password === confirm && password.length >= 6) {
                         indicator.textContent = '✓ Las contraseñas coinciden';
                         indicator.style.color = '#10b981';
                         submitBtn.disabled = false;
+                        return true;
                     } else {
                         indicator.textContent = '✗ Las contraseñas no coinciden';
                         indicator.style.color = '#ef4444';
                         submitBtn.disabled = true;
+                        return false;
                     }
                 }
+                
+                // Prevent form submission if passwords don't match
+                registrationForm.addEventListener('submit', function(e) {
+                    const password = passwordInput.value;
+                    const confirm = confirmInput.value;
+                    
+                    if (password !== confirm) {
+                        e.preventDefault();
+                        alert('Las contraseñas no coinciden. Por favor, verifica e intenta de nuevo.');
+                        return false;
+                    }
+                    
+                    if (password.length < 6) {
+                        e.preventDefault();
+                        alert('La contraseña debe tener al menos 6 caracteres.');
+                        return false;
+                    }
+                    
+                    return true;
+                });
                 
                 passwordInput.addEventListener('input', checkPasswordMatch);
                 confirmInput.addEventListener('input', checkPasswordMatch);
