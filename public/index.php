@@ -39,10 +39,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = trim($_POST['username'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $reason = trim($_POST['reason'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $passwordConfirm = $_POST['password_confirm'] ?? '';
         
         try {
+            if (empty($password)) {
+                throw new \RuntimeException("La contraseña es obligatoria");
+            }
+            if ($password !== $passwordConfirm) {
+                throw new \RuntimeException("Las contraseñas no coinciden");
+            }
+            if (strlen($password) < 6) {
+                throw new \RuntimeException("La contraseña debe tener al menos 6 caracteres");
+            }
+            
             $requestModel = new \Ngw\Models\RegistrationRequest($db);
-            $requestModel->create($username, $email, $reason);
+            $requestModel->create($username, $email, $reason, $password);
             $success = "Solicitud enviada correctamente. Recibirás notificación cuando sea aprobada.";
         } catch (\Exception $e) {
             $error = $e->getMessage();
@@ -225,6 +237,17 @@ if ($session->isAuthenticated()) {
                     <div class="form-group">
                         <label for="email">Email (opcional)</label>
                         <input type="email" id="email" name="email">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="new_password">Contraseña</label>
+                        <input type="password" id="new_password" name="password" required minlength="6">
+                        <small style="color: var(--text-muted); font-size: 0.875rem;">Mínimo 6 caracteres</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password_confirm">Confirmar contraseña</label>
+                        <input type="password" id="password_confirm" name="password_confirm" required minlength="6">
                     </div>
                     
                     <div class="form-group">

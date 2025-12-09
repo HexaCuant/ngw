@@ -19,7 +19,7 @@ class RegistrationRequest
     /**
      * Create new registration request
      */
-    public function create(string $username, string $email = '', string $reason = ''): int
+    public function create(string $username, string $email = '', string $reason = '', string $password = ''): int
     {
         // Check if username already exists or has pending request
         $existing = $this->db->fetchOne(
@@ -40,12 +40,16 @@ class RegistrationRequest
             throw new \RuntimeException("Ya existe una solicitud pendiente para este nombre de usuario");
         }
 
-        $sql = "INSERT INTO registration_requests (username, email, reason, status) 
-                VALUES (:username, :email, :reason, 'pending')";
+        // Hash the password
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+        $sql = "INSERT INTO registration_requests (username, email, password, reason, status) 
+                VALUES (:username, :email, :password, :reason, 'pending')";
         
         $this->db->execute($sql, [
             'username' => $username,
             'email' => $email,
+            'password' => $hashedPassword,
             'reason' => $reason
         ]);
 
@@ -87,7 +91,7 @@ class RegistrationRequest
     /**
      * Approve registration request and create user
      */
-    public function approve(int $requestId, int $approvedBy, string $password): ?int
+    public function approve(int $requestId, int $approvedBy): ?int
     {
         $request = $this->getById($requestId);
         
@@ -98,14 +102,13 @@ class RegistrationRequest
         $this->db->beginTransaction();
         
         try {
-            // Create user
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            // Create user with password from request
             $sql = "INSERT INTO users (username, password, email, is_admin, is_approved, approved_at) 
                     VALUES (:username, :password, :email, 0, 1, datetime('now'))";
             
             $this->db->execute($sql, [
                 'username' => $request['username'],
-                'password' => $hashedPassword,
+                'password' => $request['password'], // Already hashed
                 'email' => $request['email']
             ]);
             

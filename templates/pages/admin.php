@@ -17,21 +17,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if ($adminAction === 'approve' && !empty($_POST['request_id'])) {
         $requestId = (int) $_POST['request_id'];
-        $password = $_POST['temp_password'] ?? '';
         
-        if (empty($password)) {
-            $error = "Debes proporcionar una contraseña temporal";
-        } else {
-            try {
-                $requestModel->approve($requestId, $session->getUserId(), $password);
-                $success = "Usuario aprobado correctamente. Contraseña temporal: " . htmlspecialchars($password);
-            } catch (\Exception $e) {
-                $error = "Error al aprobar: " . $e->getMessage();
-            }
-        }
-        // Refresh to update list
-        if (!isset($error)) {
+        try {
+            $requestModel->approve($requestId, $session->getUserId());
+            $success = "Usuario aprobado correctamente. El usuario puede iniciar sesión con la contraseña que eligió.";
             redirect('index.php?option=4');
+        } catch (\Exception $e) {
+            $error = "Error al aprobar: " . $e->getMessage();
         }
     } elseif ($adminAction === 'reject' && !empty($_POST['request_id'])) {
         $requestId = (int) $_POST['request_id'];
@@ -97,10 +89,9 @@ $allUsers = $auth->getAllUsers();
                         <td><?= e($request['requested_at']) ?></td>
                         <td>
                             <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
-                                  onsubmit="return promptPassword(this, <?= $request['id'] ?>);">
+                                  onsubmit="return confirm('¿Aprobar esta solicitud? El usuario podrá iniciar sesión con su contraseña.');">
                                 <input type="hidden" name="admin_action" value="approve">
                                 <input type="hidden" name="request_id" value="<?= $request['id'] ?>">
-                                <input type="hidden" name="temp_password" id="pass_<?= $request['id'] ?>">
                                 <button type="submit" class="btn-success btn-small">Aprobar</button>
                             </form>
                             
@@ -227,14 +218,3 @@ $allUsers = $auth->getAllUsers();
     </p>
 </div>
 
-<script>
-function promptPassword(form, requestId) {
-    const password = prompt('Ingresa una contraseña temporal para el nuevo usuario:');
-    if (!password || password.length < 6) {
-        alert('La contraseña debe tener al menos 6 caracteres');
-        return false;
-    }
-    document.getElementById('pass_' + requestId).value = password;
-    return true;
-}
-</script>

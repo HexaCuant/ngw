@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS registration_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL,
     email TEXT,
+    password TEXT NOT NULL,
     reason TEXT,
     status TEXT DEFAULT 'pending', -- pending, approved, rejected
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
