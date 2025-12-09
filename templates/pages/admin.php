@@ -43,12 +43,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (\Exception $e) {
             $error = "Error al rechazar: " . $e->getMessage();
         }
+    } elseif ($adminAction === 'delete_user' && !empty($_POST['user_id']) && isset($_POST['confirm'])) {
+        $userId = (int) $_POST['user_id'];
+        
+        try {
+            $auth->deleteUser($userId, $session->getUserId());
+            $success = "Usuario eliminado correctamente";
+            redirect('index.php?option=4');
+        } catch (\Exception $e) {
+            $error = "Error al eliminar usuario: " . $e->getMessage();
+        }
     }
 }
 
 $pendingRequests = $requestModel->getPending();
 $approvedRequests = $requestModel->getAll('approved');
 $rejectedRequests = $requestModel->getAll('rejected');
+$allUsers = $auth->getAllUsers();
 ?>
 
 <div class="card">
@@ -161,6 +172,59 @@ $rejectedRequests = $requestModel->getAll('rejected');
             </tbody>
         </table>
     <?php endif; ?>
+</div>
+
+<div class="card">
+    <h2>Gestión de Usuarios</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Usuario</th>
+                <th>Email</th>
+                <th>Admin</th>
+                <th>Estado</th>
+                <th>Fecha creación</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($allUsers as $user): ?>
+                <tr>
+                    <td><?= e($user['id']) ?></td>
+                    <td><strong><?= e($user['username']) ?></strong></td>
+                    <td><?= e($user['email'] ?: '-') ?></td>
+                    <td><?= (int)$user['is_admin'] === 1 ? '✓ Admin' : '-' ?></td>
+                    <td>
+                        <?php if ((int)$user['is_approved'] === 1): ?>
+                            <span style="color: var(--success-color);">✓ Aprobado</span>
+                        <?php else: ?>
+                            <span style="color: var(--warning-color);">⏳ Pendiente</span>
+                        <?php endif; ?>
+                    </td>
+                    <td><?= e($user['created_at']) ?></td>
+                    <td>
+                        <?php if ((int)$user['is_admin'] === 0 && (int)$user['id'] !== $session->getUserId()): ?>
+                            <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
+                                  onsubmit="return confirm('¿Estás seguro de eliminar al usuario <?= e($user['username']) ?>? Esta acción no se puede deshacer.');">
+                                <input type="hidden" name="admin_action" value="delete_user">
+                                <input type="hidden" name="user_id" value="<?= e($user['id']) ?>">
+                                <input type="hidden" name="confirm" value="1">
+                                <button type="submit" class="btn-danger btn-small">Eliminar</button>
+                            </form>
+                        <?php else: ?>
+                            <span style="color: var(--text-muted);">-</span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+    
+    <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+        <strong>Nota:</strong> No puedes eliminar administradores ni tu propia cuenta.
+    </p>
 </div>
 
 <script>

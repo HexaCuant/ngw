@@ -123,4 +123,40 @@ class Auth
         $result = $this->db->fetchOne($sql, ['id' => $userId]);
         return $result && (int) $result['is_admin'] === 1;
     }
+
+    /**
+     * Get all users (admin only)
+     */
+    public function getAllUsers(): array
+    {
+        $sql = "SELECT id, username, email, is_admin, is_approved, created_at, approved_at 
+                FROM users 
+                ORDER BY created_at DESC";
+        return $this->db->fetchAll($sql);
+    }
+
+    /**
+     * Delete user (admin only, cannot delete self or other admins)
+     */
+    public function deleteUser(int $userId, int $adminId): bool
+    {
+        // Cannot delete yourself
+        if ($userId === $adminId) {
+            throw new \RuntimeException("No puedes eliminarte a ti mismo");
+        }
+
+        // Check if target user is admin
+        $targetUser = $this->getUserById($userId);
+        if (!$targetUser) {
+            throw new \RuntimeException("Usuario no encontrado");
+        }
+
+        if ((int)$targetUser['is_admin'] === 1) {
+            throw new \RuntimeException("No se pueden eliminar otros administradores");
+        }
+
+        // Delete user
+        $sql = "DELETE FROM users WHERE id = :id";
+        return $this->db->execute($sql, ['id' => $userId]) > 0;
+    }
 }
