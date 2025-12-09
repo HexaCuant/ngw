@@ -1,0 +1,16 @@
+; Configuration file for GenWeb NG
+; Copy this to .env and customize
+
+[database]
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=genweb
+DB_USER=genweb
+DB_PASSWORD=genweb
+
+[app]
+APP_ENV=development
+APP_DEBUG=true
+
+[paths]
+PROJECTS_PATH=/var/www/proyectosGengine

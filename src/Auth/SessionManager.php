@@ -1,0 +1,152 @@
+<?php
+
+namespace Ngw\Auth;
+
+/**
+ * Session management with security features
+ */
+class SessionManager
+{
+    private bool $started = false;
+
+    /**
+     * Start session with security settings
+     */
+    public function start(): void
+    {
+        if ($this->started || session_status() === PHP_SESSION_ACTIVE) {
+            return;
+        }
+
+        ini_set('session.cookie_httponly', '1');
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.cookie_secure', '0'); // Set to 1 if using HTTPS
+        ini_set('session.cookie_samesite', 'Lax');
+
+        session_start();
+        $this->started = true;
+    }
+
+    /**
+     * Set session value
+     */
+    public function set(string $key, $value): void
+    {
+        $this->start();
+        $_SESSION[$key] = $value;
+    }
+
+    /**
+     * Get session value
+     */
+    public function get(string $key, $default = null)
+    {
+        $this->start();
+        return $_SESSION[$key] ?? $default;
+    }
+
+    /**
+     * Check if session key exists
+     */
+    public function has(string $key): bool
+    {
+        $this->start();
+        return isset($_SESSION[$key]);
+    }
+
+    /**
+     * Remove session value
+     */
+    public function remove(string $key): void
+    {
+        $this->start();
+        unset($_SESSION[$key]);
+    }
+
+    /**
+     * Clear all session data
+     */
+    public function clear(): void
+    {
+        $this->start();
+        $_SESSION = [];
+    }
+
+    /**
+     * Destroy session completely
+     */
+    public function destroy(): void
+    {
+        $this->start();
+        $_SESSION = [];
+        
+        if (ini_get("session.use_cookies")) {
+            $params = session_get_cookie_params();
+            setcookie(
+                session_name(),
+                '',
+                time() - 42000,
+                $params["path"],
+                $params["domain"],
+                $params["secure"],
+                $params["httponly"]
+            );
+        }
+        
+        session_destroy();
+        $this->started = false;
+    }
+
+    /**
+     * Regenerate session ID (call on login/privilege change)
+     */
+    public function regenerate(): void
+    {
+        $this->start();
+        session_regenerate_id(true);
+    }
+
+    /**
+     * Check if user is authenticated
+     */
+    public function isAuthenticated(): bool
+    {
+        return $this->has('user_id') && $this->get('authenticated') === true;
+    }
+
+    /**
+     * Set authenticated user
+     */
+    public function setUser(array $userData): void
+    {
+        $this->regenerate();
+        $this->set('authenticated', true);
+        $this->set('user_id', $userData['id']);
+        $this->set('username', $userData['username']);
+        $this->set('cod_auth', $userData['cod_auth'] ?? 1);
+    }
+
+    /**
+     * Get current user ID
+     */
+    public function getUserId(): ?int
+    {
+        return $this->isAuthenticated() ? $this->get('user_id') : null;
+    }
+
+    /**
+     * Get current username
+     */
+    public function getUsername(): ?string
+    {
+        return $this->isAuthenticated() ? $this->get('username') : null;
+    }
+
+    /**
+     * Logout user
+     */
+    public function logout(): void
+    {
+        $this->destroy();
+    }
+}

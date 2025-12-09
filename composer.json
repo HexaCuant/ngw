@@ -1,0 +1,25 @@
+{
+    "name": "hexacuant/ngw",
+    "description": "GenWeb Next Generation - Refactored and improved version",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Ngw\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Ngw\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": ">=8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "scripts": {
+        "test": "phpunit"
+    }
+}
