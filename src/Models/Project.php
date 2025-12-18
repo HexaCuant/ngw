@@ -41,12 +41,12 @@ class Project
     {
         $sql = "INSERT INTO projects (name, description, user_id) VALUES (:name, :description, :user_id)";
         $this->db->execute($sql, ['name' => $name, 'description' => $description, 'user_id' => $userId]);
-        
+
         $projectId = (int) $this->db->lastInsertId();
-        
+
         // Create project directory
         $this->createProjectDirectory($projectId);
-        
+
         return $projectId;
     }
 
@@ -77,16 +77,16 @@ class Project
         // Load config for projects path
         $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
         $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
-        
+
         // Sanitize and validate path
         $projectPath = rtrim($basePath, '/') . '/' . $projectId;
-        
+
         // Ensure we're not creating outside base path
         $realBase = realpath($basePath);
         if ($realBase === false || strpos($projectPath, $realBase) !== 0) {
             throw new \RuntimeException("Invalid project path");
         }
-        
+
         if (!is_dir($projectPath)) {
             mkdir($projectPath, 0755, true);
         }

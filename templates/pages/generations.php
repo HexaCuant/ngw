@@ -16,7 +16,7 @@ if ($activeProjectId) {
 <div class="card">
     <h2>Gestión de Generaciones</h2>
     
-    <?php if ($activeProject): ?>
+    <?php if ($activeProject) : ?>
         <div class="alert alert-success">
             <strong>Proyecto activo:</strong> <?= e($activeProject['proname']) ?> (ID: <?= e($activeProject['id']) ?>)
         </div>
@@ -49,7 +49,7 @@ if ($activeProjectId) {
             </form>
         </div>
         
-    <?php else: ?>
+    <?php else : ?>
         <div class="alert alert-warning">
             <strong>Atención:</strong> No hay ningún proyecto activo.
             <br>

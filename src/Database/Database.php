@@ -36,22 +36,22 @@ class Database
     {
         try {
             $driver = $this->config['driver'] ?? 'sqlite';
-            
+
             if ($driver === 'sqlite') {
                 $dbPath = $this->config['path'] ?? __DIR__ . '/../../data/ngw.db';
                 $dsn = "sqlite:" . $dbPath;
-                
+
                 // Ensure data directory exists
                 $dataDir = dirname($dbPath);
                 if (!is_dir($dataDir)) {
                     mkdir($dataDir, 0755, true);
                 }
-                
+
                 self::$connection = new PDO($dsn, null, null, [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 ]);
-                
+
                 // Enable foreign keys for SQLite
                 self::$connection->exec('PRAGMA foreign_keys = ON');
             } else {

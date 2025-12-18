@@ -14,10 +14,10 @@ if (!$session->isAdmin()) {
 // Handle admin actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $adminAction = $_POST['admin_action'] ?? '';
-    
+
     if ($adminAction === 'approve' && !empty($_POST['request_id'])) {
         $requestId = (int) $_POST['request_id'];
-        
+
         try {
             $requestModel->approve($requestId, $session->getUserId());
             $success = "Usuario aprobado correctamente. El usuario puede iniciar sesión con la contraseña que eligió.";
@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($adminAction === 'reject' && !empty($_POST['request_id'])) {
         $requestId = (int) $_POST['request_id'];
-        
+
         try {
             $requestModel->reject($requestId, $session->getUserId());
             $success = "Solicitud rechazada";
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($adminAction === 'delete_user' && !empty($_POST['user_id']) && isset($_POST['confirm'])) {
         $userId = (int) $_POST['user_id'];
-        
+
         try {
             $auth->deleteUser($userId, $session->getUserId());
             $success = "Usuario eliminado correctamente";
@@ -57,19 +57,19 @@ $allUsers = $auth->getAllUsers();
 <div class="card">
     <h2>Panel de Administración</h2>
     
-    <?php if (isset($error)): ?>
+    <?php if (isset($error)) : ?>
         <div class="alert alert-error"><?= e($error) ?></div>
     <?php endif; ?>
     
-    <?php if (isset($success)): ?>
+    <?php if (isset($success)) : ?>
         <div class="alert alert-success"><?= e($success) ?></div>
     <?php endif; ?>
     
     <h3>Solicitudes Pendientes (<?= count($pendingRequests) ?>)</h3>
     
-    <?php if (empty($pendingRequests)): ?>
+    <?php if (empty($pendingRequests)) : ?>
         <p class="text-center">No hay solicitudes pendientes.</p>
-    <?php else: ?>
+    <?php else : ?>
         <table>
             <thead>
                 <tr>
@@ -82,12 +82,12 @@ $allUsers = $auth->getAllUsers();
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($pendingRequests as $request): ?>
+                <?php foreach ($pendingRequests as $request) : ?>
                     <tr>
                         <td><strong><?= e($request['username']) ?></strong></td>
                         <td><?= e($request['email'] ?: '-') ?></td>
                         <td>
-                            <?php 
+                            <?php
                                 $role = $request['role'] ?? 'student';
                                 $roleLabel = $role === 'teacher' ? 'Profesor' : 'Alumno';
                                 $roleColor = $role === 'teacher' ? 'color: #3b82f6;' : '';
@@ -120,9 +120,9 @@ $allUsers = $auth->getAllUsers();
 
 <div class="card">
     <h3>Solicitudes Aprobadas Recientes (<?= count($approvedRequests) ?>)</h3>
-    <?php if (empty($approvedRequests)): ?>
+    <?php if (empty($approvedRequests)) : ?>
         <p class="text-center">No hay solicitudes aprobadas aún.</p>
-    <?php else: ?>
+    <?php else : ?>
         <table>
             <thead>
                 <tr>
@@ -134,12 +134,12 @@ $allUsers = $auth->getAllUsers();
                 </tr>
             </thead>
             <tbody>
-                <?php foreach (array_slice($approvedRequests, 0, 10) as $request): ?>
+                <?php foreach (array_slice($approvedRequests, 0, 10) as $request) : ?>
                     <tr>
                         <td><?= e($request['username']) ?></td>
                         <td><?= e($request['email'] ?: '-') ?></td>
                         <td>
-                            <?php 
+                            <?php
                                 $role = $request['role'] ?? 'student';
                                 $roleLabel = $role === 'teacher' ? 'Profesor' : 'Alumno';
                                 $roleColor = $role === 'teacher' ? 'color: #3b82f6;' : '';
@@ -157,9 +157,9 @@ $allUsers = $auth->getAllUsers();
 
 <div class="card">
     <h3>Solicitudes Rechazadas Recientes (<?= count($rejectedRequests) ?>)</h3>
-    <?php if (empty($rejectedRequests)): ?>
+    <?php if (empty($rejectedRequests)) : ?>
         <p class="text-center">No hay solicitudes rechazadas.</p>
-    <?php else: ?>
+    <?php else : ?>
         <table>
             <thead>
                 <tr>
@@ -170,7 +170,7 @@ $allUsers = $auth->getAllUsers();
                 </tr>
             </thead>
             <tbody>
-                <?php foreach (array_slice($rejectedRequests, 0, 10) as $request): ?>
+                <?php foreach (array_slice($rejectedRequests, 0, 10) as $request) : ?>
                     <tr>
                         <td><?= e($request['username']) ?></td>
                         <td><?= e($request['email'] ?: '-') ?></td>
@@ -200,13 +200,13 @@ $allUsers = $auth->getAllUsers();
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($allUsers as $user): ?>
+            <?php foreach ($allUsers as $user) : ?>
                 <tr>
                     <td><?= e($user['id']) ?></td>
                     <td><strong><?= e($user['username']) ?></strong></td>
                     <td><?= e($user['email'] ?: '-') ?></td>
                     <td>
-                        <?php 
+                        <?php
                             $role = $user['role'] ?? 'student';
                             $roleLabel = $role === 'teacher' ? 'Profesor' : ($role === 'admin' ? 'Admin' : 'Alumno');
                             $roleColor = $role === 'teacher' ? 'color: #3b82f6;' : ($role === 'admin' ? 'color: #ef4444;' : '');
@@ -215,15 +215,15 @@ $allUsers = $auth->getAllUsers();
                     </td>
                     <td><?= (int)$user['is_admin'] === 1 ? '✓ Admin' : '-' ?></td>
                     <td>
-                        <?php if ((int)$user['is_approved'] === 1): ?>
+                        <?php if ((int)$user['is_approved'] === 1) : ?>
                             <span style="color: var(--success-color);">✓ Aprobado</span>
-                        <?php else: ?>
+                        <?php else : ?>
                             <span style="color: var(--warning-color);">⏳ Pendiente</span>
                         <?php endif; ?>
                     </td>
                     <td><?= e($user['created_at']) ?></td>
                     <td>
-                        <?php if ((int)$user['is_admin'] === 0 && (int)$user['id'] !== $session->getUserId()): ?>
+                        <?php if ((int)$user['is_admin'] === 0 && (int)$user['id'] !== $session->getUserId()) : ?>
                             <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
                                   class="delete-user-form" data-username="<?= e($user['username']) ?>">
                                 <input type="hidden" name="admin_action" value="delete_user">
@@ -231,7 +231,7 @@ $allUsers = $auth->getAllUsers();
                                 <input type="hidden" name="confirm" value="1">
                                 <button type="submit" class="btn-danger btn-small">Eliminar</button>
                             </form>
-                        <?php else: ?>
+                        <?php else : ?>
                             <span style="color: var(--text-muted);">-</span>
                         <?php endif; ?>
                     </td>

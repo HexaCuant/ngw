@@ -79,7 +79,7 @@ class SessionManager
     {
         $this->start();
         $_SESSION = [];
-        
+
         if (ini_get("session.use_cookies")) {
             $params = session_get_cookie_params();
             setcookie(
@@ -92,7 +92,7 @@ class SessionManager
                 $params["httponly"]
             );
         }
-        
+
         session_destroy();
         $this->started = false;
     }

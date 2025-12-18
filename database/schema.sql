@@ -94,6 +94,8 @@ CREATE TABLE IF NOT EXISTS alleles (
     name TEXT NOT NULL,
     value REAL,
     dominance REAL,
+    additive INTEGER DEFAULT 0,
+    epistasis TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

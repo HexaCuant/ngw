@@ -1,0 +1,32 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v4
+        with:
+          php-version: '8.1'
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --no-progress --no-suggest --prefer-dist
+
+      - name: Run phpstan
+        run: ./vendor/bin/phpstan analyse src --level=5 || true
+
+      - name: Run phpcs (PSR-12)
+        run: ./vendor/bin/phpcs --standard=PSR12 src templates || true
+
+      - name: Fix style (optional)
+        if: always()
+        run: ./vendor/bin/phpcbf --standard=PSR12 src templates || true

@@ -18,7 +18,7 @@ class Auth
 
     /**
      * Authenticate user with username and password
-     * 
+     *
      * @return array|null User data if authenticated, null otherwise
      */
     public function authenticate(string $username, string $password): ?array
@@ -51,7 +51,7 @@ class Auth
 
     /**
      * Create new user with hashed password (admin only)
-     * 
+     *
      * @return int|null User ID if created, null on failure
      */
     public function createUser(string $username, string $password, string $email = '', bool $isAdmin = false): ?int
@@ -74,7 +74,7 @@ class Auth
         // Insert new user (approved by default if created by admin)
         $sql = "INSERT INTO users (username, password, email, is_admin, is_approved, approved_at) 
                 VALUES (:username, :password, :email, :is_admin, 1, datetime('now'))";
-        
+
         $this->db->execute($sql, [
             'username' => $username,
             'password' => $hashedPassword,

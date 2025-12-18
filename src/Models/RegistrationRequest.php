@@ -31,16 +31,16 @@ class RegistrationRequest
             "SELECT id FROM users WHERE username = :username",
             ['username' => $username]
         );
-        
+
         if ($existing) {
             throw new \RuntimeException("El nombre de usuario ya existe");
         }
-        
+
         $pendingRequest = $this->db->fetchOne(
             "SELECT id FROM registration_requests WHERE username = :username AND status = 'pending'",
             ['username' => $username]
         );
-        
+
         if ($pendingRequest) {
             throw new \RuntimeException("Ya existe una solicitud pendiente para este nombre de usuario");
         }
@@ -50,7 +50,7 @@ class RegistrationRequest
 
         $sql = "INSERT INTO registration_requests (username, email, password, role, reason, status) 
                 VALUES (:username, :email, :password, :role, :reason, 'pending')";
-        
+
         $this->db->execute($sql, [
             'username' => $username,
             'email' => $email,
@@ -80,7 +80,7 @@ class RegistrationRequest
             $sql = "SELECT * FROM registration_requests WHERE status = :status ORDER BY requested_at DESC";
             return $this->db->fetchAll($sql, ['status' => $status]);
         }
-        
+
         $sql = "SELECT * FROM registration_requests ORDER BY requested_at DESC";
         return $this->db->fetchAll($sql);
     }
@@ -100,36 +100,36 @@ class RegistrationRequest
     public function approve(int $requestId, int $approvedBy): ?int
     {
         $request = $this->getById($requestId);
-        
+
         if (!$request || $request['status'] !== 'pending') {
             throw new \RuntimeException("Solicitud no encontrada o ya procesada");
         }
 
         $this->db->beginTransaction();
-        
+
         try {
             // Create user with password from request and role
             $sql = "INSERT INTO users (username, password, email, role, is_admin, is_approved, approved_at) 
                     VALUES (:username, :password, :email, :role, 0, 1, datetime('now'))";
-            
+
             $this->db->execute($sql, [
                 'username' => $request['username'],
                 'password' => $request['password'], // Already hashed
                 'email' => $request['email'],
                 'role' => $request['role'] ?? 'student'
             ]);
-            
+
             $userId = (int) $this->db->lastInsertId();
-            
+
             // Update request status
             $sql = "UPDATE registration_requests 
                     SET status = 'approved', processed_at = datetime('now'), processed_by = :processed_by 
                     WHERE id = :id";
-            
+
             $this->db->execute($sql, ['id' => $requestId, 'processed_by' => $approvedBy]);
-            
+
             $this->db->commit();
-            
+
             return $userId;
         } catch (\Exception $e) {
             $this->db->rollback();
@@ -145,7 +145,7 @@ class RegistrationRequest
         $sql = "UPDATE registration_requests 
                 SET status = 'rejected', processed_at = datetime('now'), processed_by = :processed_by 
                 WHERE id = :id AND status = 'pending'";
-        
+
         return $this->db->execute($sql, ['id' => $requestId, 'processed_by' => $rejectedBy]) > 0;
     }
 

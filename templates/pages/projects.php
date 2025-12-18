@@ -14,7 +14,7 @@ $projectCharacters = [];
 // Handle project actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $projectAction = $_POST['project_action'] ?? '';
-    
+
     if ($projectAction === 'create' && !empty($_POST['project_name'])) {
         $name = trim($_POST['project_name']);
         try {
@@ -50,7 +50,7 @@ if ($activeProjectId) {
 <div class="card">
     <h2>Gestión de Proyectos</h2>
     
-    <?php if ($activeProject): ?>
+    <?php if ($activeProject) : ?>
         <!-- Active project details -->
         <div class="alert alert-info">
             <strong>Proyecto activo:</strong> <?= e($activeProject['name']) ?> (ID: <?= e($activeProject['id']) ?>)
@@ -61,7 +61,7 @@ if ($activeProjectId) {
         </div>
         
         <h3>Caracteres del Proyecto</h3>
-        <?php if (!empty($projectCharacters)): ?>
+        <?php if (!empty($projectCharacters)) : ?>
             <table>
                 <thead>
                     <tr>
@@ -71,7 +71,7 @@ if ($activeProjectId) {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($projectCharacters as $char): ?>
+                    <?php foreach ($projectCharacters as $char) : ?>
                         <tr>
                             <td><?= e($char['character_id']) ?></td>
                             <td><?= e($char['name']) ?></td>
@@ -80,7 +80,7 @@ if ($activeProjectId) {
                     <?php endforeach; ?>
                 </tbody>
             </table>
-        <?php else: ?>
+        <?php else : ?>
             <p class="text-center">No hay caracteres asignados a este proyecto.</p>
             <p class="text-center">Ve a la sección <a href="index.php?option=1">Caracteres</a> para añadir caracteres al proyecto.</p>
         <?php endif; ?>
@@ -96,12 +96,12 @@ if ($activeProjectId) {
             </tr>
         </thead>
         <tbody>
-            <?php if (empty($projects)): ?>
+            <?php if (empty($projects)) : ?>
                 <tr>
                     <td colspan="3" class="text-center">No tienes proyectos creados</td>
                 </tr>
-            <?php else: ?>
-                <?php foreach ($projects as $project): ?>
+            <?php else : ?>
+                <?php foreach ($projects as $project) : ?>
                     <tr>
                         <td><?= e($project['id']) ?></td>
                         <td><?= e($project['name']) ?></td>

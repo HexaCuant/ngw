@@ -50,7 +50,7 @@ class Character
             'is_public' => $public ? 1 : 0,
             'is_visible' => $visible ? 1 : 0
         ]);
-        
+
         return (int) $this->db->lastInsertId();
     }
 
@@ -61,7 +61,7 @@ class Character
     {
         $sets = [];
         $params = ['id' => $id];
-        
+
         if (isset($data['visible'])) {
             $sets[] = "is_visible = :is_visible";
             $params['is_visible'] = $data['visible'] ? 1 : 0;
@@ -78,11 +78,11 @@ class Character
             $sets[] = "substrates = :substrates";
             $params['substrates'] = (int) $data['substrates'];
         }
-        
+
         if (empty($sets)) {
             return false;
         }
-        
+
         $sets[] = "updated_at = datetime('now')";
         $sql = "UPDATE characters SET " . implode(', ', $sets) . " WHERE id = :id";
         return $this->db->execute($sql, $params) > 0;
@@ -121,6 +121,62 @@ class Character
     }
 
     /**
+     * Get gene by id
+     */
+    public function getGeneById(int $geneId): ?array
+    {
+        $sql = "SELECT id, name, chromosome, position, code FROM genes WHERE id = :id";
+        return $this->db->fetchOne($sql, ['id' => $geneId]);
+    }
+
+    /**
+     * Get alleles for a gene
+     */
+    public function getAlleles(int $geneId): array
+    {
+        $sql = "SELECT a.id, a.name, a.value, a.dominance, a.additive, a.epistasis 
+                FROM gene_alleles ga 
+                JOIN alleles a ON ga.allele_id = a.id 
+                WHERE ga.gene_id = :gene_id 
+                ORDER BY a.id";
+        return $this->db->fetchAll($sql, ['gene_id' => $geneId]);
+    }
+
+    /**
+     * Add allele and link to gene
+     */
+    public function addAllele(int $geneId, string $name, ?float $value = null, ?float $dominance = null, bool $additive = false, ?string $epistasis = null): int
+    {
+        $sql = "INSERT INTO alleles (name, value, dominance, additive, epistasis) VALUES (:name, :value, :dominance, :additive, :epistasis)";
+        $this->db->execute($sql, [
+            'name' => $name,
+            'value' => $value,
+            'dominance' => $dominance,
+            'additive' => $additive ? 1 : 0,
+            'epistasis' => $epistasis
+        ]);
+
+        $alleleId = (int) $this->db->lastInsertId();
+
+        $sql = "INSERT INTO gene_alleles (gene_id, allele_id) VALUES (:gene_id, :allele_id)";
+        $this->db->execute($sql, ['gene_id' => $geneId, 'allele_id' => $alleleId]);
+
+        return $alleleId;
+    }
+
+    /**
+     * Remove allele from gene (and allele record)
+     */
+    public function removeAllele(int $geneId, int $alleleId): bool
+    {
+        $sql = "DELETE FROM gene_alleles WHERE gene_id = :gene_id AND allele_id = :allele_id";
+        $this->db->execute($sql, ['gene_id' => $geneId, 'allele_id' => $alleleId]);
+
+        $sql = "DELETE FROM alleles WHERE id = :id";
+        return $this->db->execute($sql, ['id' => $alleleId]) > 0;
+    }
+
+    /**
      * Add gene to character
      */
     public function addGene(int $characterId, string $name, string $chr, string $pos, string $code = ''): int
@@ -133,13 +189,13 @@ class Character
             'position' => $pos,
             'code' => $code
         ]);
-        
+
         $geneId = (int) $this->db->lastInsertId();
-        
+
         // Link to character
         $sql = "INSERT INTO character_genes (gene_id, character_id) VALUES (:gene_id, :character_id)";
         $this->db->execute($sql, ['gene_id' => $geneId, 'character_id' => $characterId]);
-        
+
         return $geneId;
     }
 
@@ -151,7 +207,7 @@ class Character
         // Delete from character_genes
         $sql = "DELETE FROM character_genes WHERE gene_id = :gene_id AND character_id = :character_id";
         $this->db->execute($sql, ['gene_id' => $geneId, 'character_id' => $characterId]);
-        
+
         // Delete gene itself
         $sql = "DELETE FROM genes WHERE id = :id";
         return $this->db->execute($sql, ['id' => $geneId]) > 0;
@@ -181,7 +237,7 @@ class Character
             'state_b' => $stateB,
             'character_id' => $characterId
         ]);
-        
+
         return (int) $this->db->lastInsertId();
     }
 
