@@ -41,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reason = trim($_POST['reason'] ?? '');
         $password = $_POST['password'] ?? '';
         $passwordConfirm = $_POST['password_confirm'] ?? '';
+        $role = $_POST['role'] ?? 'student'; // student or teacher
         
         try {
             if (empty($password)) {
@@ -54,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $requestModel = new \Ngw\Models\RegistrationRequest($db);
-            $requestModel->create($username, $email, $reason, $password);
+            $requestModel->create($username, $email, $reason, $password, $role);
             $success = "Solicitud enviada correctamente. Recibirás notificación cuando sea aprobada.";
         } catch (\Exception $e) {
             $error = $e->getMessage();
@@ -111,6 +112,11 @@ if ($session->isAuthenticated()) {
                     <?php if ($session->isAdmin()): ?>
                         <span style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin-left: 0.5rem; font-size: 0.875rem;">ADMIN</span>
                     <?php endif; ?>
+                    <label for="compactToggle" class="switch flex items-center gap-1" style="margin-left: 0.75rem;">
+                        <input type="checkbox" id="compactToggle" aria-label="Modo compacto">
+                        <span>Modo compacto</span>
+                        <span id="compactStatus" class="switch-status off">OFF</span>
+                    </label>
                 </div>
                 <form method="post" style="margin: 0; padding: 0; background: none; box-shadow: none;">
                     <input type="hidden" name="action" value="logout">
@@ -149,6 +155,11 @@ if ($session->isAuthenticated()) {
                             </a>
                         </li>
                     <?php endif; ?>
+                    <li class="nav-item">
+                        <a href="index.php?option=0" class="nav-link <?= $option === 0 ? 'active' : '' ?>">
+                            Resumen
+                        </a>
+                    </li>
                 </ul>
             </nav>
             
@@ -200,6 +211,13 @@ if ($session->isAuthenticated()) {
             
         <?php else: ?>
             <!-- Login/Register form -->
+            <div class="text-right mb-1" id="ui-density-toggle">
+                <label class="switch flex items-center gap-1" style="justify-content: flex-end;">
+                    <input type="checkbox" id="compactToggle" aria-label="Modo compacto">
+                    <span>Modo compacto</span>
+                    <span id="compactStatus" class="switch-status off">OFF</span>
+                </label>
+            </div>
             <div class="card" style="max-width: 500px; margin: 2rem auto;">
                 <h2>Identificación</h2>
                 <p>Ingresa con tu usuario o solicita una nueva cuenta.</p>
@@ -254,6 +272,14 @@ if ($session->isAuthenticated()) {
                     <div class="form-group">
                         <label for="reason">Motivo de la solicitud (opcional)</label>
                         <textarea id="reason" name="reason" rows="3" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 0.25rem;"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="role">Tipo de usuario</label>
+                        <select id="role" name="role" required>
+                            <option value="student">Alumno</option>
+                            <option value="teacher">Profesor</option>
+                        </select>
                     </div>
                     
                     <button type="submit" name="action" value="request_account" class="btn-success" id="submit-btn">
@@ -323,5 +349,47 @@ if ($session->isAuthenticated()) {
             </div>
         <?php endif; ?>
     </div>
+    <script>
+    (function() {
+        const toggle = document.getElementById('compactToggle');
+        const status = document.getElementById('compactStatus');
+        const root = document.documentElement; // aplica la clase al <html>
+        const saved = localStorage.getItem('ngw-compact-ui') === '1';
+
+        // Aplica preferencia guardada
+        if (saved) {
+            root.classList.add('compact-ui');
+            if (toggle) toggle.checked = true;
+        }
+
+        function setCompact(on) {
+            if (on) {
+                root.classList.add('compact-ui');
+                localStorage.setItem('ngw-compact-ui', '1');
+            } else {
+                root.classList.remove('compact-ui');
+                localStorage.setItem('ngw-compact-ui', '0');
+            }
+        }
+
+        function updateStatus() {
+            if (!status || !toggle) return;
+            const on = toggle.checked;
+            status.textContent = on ? 'ON' : 'OFF';
+            status.classList.toggle('on', on);
+            status.classList.toggle('off', !on);
+        }
+
+        // Inicializar estado visual
+        updateStatus();
+
+        if (toggle) {
+            toggle.addEventListener('change', function() {
+                setCompact(toggle.checked);
+                updateStatus();
+            });
+        }
+    })();
+    </script>
 </body>
 </html>

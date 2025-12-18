@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     password TEXT NOT NULL,
     email TEXT,
     is_admin INTEGER DEFAULT 0,
+    role TEXT DEFAULT 'student', -- admin, teacher, student
     is_approved INTEGER DEFAULT 0,
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME,
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS registration_requests (
     username TEXT NOT NULL,
     email TEXT,
     password TEXT NOT NULL,
+    role TEXT DEFAULT 'student', -- student or teacher
     reason TEXT,
     status TEXT DEFAULT 'pending', -- pending, approved, rejected
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,

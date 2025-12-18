@@ -75,6 +75,7 @@ $allUsers = $auth->getAllUsers();
                 <tr>
                     <th>Usuario</th>
                     <th>Email</th>
+                    <th>Tipo</th>
                     <th>Motivo</th>
                     <th>Fecha solicitud</th>
                     <th>Acciones</th>
@@ -85,6 +86,14 @@ $allUsers = $auth->getAllUsers();
                     <tr>
                         <td><strong><?= e($request['username']) ?></strong></td>
                         <td><?= e($request['email'] ?: '-') ?></td>
+                        <td>
+                            <?php 
+                                $role = $request['role'] ?? 'student';
+                                $roleLabel = $role === 'teacher' ? 'Profesor' : 'Alumno';
+                                $roleColor = $role === 'teacher' ? 'color: #3b82f6;' : '';
+                            ?>
+                            <span style="<?= $roleColor ?>"><?= e($roleLabel) ?></span>
+                        </td>
                         <td><?= e($request['reason'] ?: '-') ?></td>
                         <td><?= e($request['requested_at']) ?></td>
                         <td>
@@ -119,6 +128,7 @@ $allUsers = $auth->getAllUsers();
                 <tr>
                     <th>Usuario</th>
                     <th>Email</th>
+                    <th>Tipo</th>
                     <th>Fecha solicitud</th>
                     <th>Fecha aprobación</th>
                 </tr>
@@ -128,6 +138,14 @@ $allUsers = $auth->getAllUsers();
                     <tr>
                         <td><?= e($request['username']) ?></td>
                         <td><?= e($request['email'] ?: '-') ?></td>
+                        <td>
+                            <?php 
+                                $role = $request['role'] ?? 'student';
+                                $roleLabel = $role === 'teacher' ? 'Profesor' : 'Alumno';
+                                $roleColor = $role === 'teacher' ? 'color: #3b82f6;' : '';
+                            ?>
+                            <span style="<?= $roleColor ?>"><?= e($roleLabel) ?></span>
+                        </td>
                         <td><?= e($request['requested_at']) ?></td>
                         <td><?= e($request['processed_at']) ?></td>
                     </tr>
@@ -174,6 +192,7 @@ $allUsers = $auth->getAllUsers();
                 <th>ID</th>
                 <th>Usuario</th>
                 <th>Email</th>
+                <th>Tipo</th>
                 <th>Admin</th>
                 <th>Estado</th>
                 <th>Fecha creación</th>
@@ -186,6 +205,14 @@ $allUsers = $auth->getAllUsers();
                     <td><?= e($user['id']) ?></td>
                     <td><strong><?= e($user['username']) ?></strong></td>
                     <td><?= e($user['email'] ?: '-') ?></td>
+                    <td>
+                        <?php 
+                            $role = $user['role'] ?? 'student';
+                            $roleLabel = $role === 'teacher' ? 'Profesor' : ($role === 'admin' ? 'Admin' : 'Alumno');
+                            $roleColor = $role === 'teacher' ? 'color: #3b82f6;' : ($role === 'admin' ? 'color: #ef4444;' : '');
+                        ?>
+                        <span style="<?= $roleColor ?>"><?= e($roleLabel) ?></span>
+                    </td>
                     <td><?= (int)$user['is_admin'] === 1 ? '✓ Admin' : '-' ?></td>
                     <td>
                         <?php if ((int)$user['is_approved'] === 1): ?>

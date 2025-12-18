@@ -124,6 +124,7 @@ class SessionManager
         $this->set('user_id', $userData['id']);
         $this->set('username', $userData['username']);
         $this->set('is_admin', $userData['is_admin'] ?? 0);
+        $this->set('role', $userData['role'] ?? 'student'); // student, teacher, admin
     }
 
     /**
@@ -148,6 +149,30 @@ class SessionManager
     public function isAdmin(): bool
     {
         return $this->isAuthenticated() && (int) $this->get('is_admin') === 1;
+    }
+
+    /**
+     * Get current user role
+     */
+    public function getRole(): ?string
+    {
+        return $this->isAuthenticated() ? $this->get('role') : null;
+    }
+
+    /**
+     * Check if current user is teacher
+     */
+    public function isTeacher(): bool
+    {
+        return $this->isAuthenticated() && $this->get('role') === 'teacher';
+    }
+
+    /**
+     * Check if current user is student
+     */
+    public function isStudent(): bool
+    {
+        return $this->isAuthenticated() && $this->get('role') === 'student';
     }
 
     /**

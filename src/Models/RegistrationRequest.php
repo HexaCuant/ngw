@@ -19,8 +19,13 @@ class RegistrationRequest
     /**
      * Create new registration request
      */
-    public function create(string $username, string $email = '', string $reason = '', string $password = ''): int
+    public function create(string $username, string $email = '', string $reason = '', string $password = '', string $role = 'student'): int
     {
+        // Validate role
+        if (!in_array($role, ['student', 'teacher'])) {
+            throw new \RuntimeException("Rol inválido");
+        }
+
         // Check if username already exists or has pending request
         $existing = $this->db->fetchOne(
             "SELECT id FROM users WHERE username = :username",
@@ -43,13 +48,14 @@ class RegistrationRequest
         // Hash the password
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $sql = "INSERT INTO registration_requests (username, email, password, reason, status) 
-                VALUES (:username, :email, :password, :reason, 'pending')";
+        $sql = "INSERT INTO registration_requests (username, email, password, role, reason, status) 
+                VALUES (:username, :email, :password, :role, :reason, 'pending')";
         
         $this->db->execute($sql, [
             'username' => $username,
             'email' => $email,
             'password' => $hashedPassword,
+            'role' => $role,
             'reason' => $reason
         ]);
 
@@ -102,14 +108,15 @@ class RegistrationRequest
         $this->db->beginTransaction();
         
         try {
-            // Create user with password from request
-            $sql = "INSERT INTO users (username, password, email, is_admin, is_approved, approved_at) 
-                    VALUES (:username, :password, :email, 0, 1, datetime('now'))";
+            // Create user with password from request and role
+            $sql = "INSERT INTO users (username, password, email, role, is_admin, is_approved, approved_at) 
+                    VALUES (:username, :password, :email, :role, 0, 1, datetime('now'))";
             
             $this->db->execute($sql, [
                 'username' => $request['username'],
                 'password' => $request['password'], // Already hashed
-                'email' => $request['email']
+                'email' => $request['email'],
+                'role' => $request['role'] ?? 'student'
             ]);
             
             $userId = (int) $this->db->lastInsertId();
