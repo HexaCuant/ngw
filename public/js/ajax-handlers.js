@@ -47,11 +47,20 @@ function openCharacter(characterId) {
     .then(data => {
         if (data.success) {
             showNotification('Carácter abierto', 'success');
-            // Smooth transition and reload
-            document.body.style.opacity = '0';
-            setTimeout(() => {
-                window.location.href = 'index.php?option=1';
-            }, 200);
+            
+            // Hide create form and show character details
+            const createForm = document.getElementById('create-character-form');
+            if (createForm) {
+                createForm.closest('.card').style.display = 'none';
+            }
+            
+            // Insert character details HTML
+            const columnRight = document.querySelector('.column-right');
+            if (columnRight && data.html) {
+                const detailsCard = document.createElement('div');
+                detailsCard.innerHTML = data.html;
+                columnRight.appendChild(detailsCard.firstElementChild);
+            }
         } else {
             showNotification(data.error || 'Error al abrir carácter', 'error');
         }
@@ -77,11 +86,21 @@ function closeCharacter() {
     .then(data => {
         if (data.success) {
             showNotification('Carácter cerrado', 'success');
-            // Smooth transition and reload
-            document.body.style.opacity = '0';
-            setTimeout(() => {
-                window.location.href = 'index.php?option=1';
-            }, 200);
+            
+            // Remove character details card - find by title text
+            const allCards = document.querySelectorAll('.column-right .card');
+            allCards.forEach(card => {
+                const h3 = card.querySelector('h3');
+                if (h3 && h3.textContent.includes('Detalles del Carácter:')) {
+                    card.remove();
+                }
+            });
+            
+            // Show create form again
+            const createForm = document.getElementById('create-character-form');
+            if (createForm) {
+                createForm.closest('.card').style.display = 'block';
+            }
         } else {
             showNotification(data.error || 'Error al cerrar carácter', 'error');
         }
@@ -182,11 +201,33 @@ function openGene(geneId) {
     .then(data => {
         if (data.success) {
             showNotification('Gen abierto', 'success');
-            // Smooth transition and reload
-            document.body.style.opacity = '0';
-            setTimeout(() => {
-                window.location.href = 'index.php?option=1';
-            }, 200);
+            
+            // Reset all gene buttons to 'Abrir'
+            document.querySelectorAll('[id^="gene-toggle-"]').forEach(btn => {
+                btn.textContent = 'Abrir';
+                btn.className = 'btn-primary btn-small';
+            });
+            
+            // Remove existing alleles section if any
+            const existingAlleles = document.getElementById('alleles-section');
+            if (existingAlleles) {
+                existingAlleles.remove();
+            }
+            
+            // Insert alleles HTML inside genes-view
+            const genesView = document.getElementById('genes-view');
+            if (genesView && data.html) {
+                const allelesDiv = document.createElement('div');
+                allelesDiv.innerHTML = data.html;
+                genesView.appendChild(allelesDiv.firstElementChild);
+            }
+            
+            // Change this gene's button to 'Cerrar'
+            const btn = document.getElementById('gene-toggle-' + geneId);
+            if (btn) {
+                btn.textContent = 'Cerrar';
+                btn.className = 'btn-secondary btn-small';
+            }
         } else {
             showNotification(data.error || 'Error al abrir gen', 'error');
         }
@@ -212,11 +253,18 @@ function closeGene() {
     .then(data => {
         if (data.success) {
             showNotification('Gen cerrado', 'success');
-            // Smooth transition and reload
-            document.body.style.opacity = '0';
-            setTimeout(() => {
-                window.location.href = 'index.php?option=1';
-            }, 200);
+            
+            // Remove alleles section
+            const allelesSection = document.getElementById('alleles-section');
+            if (allelesSection) {
+                allelesSection.remove();
+            }
+            
+            // Reset all gene buttons to 'Abrir'
+            document.querySelectorAll('[id^="gene-toggle-"]').forEach(btn => {
+                btn.textContent = 'Abrir';
+                btn.className = 'btn-primary btn-small';
+            });
         } else {
             showNotification(data.error || 'Error al cerrar gen', 'error');
         }
@@ -376,31 +424,6 @@ function deleteConnection(connectionId, onSuccess) {
         console.error('Error:', error);
         showNotification('Error de conexión', 'error');
     });
-}
-
-/**
- * Reload connections table
- */
-function reloadConnectionsTable(characterId, connections) {
-    const tbody = document.querySelector('#connections-table tbody');
-    if (!tbody) return;
-    
-    if (connections.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center">No hay conexiones definidas para este carácter.</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = connections.map(conn => `
-        <tr>
-            <td>S${conn.state_a}</td>
-            <td>${conn.gene_name || 'Gen #' + conn.transition}</td>
-            <td>S${conn.state_b}</td>
-            <td>
-                <button onclick="deleteConnection(${conn.id}, () => location.reload())" 
-                        class="btn-danger btn-small">Borrar</button>
-            </td>
-        </tr>
-    `).join('');
 }
 
 /**
