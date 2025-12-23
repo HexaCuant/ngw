@@ -428,7 +428,7 @@ if ($activeCharacterId) {
                         </table>
 
                         <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                            <form method="post" style="margin-top: 1rem;">
+                            <form method="post" id="add-allele-form" style="margin-top: 1rem;">
                                 <input type="hidden" name="char_action" value="add_allele">
                                 <h5>Añadir nuevo alelo</h5>
                                 <div class="form-group">
@@ -587,38 +587,78 @@ document.querySelectorAll('form').forEach(form => {
     // Removed old toggle handlers - now using direct button onclick
 });
 
-// Handle delete character confirmation
+// Handle delete character confirmation with AJAX
 document.querySelectorAll('.delete-character-form').forEach(function(form) {
     form.addEventListener('submit', function(e) {
+        e.preventDefault();
         const charName = this.getAttribute('data-charname');
         const message = '¿Estás seguro de eliminar el carácter "' + charName + '"?\n\nEsta acción no se puede deshacer y eliminará todos los genes asociados.';
         
         if (!confirm(message)) {
-            e.preventDefault();
             return false;
         }
+        
+        // Submit via POST (will reload page but avoids complex DOM updates)
+        this.submit();
     });
 });
 
-// Confirm delete gene
+// Confirm delete gene with AJAX
 document.querySelectorAll('.delete-gene-form').forEach(function(form) {
     form.addEventListener('submit', function(e) {
+        e.preventDefault();
         const genName = this.getAttribute('data-genename');
         const message = '¿Estás seguro de eliminar el gen "' + genName + '"?\n\nEsta acción no se puede deshacer.';
         if (!confirm(message)) {
-            e.preventDefault();
             return false;
         }
+        
+        // Submit via POST (will reload page but avoids complex DOM updates)
+        this.submit();
     });
 });
 
-// Confirm delete allele
+// Handle delete allele via AJAX
 document.querySelectorAll('.delete-allele-form').forEach(function(form) {
     form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
         if (!confirm('¿Eliminar alelo? Esta acción no se puede deshacer.')) {
-            e.preventDefault();
             return false;
         }
+        
+        const alleleId = this.querySelector('[name="allele_id"]').value;
+        const row = this.closest('tr');
+        
+        const formData = new FormData();
+        formData.append('char_action', 'remove_allele_ajax');
+        formData.append('allele_id', alleleId);
+        
+        fetch('index.php?option=1', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Alelo eliminado', 'success');
+                row.remove();
+                
+                // Check if table is now empty
+                const tbody = row.closest('tbody');
+                if (tbody && tbody.children.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = '<td colspan="5" class="text-center">No hay alelos definidos</td>';
+                    tbody.appendChild(emptyRow);
+                }
+            } else {
+                showNotification(data.error || 'Error al eliminar alelo', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error de conexión', 'error');
+        });
     });
 });
 
@@ -631,6 +671,111 @@ document.querySelectorAll('.delete-connection-form').forEach(function(form) {
         }
     });
 });
+
+// Handle add allele form via AJAX
+const addAlleleForm = document.getElementById('add-allele-form');
+if (addAlleleForm) {
+    addAlleleForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        formData.set('char_action', 'add_allele_ajax');
+        
+        fetch('index.php?option=1', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Alelo añadido', 'success');
+                
+                // Add row to table
+                const tbody = document.querySelector('#genes-view table tbody');
+                if (tbody) {
+                    // Remove "no alleles" row if it exists
+                    const emptyRow = tbody.querySelector('td[colspan]');
+                    if (emptyRow) {
+                        emptyRow.closest('tr').remove();
+                    }
+                    
+                    const allele = data.allele;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${allele.id}</td>
+                        <td>${allele.name}</td>
+                        <td>${allele.value !== null ? allele.value : ''}</td>
+                        <td>${allele.dominance !== null ? allele.dominance : ''}</td>
+                        <td>${allele.additive == 1 ? 'Sí' : 'No'}</td>
+                        <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
+                            <td>
+                                <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" class="delete-allele-form">
+                                    <input type="hidden" name="char_action" value="remove_allele">
+                                    <input type="hidden" name="allele_id" value="${allele.id}">
+                                    <button type="submit" class="btn-danger btn-small">Eliminar</button>
+                                </form>
+                            </td>
+                        <?php endif; ?>
+                    `;
+                    tbody.appendChild(row);
+                    
+                    // Attach event listener to new delete button
+                    const newForm = row.querySelector('.delete-allele-form');
+                    if (newForm) {
+                        newForm.addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            
+                            if (!confirm('¿Eliminar alelo? Esta acción no se puede deshacer.')) {
+                                return false;
+                            }
+                            
+                            const alleleId = this.querySelector('[name="allele_id"]').value;
+                            const row = this.closest('tr');
+                            
+                            const formData = new FormData();
+                            formData.append('char_action', 'remove_allele_ajax');
+                            formData.append('allele_id', alleleId);
+                            
+                            fetch('index.php?option=1', {
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    showNotification('Alelo eliminado', 'success');
+                                    row.remove();
+                                    
+                                    const tbody = document.querySelector('#genes-view table tbody');
+                                    if (tbody && tbody.children.length === 0) {
+                                        const emptyRow = document.createElement('tr');
+                                        emptyRow.innerHTML = '<td colspan="5" class="text-center">No hay alelos definidos</td>';
+                                        tbody.appendChild(emptyRow);
+                                    }
+                                } else {
+                                    showNotification(data.error || 'Error al eliminar alelo', 'error');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                showNotification('Error de conexión', 'error');
+                            });
+                        });
+                    }
+                }
+                
+                // Reset form
+                addAlleleForm.reset();
+            } else {
+                showNotification(data.error || 'Error al añadir alelo', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error de conexión', 'error');
+        });
+    });
+}
 
 // Auto-submit substrates form on change
 const substratesInput = document.getElementById('substrates-input');
