@@ -214,13 +214,7 @@ if ($activeCharacterId) {
                                     <button type="button" onclick="openCharacter(<?= e($char['id']) ?>)" class="btn-primary btn-small">Abrir</button>
                                     
                                     <?php if ((int)$char['creator_id'] === $userId) : ?>
-                                        <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" 
-                                              class="delete-character-form" data-charname="<?= e($char['name']) ?>">
-                                            <input type="hidden" name="char_action" value="delete">
-                                            <input type="hidden" name="char_id" value="<?= e($char['id']) ?>">
-                                            <input type="hidden" name="confirm" value="1">
-                                            <button type="submit" class="btn-danger btn-small">Borrar</button>
-                                        </form>
+                                        <button type="button" onclick="deleteCharacter(<?= e($char['id']) ?>, '<?= e(addslashes($char['name'])) ?>')" class="btn-danger btn-small">Borrar</button>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -236,7 +230,7 @@ if ($activeCharacterId) {
         <?php if (!$activeCharacter) : ?>
         <div class="card">
             <h3>Crear Nuevo Carácter</h3>
-            <form method="post">
+            <form method="post" id="create-character-form">
                 <input type="hidden" name="char_action" value="create">
                 
                 <div class="form-group">
@@ -269,13 +263,7 @@ if ($activeCharacterId) {
                 <!-- Botones principales -->
                 <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <?php if ($session->isTeacher() || $session->isAdmin()) : ?>
-                        <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;">
-                            <input type="hidden" name="char_action" value="update_props">
-                            <input type="hidden" name="char_id" value="<?= $activeCharacter['id'] ?>">
-                            <input type="hidden" name="visible" value="<?= $activeCharacter['is_visible'] == 1 ? 1 : 0 ?>">
-                            <input type="hidden" name="public" value="<?= $activeCharacter['is_public'] == 1 ? 1 : 0 ?>">
-                            <button type="submit" class="btn-success">Guardar cambios</button>
-                        </form>
+                        <button type="button" onclick="updateCharacterProps(<?= $activeCharacter['id'] ?>, <?= $activeCharacter['is_visible'] ?>, <?= $activeCharacter['is_public'] ?>)" class="btn-success">Guardar cambios</button>
                     <?php endif; ?>
                     
                     <button type="button" onclick="closeCharacter()" class="btn-secondary">Cerrar carácter</button>
@@ -320,12 +308,7 @@ if ($activeCharacterId) {
                                             <button type="button" onclick="openGene(<?= e($gene['id']) ?>)" class="btn-primary btn-small">Abrir</button>
 
                                             <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                                                <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" class="delete-gene-form" data-genename="<?= e($gene['name']) ?>">
-                                                    <input type="hidden" name="char_action" value="delete_gene">
-                                                    <input type="hidden" name="gene_id" value="<?= e($gene['id']) ?>">
-                                                    <input type="hidden" name="confirm" value="1">
-                                                    <button type="submit" class="btn-danger btn-small">Borrar</button>
-                                                </form>
+                                                <button type="button" onclick="deleteGene(<?= e($gene['id']) ?>, '<?= e(addslashes($gene['name'])) ?>')" class="btn-danger btn-small">Borrar</button>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -341,7 +324,7 @@ if ($activeCharacterId) {
                 <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                     <div id="create-gene-form" style="display: none; margin-top: 1.5rem;">
                         <h4>Crear nuevo gen</h4>
-                        <form method="post">
+                        <form method="post" id="create-gene-form">
                             <input type="hidden" name="char_action" value="create_gene">
                             <div class="form-group">
                                 <label>Nombre</label>
@@ -588,35 +571,58 @@ document.querySelectorAll('form').forEach(form => {
 });
 
 // Handle delete character confirmation with AJAX
-document.querySelectorAll('.delete-character-form').forEach(function(form) {
-    form.addEventListener('submit', function(e) {
+const createCharacterForm = document.getElementById('create-character-form');
+if (createCharacterForm) {
+    createCharacterForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        const charName = this.getAttribute('data-charname');
-        const message = '¿Estás seguro de eliminar el carácter "' + charName + '"?\n\nEsta acción no se puede deshacer y eliminará todos los genes asociados.';
         
-        if (!confirm(message)) {
-            return false;
-        }
+        const formData = new FormData(this);
+        formData.set('char_action', 'create_character_ajax');
         
-        // Submit via POST (will reload page but avoids complex DOM updates)
-        this.submit();
+        fetch('index.php?option=1', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Carácter creado', 'success');
+                
+                // Add row to characters table
+                const tbody = document.querySelector('table tbody');
+                if (tbody) {
+                    // Remove "no characters" row if exists
+                    const emptyRow = tbody.querySelector('td[colspan]');
+                    if (emptyRow) {
+                        emptyRow.closest('tr').remove();
+                    }
+                    
+                    const char = data.character;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${char.id}</td>
+                        <td>${char.name}</td>
+                        <td>${char.is_public == 1 ? 'Sí' : 'No'}</td>
+                        <td>
+                            <button type="button" onclick="openCharacter(${char.id})" class="btn-primary btn-small">Abrir</button>
+                            <button type="button" onclick="deleteCharacter(${char.id}, '${char.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                }
+                
+                // Reset form
+                createCharacterForm.reset();
+            } else {
+                showNotification(data.error || 'Error al crear carácter', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error de conexión', 'error');
+        });
     });
-});
-
-// Confirm delete gene with AJAX
-document.querySelectorAll('.delete-gene-form').forEach(function(form) {
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const genName = this.getAttribute('data-genename');
-        const message = '¿Estás seguro de eliminar el gen "' + genName + '"?\n\nEsta acción no se puede deshacer.';
-        if (!confirm(message)) {
-            return false;
-        }
-        
-        // Submit via POST (will reload page but avoids complex DOM updates)
-        this.submit();
-    });
-});
+}
 
 // Handle delete allele via AJAX
 document.querySelectorAll('.delete-allele-form').forEach(function(form) {
@@ -768,6 +774,63 @@ if (addAlleleForm) {
                 addAlleleForm.reset();
             } else {
                 showNotification(data.error || 'Error al añadir alelo', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error de conexión', 'error');
+        });
+    });
+}
+
+// Handle create gene form via AJAX
+const createGeneForm = document.getElementById('create-gene-form');
+if (createGeneForm) {
+    createGeneForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        formData.set('char_action', 'create_gene_ajax');
+        
+        fetch('index.php?option=1', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Gen creado', 'success');
+                
+                // Add row to genes table
+                const tbody = document.querySelector('#genes-view > table tbody');
+                if (tbody) {
+                    // Remove "no genes" row if exists
+                    const emptyRow = tbody.querySelector('td[colspan]');
+                    if (emptyRow) {
+                        emptyRow.closest('tr').remove();
+                    }
+                    
+                    const gene = data.gene;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${gene.id}</td>
+                        <td>${gene.name}</td>
+                        <td>${gene.chromosome}</td>
+                        <td>${gene.position}</td>
+                        <td>
+                            <button type="button" onclick="openGene(${gene.id})" class="btn-primary btn-small">Abrir</button>
+                            <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
+                                <button type="button" onclick="deleteGene(${gene.id}, '${gene.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button>
+                            <?php endif; ?>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                }
+                
+                // Reset form
+                createGeneForm.reset();
+            } else {
+                showNotification(data.error || 'Error al crear gen', 'error');
             }
         })
         .catch(error => {

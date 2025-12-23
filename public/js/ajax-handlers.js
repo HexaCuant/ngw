@@ -93,6 +93,80 @@ function closeCharacter() {
 }
 
 /**
+ * Delete character via AJAX
+ */
+function deleteCharacter(characterId, charName) {
+    if (!confirm('¿Estás seguro de eliminar el carácter "' + charName + '"?\n\nEsta acción no se puede deshacer y eliminará todos los genes asociados.')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('char_action', 'delete_character_ajax');
+    formData.append('char_id', characterId);
+    
+    fetch('index.php?option=1', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Carácter eliminado', 'success');
+            // Remove row from table
+            const rows = document.querySelectorAll('table tbody tr');
+            rows.forEach(row => {
+                const cells = row.cells;
+                if (cells && cells[0] && cells[0].textContent == characterId) {
+                    row.remove();
+                }
+            });
+            
+            // Check if table is empty
+            const tbody = document.querySelector('table tbody');
+            if (tbody && tbody.children.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = '<td colspan="4" class="text-center">No hay caracteres disponibles</td>';
+                tbody.appendChild(emptyRow);
+            }
+        } else {
+            showNotification(data.error || 'Error al eliminar carácter', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+/**
+ * Update character properties via AJAX
+ */
+function updateCharacterProps(charId, visible, isPublic) {
+    const formData = new FormData();
+    formData.append('char_action', 'update_props_ajax');
+    formData.append('char_id', charId);
+    formData.append('visible', visible);
+    formData.append('public', isPublic);
+    
+    fetch('index.php?option=1', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Propiedades actualizadas', 'success');
+        } else {
+            showNotification(data.error || 'Error al actualizar propiedades', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+/**
  * Open gene via AJAX
  */
 function openGene(geneId) {
@@ -145,6 +219,52 @@ function closeGene() {
             }, 200);
         } else {
             showNotification(data.error || 'Error al cerrar gen', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+/**
+ * Delete gene via AJAX
+ */
+function deleteGene(geneId, geneName) {
+    if (!confirm('¿Estás seguro de eliminar el gen "' + geneName + '"?\n\nEsta acción no se puede deshacer.')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('char_action', 'delete_gene_ajax');
+    formData.append('gene_id', geneId);
+    
+    fetch('index.php?option=1', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Gen eliminado', 'success');
+            // Remove row from table
+            const rows = document.querySelectorAll('#genes-view table tbody tr');
+            rows.forEach(row => {
+                const cells = row.cells;
+                if (cells && cells[0] && cells[0].textContent == geneId) {
+                    row.remove();
+                }
+            });
+            
+            // Check if table is empty
+            const tbody = document.querySelector('#genes-view table tbody');
+            if (tbody && tbody.children.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = '<td colspan="5" class="text-center">No hay genes definidos</td>';
+                tbody.appendChild(emptyRow);
+            }
+        } else {
+            showNotification(data.error || 'Error al eliminar gen', 'error');
         }
     })
     .catch(error => {

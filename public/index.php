@@ -82,7 +82,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
     $charAction = $_POST['char_action'];
     $userId = $session->getUserId();
     
-    if ($charAction === 'open_character_ajax') {
+    if ($charAction === 'create_character_ajax') {
+        header('Content-Type: application/json');
+        try {
+            if ($session->isTeacher() || $session->isAdmin()) {
+                $name = trim($_POST['char_name']);
+                $visible = isset($_POST['visible']) ? 1 : 0;
+                $public = isset($_POST['public']) ? 1 : 0;
+                
+                $charId = $characterModel->create($name, $userId, $visible, $public);
+                
+                echo json_encode([
+                    'success' => true,
+                    'character' => [
+                        'id' => $charId,
+                        'name' => $name,
+                        'is_public' => $public,
+                        'is_visible' => $visible
+                    ]
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'delete_character_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $charId = (int)($_POST['char_id'] ?? 0);
+            
+            if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
+                $characterModel->delete($charId);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'update_props_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $charId = (int)($_POST['char_id'] ?? 0);
+            
+            if ($charId > 0 && ($session->isTeacher() || $session->isAdmin())) {
+                $visible = isset($_POST['visible']) ? (int)$_POST['visible'] : 0;
+                $public = isset($_POST['public']) ? (int)$_POST['public'] : 0;
+                
+                $characterModel->update($charId, [
+                    'is_visible' => $visible,
+                    'is_public' => $public
+                ]);
+                
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'open_character_ajax') {
         header('Content-Type: application/json');
         try {
             $charId = (int) ($_POST['char_id'] ?? 0);
@@ -255,6 +321,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
         try {
             $session->remove('active_gene_id');
             echo json_encode(['success' => true]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'create_gene_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $charId = (int)($session->get('active_character_id') ?? 0);
+            if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
+                $name = trim($_POST['gene_name']);
+                $chr = isset($_POST['gene_chr']) ? trim($_POST['gene_chr']) : null;
+                $type = isset($_POST['gene_type']) ? implode('', $_POST['gene_type']) : '';
+                $pos = isset($_POST['gene_pos']) ? trim($_POST['gene_pos']) : null;
+                
+                $geneId = $characterModel->addGene($charId, $name, $chr, $type, $pos);
+                
+                // Build chromosome display
+                $chrDisplay = '';
+                if ($chr) {
+                    $chrDisplay = $chr;
+                    if ($type) {
+                        $chrDisplay .= ' (' . $type . ')';
+                    }
+                } elseif ($type) {
+                    $chrDisplay = $type;
+                }
+                
+                echo json_encode([
+                    'success' => true,
+                    'gene' => [
+                        'id' => $geneId,
+                        'name' => $name,
+                        'chromosome' => $chrDisplay,
+                        'position' => $pos ?? ''
+                    ]
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'delete_gene_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $geneId = (int)($_POST['gene_id'] ?? 0);
+            $charId = (int)($session->get('active_character_id') ?? 0);
+            
+            if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
+                $characterModel->deleteGene($geneId);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
