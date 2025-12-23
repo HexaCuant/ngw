@@ -82,7 +82,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
     $charAction = $_POST['char_action'];
     $userId = $session->getUserId();
     
-    if ($charAction === 'update_substrates_ajax') {
+    if ($charAction === 'open_character_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $charId = (int) ($_POST['char_id'] ?? 0);
+            if ($charId > 0) {
+                $session->set('active_character_id', $charId);
+                $session->set('show_connections', false);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'ID de carácter inválido']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'close_character_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $session->remove('active_character_id');
+            $session->remove('active_gene_id');
+            $session->remove('show_connections');
+            echo json_encode(['success' => true]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'update_substrates_ajax') {
         header('Content-Type: application/json');
         try {
             $charId = (int) ($_POST['char_id'] ?? 0);
@@ -202,6 +230,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             } else {
                 echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
             }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'open_gene_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $geneId = (int) ($_POST['gene_id'] ?? 0);
+            if ($geneId > 0) {
+                $session->set('active_gene_id', $geneId);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'ID de gen inválido']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'close_gene_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $session->remove('active_gene_id');
+            echo json_encode(['success' => true]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }

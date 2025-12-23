@@ -211,11 +211,7 @@ if ($activeCharacterId) {
                                 <td><?= e($char['name']) ?></td>
                                 <td><?= $char['is_public'] == 1 ? 'Sí' : 'No' ?></td>
                                 <td>
-                                    <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;">
-                                        <input type="hidden" name="char_action" value="open">
-                                        <input type="hidden" name="char_id" value="<?= e($char['id']) ?>">
-                                        <button type="submit" class="btn-primary btn-small">Abrir</button>
-                                    </form>
+                                    <button type="button" onclick="openCharacter(<?= e($char['id']) ?>)" class="btn-primary btn-small">Abrir</button>
                                     
                                     <?php if ((int)$char['creator_id'] === $userId) : ?>
                                         <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" 
@@ -282,10 +278,7 @@ if ($activeCharacterId) {
                         </form>
                     <?php endif; ?>
                     
-                    <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;">
-                        <input type="hidden" name="char_action" value="close">
-                        <button type="submit" class="btn-secondary">Cerrar carácter</button>
-                    </form>
+                    <button type="button" onclick="closeCharacter()" class="btn-secondary">Cerrar carácter</button>
                     
                     <button type="button" class="btn-primary" id="toggle-genes-btn" onclick="toggleGenesView()">
                         Ver Genes
@@ -324,11 +317,7 @@ if ($activeCharacterId) {
                                         <td><?= e($gene['chromosome']) ?></td>
                                         <td><?= e($gene['position']) ?></td>
                                         <td>
-                                            <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;">
-                                                <input type="hidden" name="char_action" value="open_gene">
-                                                <input type="hidden" name="gene_id" value="<?= e($gene['id']) ?>">
-                                                <button type="submit" class="btn-primary btn-small">Abrir</button>
-                                            </form>
+                                            <button type="button" onclick="openGene(<?= e($gene['id']) ?>)" class="btn-primary btn-small">Abrir</button>
 
                                             <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                                                 <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" class="delete-gene-form" data-genename="<?= e($gene['name']) ?>">
@@ -394,10 +383,7 @@ if ($activeCharacterId) {
                         <h4>Gen abierto: <?= e($activeGene['name']) ?></h4>
 
                         <div style="margin: .5rem 0 1rem 0;">
-                            <form method="post" style="display:inline-block; margin:0;">
-                                <input type="hidden" name="char_action" value="close_gene">
-                                <button type="submit" class="btn-secondary btn-small">Cerrar Gen</button>
-                            </form>
+                            <button type="button" onclick="closeGene()" class="btn-secondary btn-small">Cerrar Gen</button>
                         </div>
 
                         <table style="width: 100%;">

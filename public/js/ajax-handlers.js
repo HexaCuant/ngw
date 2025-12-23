@@ -32,6 +32,114 @@ function showNotification(message, type = 'success') {
 }
 
 /**
+ * Open character via AJAX
+ */
+function openCharacter(characterId) {
+    const formData = new FormData();
+    formData.append('char_action', 'open_character_ajax');
+    formData.append('char_id', characterId);
+    
+    fetch('index.php?option=1', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Carácter abierto', 'success');
+            // Reload page to show character details
+            window.location.reload();
+        } else {
+            showNotification(data.error || 'Error al abrir carácter', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+/**
+ * Close character via AJAX
+ */
+function closeCharacter() {
+    const formData = new FormData();
+    formData.append('char_action', 'close_character_ajax');
+    
+    fetch('index.php?option=1', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Carácter cerrado', 'success');
+            // Reload page to hide character details
+            window.location.reload();
+        } else {
+            showNotification(data.error || 'Error al cerrar carácter', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+/**
+ * Open gene via AJAX
+ */
+function openGene(geneId) {
+    const formData = new FormData();
+    formData.append('char_action', 'open_gene_ajax');
+    formData.append('gene_id', geneId);
+    
+    fetch('index.php?option=1', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Gen abierto', 'success');
+            window.location.reload();
+        } else {
+            showNotification(data.error || 'Error al abrir gen', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+/**
+ * Close gene via AJAX
+ */
+function closeGene() {
+    const formData = new FormData();
+    formData.append('char_action', 'close_gene_ajax');
+    
+    fetch('index.php?option=1', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Gen cerrado', 'success');
+            window.location.reload();
+        } else {
+            showNotification(data.error || 'Error al cerrar gen', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    });
+}
+
+/**
  * Update substrates via AJAX
  */
 function updateSubstrates(characterId, substrates, onSuccess) {
