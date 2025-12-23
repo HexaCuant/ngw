@@ -47,10 +47,10 @@ function openCharacter(characterId) {
     .then(data => {
         if (data.success) {
             showNotification('Carácter abierto', 'success');
-            // Smooth reload: fade out, reload, fade in
-            document.body.style.opacity = '0.5';
+            // Smooth transition and reload
+            document.body.style.opacity = '0';
             setTimeout(() => {
-                window.location.reload();
+                window.location.href = 'index.php?option=1';
             }, 200);
         } else {
             showNotification(data.error || 'Error al abrir carácter', 'error');
@@ -77,10 +77,10 @@ function closeCharacter() {
     .then(data => {
         if (data.success) {
             showNotification('Carácter cerrado', 'success');
-            // Smooth reload: fade out, reload, fade in
-            document.body.style.opacity = '0.5';
+            // Smooth transition and reload
+            document.body.style.opacity = '0';
             setTimeout(() => {
-                window.location.reload();
+                window.location.href = 'index.php?option=1';
             }, 200);
         } else {
             showNotification(data.error || 'Error al cerrar carácter', 'error');
@@ -108,10 +108,10 @@ function openGene(geneId) {
     .then(data => {
         if (data.success) {
             showNotification('Gen abierto', 'success');
-            // Smooth reload: fade out, reload, fade in
-            document.body.style.opacity = '0.5';
+            // Smooth transition and reload
+            document.body.style.opacity = '0';
             setTimeout(() => {
-                window.location.reload();
+                window.location.href = 'index.php?option=1';
             }, 200);
         } else {
             showNotification(data.error || 'Error al abrir gen', 'error');
@@ -138,10 +138,10 @@ function closeGene() {
     .then(data => {
         if (data.success) {
             showNotification('Gen cerrado', 'success');
-            // Smooth reload: fade out, reload, fade in
-            document.body.style.opacity = '0.5';
+            // Smooth transition and reload
+            document.body.style.opacity = '0';
             setTimeout(() => {
-                window.location.reload();
+                window.location.href = 'index.php?option=1';
             }, 200);
         } else {
             showNotification(data.error || 'Error al cerrar gen', 'error');
