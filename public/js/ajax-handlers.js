@@ -529,6 +529,32 @@ function deleteAllele(alleleId, onSuccess) {
     });
 }
 
+/**
+ * Add character to active project via AJAX
+ */
+function addCharacterToProject(characterId, characterName) {
+    const formData = new FormData();
+    formData.append('project_action', 'add_character_to_project');
+    formData.append('character_id', characterId);
+    
+    fetch('index.php?option=1', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`Carácter "${characterName}" añadido al proyecto`, 'success');
+        } else {
+            showNotification(data.error || 'Error al añadir carácter al proyecto', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
+    });
+}
+
 // Add CSS animations
 const style = document.createElement('style');
 style.textContent = `

@@ -594,6 +594,253 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
     }
 }
 
+// Handle AJAX requests for projects
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && $session->isAuthenticated() && $projectModel) {
+    $projectAction = $_POST['project_action'];
+    $userId = $session->getUserId();
+    
+    if ($projectAction === 'create_project_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $name = trim($_POST['project_name']);
+            $projectId = $projectModel->create($name, $userId);
+            
+            echo json_encode([
+                'success' => true,
+                'project' => [
+                    'id' => $projectId,
+                    'name' => $name
+                ]
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'delete_project_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $projectId = (int)($_POST['project_id'] ?? 0);
+            
+            if ($projectId > 0 && $projectModel->isOwner($projectId, $userId)) {
+                $projectModel->delete($projectId);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'open_project_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $projectId = (int) ($_POST['project_id'] ?? 0);
+            if ($projectId > 0) {
+                $session->set('active_project_id', $projectId);
+                
+                // Get project data
+                $activeProject = $projectModel->getById($projectId);
+                $projectCharacters = $projectModel->getCharacters($projectId);
+                
+                // Render HTML for project details
+                ob_start();
+                ?>
+                <div class="alert alert-info">
+                    <strong>Proyecto activo:</strong> <?= htmlspecialchars($activeProject['name']) ?> (ID: <?= htmlspecialchars($activeProject['id']) ?>)
+                    <button type="button" onclick="closeProject()" class="btn-secondary btn-small" style="margin-left: 1rem;">Cerrar Proyecto</button>
+                </div>
+                
+                <h3>Caracteres del Proyecto</h3>
+                <?php if (!empty($projectCharacters)) : ?>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Ambiente</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($projectCharacters as $char) : ?>
+                                <tr id="project-char-<?= htmlspecialchars($char['character_id']) ?>">
+                                    <td><?= htmlspecialchars($char['character_id']) ?></td>
+                                    <td><?= htmlspecialchars($char['name']) ?></td>
+                                    <td>
+                                        <input type="number" 
+                                               id="env-<?= htmlspecialchars($char['character_id']) ?>" 
+                                               value="<?= htmlspecialchars($char['environment']) ?>" 
+                                               step="1"
+                                               style="width: 100px;"
+                                               oninput="markEnvironmentModified(<?= htmlspecialchars($char['character_id']) ?>)">
+                                    </td>
+                                    <td>
+                                        <button type="button" 
+                                                onclick="updateEnvironment(<?= htmlspecialchars($char['character_id']) ?>)" 
+                                                class="btn-primary btn-small">Actualizar</button>
+                                        <button type="button" 
+                                                onclick="removeCharacterFromProject(<?= htmlspecialchars($char['character_id']) ?>, '<?= htmlspecialchars(addslashes($char['name'])) ?>')" 
+                                                class="btn-danger btn-small">Borrar</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else : ?>
+                    <p class="text-center">No hay caracteres asignados a este proyecto.</p>
+                    <p class="text-center">Ve a la sección <a href="index.php?option=1">Caracteres</a> para añadir caracteres al proyecto.</p>
+                <?php endif; ?>
+                <?php
+                $html = ob_get_clean();
+                
+                echo json_encode(['success' => true, 'html' => $html]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'ID de proyecto inválido']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'close_project_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $session->remove('active_project_id');
+            
+            // Generate HTML for projects list and create form
+            $projects = $projectModel->getUserProjects($userId);
+            
+            ob_start();
+            ?>
+            <h3>Mis Proyectos</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($projects)) : ?>
+                        <tr>
+                            <td colspan="3" class="text-center">No tienes proyectos creados</td>
+                        </tr>
+                    <?php else : ?>
+                        <?php foreach ($projects as $project) : ?>
+                            <tr>
+                                <td><?= e($project['id']) ?></td>
+                                <td><?= e($project['name']) ?></td>
+                                <td>
+                                    <button type="button" onclick="openProject(<?= e($project['id']) ?>)" class="btn-primary btn-small">Abrir</button>
+                                    <button type="button" onclick="deleteProject(<?= e($project['id']) ?>, '<?= e(addslashes($project['name'])) ?>')" class="btn-danger btn-small">Borrar</button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+            <?php
+            $projectsHtml = ob_get_clean();
+            
+            ob_start();
+            ?>
+            <div class="card">
+                <h3>Crear Nuevo Proyecto</h3>
+                <form id="create-project-form">
+                    <div class="form-group">
+                        <label for="project_name">Nombre del Proyecto</label>
+                        <input type="text" id="project_name" name="project_name" required 
+                               placeholder="Ej: Simulación de población 2025">
+                    </div>
+                    
+                    <button type="submit" class="btn-success">Crear Proyecto</button>
+                </form>
+            </div>
+            <?php
+            $formHtml = ob_get_clean();
+            
+            echo json_encode([
+                'success' => true,
+                'projectsHtml' => $projectsHtml,
+                'formHtml' => $formHtml
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'add_character_to_project') {
+        header('Content-Type: application/json');
+        try {
+            $characterId = (int)($_POST['character_id'] ?? 0);
+            $projectId = $session->get('active_project_id');
+            
+            if (!$projectId) {
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+            
+            if ($characterId > 0) {
+                $projectModel->addCharacter($projectId, $characterId);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'ID de carácter inválido']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'update_environment') {
+        header('Content-Type: application/json');
+        try {
+            $characterId = (int)($_POST['character_id'] ?? 0);
+            $environment = (float)($_POST['environment'] ?? 0);
+            $projectId = $session->get('active_project_id');
+            
+            if (!$projectId) {
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+            
+            if ($characterId > 0) {
+                $projectModel->updateCharacterEnvironment($projectId, $characterId, $environment);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'ID de carácter inválido']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'remove_character_from_project') {
+        header('Content-Type: application/json');
+        try {
+            $characterId = (int)($_POST['character_id'] ?? 0);
+            $projectId = $session->get('active_project_id');
+            
+            if (!$projectId) {
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+            
+            if ($characterId > 0) {
+                $projectModel->removeCharacter($projectId, $characterId);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'ID de carácter inválido']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -603,7 +850,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta http-equiv="cache-control" content="no-cache">
     <title>GenWeb NG - Sistema de Generaciones Genéticas</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=<?= time() ?>">
 </head>
 <body>
     <div class="container">
@@ -907,6 +1154,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             });
         }
     })();
+    </script>
+    <script>
+    // Smooth page transitions
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add fade-in on page load
+        document.body.style.opacity = '0';
+        setTimeout(() => {
+            document.body.style.transition = 'opacity 0.3s ease-in-out';
+            document.body.style.opacity = '1';
+        }, 10);
+        
+        // Add fade-out on navigation links
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                // Don't fade if clicking the active link
+                if (this.classList.contains('active')) {
+                    return;
+                }
+                
+                e.preventDefault();
+                const href = this.getAttribute('href');
+                
+                document.body.style.opacity = '0';
+                setTimeout(() => {
+                    window.location.href = href;
+                }, 300);
+            });
+        });
+    });
     </script>
 </body>
 </html>

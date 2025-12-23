@@ -39,6 +39,9 @@ class Project
      */
     public function create(string $name, int $userId, string $description = ''): int
     {
+        // Validate base path BEFORE creating DB record
+        $this->validateProjectsBasePath();
+
         $sql = "INSERT INTO projects (name, description, user_id) VALUES (:name, :description, :user_id)";
         $this->db->execute($sql, ['name' => $name, 'description' => $description, 'user_id' => $userId]);
 
@@ -70,20 +73,36 @@ class Project
     }
 
     /**
+     * Validate projects base path exists
+     */
+    private function validateProjectsBasePath(): void
+    {
+        $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
+        $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+
+        if (!is_dir($basePath)) {
+            throw new \RuntimeException("Base projects path does not exist: " . $basePath);
+        }
+
+        if (realpath($basePath) === false) {
+            throw new \RuntimeException("Cannot resolve base projects path");
+        }
+    }
+
+    /**
      * Create project directory safely
      */
     private function createProjectDirectory(int $projectId): void
     {
-        // Load config for projects path
         $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
         $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
-
-        // Sanitize and validate path
         $projectPath = rtrim($basePath, '/') . '/' . $projectId;
 
-        // Ensure we're not creating outside base path
         $realBase = realpath($basePath);
-        if ($realBase === false || strpos($projectPath, $realBase) !== 0) {
+        
+        // Ensure we're not creating outside base path
+        $realProject = realpath(dirname($projectPath));
+        if ($realProject === false || strpos($realProject . '/' . basename($projectPath), $realBase) !== 0) {
             throw new \RuntimeException("Invalid project path");
         }
 

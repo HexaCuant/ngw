@@ -3,12 +3,19 @@
  * Characters page template
  * @var \Ngw\Models\Character $characterModel
  * @var \Ngw\Auth\SessionManager $session
+ * @var \Ngw\Models\Project $projectModel
  */
 
 $userId = $session->getUserId();
 $characters = $characterModel->getAvailableCharacters($userId);
 $activeCharacterId = $session->get('active_character_id');
 $activeCharacter = null;
+$activeProjectId = $session->get('active_project_id');
+$activeProject = null;
+
+if ($activeProjectId && $projectModel) {
+    $activeProject = $projectModel->getById($activeProjectId);
+}
 
 if ($activeCharacterId) {
     $activeCharacter = $characterModel->getById($activeCharacterId);
@@ -23,6 +30,12 @@ if ($activeCharacterId) {
 
 <h2>Gestión de Caracteres</h2>
 
+<?php if ($activeProject) : ?>
+    <div class="alert alert-info">
+        <strong>Proyecto activo:</strong> <?= e($activeProject['name']) ?>
+    </div>
+<?php endif; ?>
+
 <div class="two-column-layout">
     <!-- Columna izquierda: Lista de caracteres -->
     <div class="column-left">
@@ -35,6 +48,9 @@ if ($activeCharacterId) {
                         <th>Nombre</th>
                         <th>Público</th>
                         <th>Acciones</th>
+                        <?php if ($activeProject) : ?>
+                            <th>Añadir a Proyecto</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
@@ -55,6 +71,11 @@ if ($activeCharacterId) {
                                         <button type="button" onclick="deleteCharacter(<?= e($char['id']) ?>, '<?= e(addslashes($char['name'])) ?>')" class="btn-danger btn-small">Borrar</button>
                                     <?php endif; ?>
                                 </td>
+                                <?php if ($activeProject) : ?>
+                                    <td>
+                                        <button type="button" onclick="addCharacterToProject(<?= e($char['id']) ?>, '<?= e(addslashes($char['name'])) ?>')" class="btn-success btn-small">Añadir</button>
+                                    </td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
