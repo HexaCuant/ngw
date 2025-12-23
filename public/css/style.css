@@ -70,6 +70,7 @@ body {
     min-height: 100vh;
     border: 1px solid var(--color-border-dark);
     font-size: var(--font-size-base);
+    transition: opacity 0.2s ease-out;
 }
 
 /* Typography */

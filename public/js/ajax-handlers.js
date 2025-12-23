@@ -47,8 +47,11 @@ function openCharacter(characterId) {
     .then(data => {
         if (data.success) {
             showNotification('Carácter abierto', 'success');
-            // Reload page to show character details
-            window.location.reload();
+            // Smooth reload: fade out, reload, fade in
+            document.body.style.opacity = '0.5';
+            setTimeout(() => {
+                window.location.reload();
+            }, 200);
         } else {
             showNotification(data.error || 'Error al abrir carácter', 'error');
         }
@@ -74,8 +77,11 @@ function closeCharacter() {
     .then(data => {
         if (data.success) {
             showNotification('Carácter cerrado', 'success');
-            // Reload page to hide character details
-            window.location.reload();
+            // Smooth reload: fade out, reload, fade in
+            document.body.style.opacity = '0.5';
+            setTimeout(() => {
+                window.location.reload();
+            }, 200);
         } else {
             showNotification(data.error || 'Error al cerrar carácter', 'error');
         }
@@ -102,7 +108,11 @@ function openGene(geneId) {
     .then(data => {
         if (data.success) {
             showNotification('Gen abierto', 'success');
-            window.location.reload();
+            // Smooth reload: fade out, reload, fade in
+            document.body.style.opacity = '0.5';
+            setTimeout(() => {
+                window.location.reload();
+            }, 200);
         } else {
             showNotification(data.error || 'Error al abrir gen', 'error');
         }
@@ -128,7 +138,11 @@ function closeGene() {
     .then(data => {
         if (data.success) {
             showNotification('Gen cerrado', 'success');
-            window.location.reload();
+            // Smooth reload: fade out, reload, fade in
+            document.body.style.opacity = '0.5';
+            setTimeout(() => {
+                window.location.reload();
+            }, 200);
         } else {
             showNotification(data.error || 'Error al cerrar gen', 'error');
         }
