@@ -77,6 +77,138 @@ if ($session->isAuthenticated()) {
     $requestModel = new \Ngw\Models\RegistrationRequest($db);
 }
 
+// Handle AJAX requests (before any HTML output)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $session->isAuthenticated() && $characterModel) {
+    $charAction = $_POST['char_action'];
+    $userId = $session->getUserId();
+    
+    if ($charAction === 'update_substrates_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $charId = (int) ($_POST['char_id'] ?? 0);
+            if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
+                $substrates = (int) $_POST['substrates'];
+                $characterModel->update($charId, ['substrates' => $substrates]);
+                $session->set('show_connections', true);
+                echo json_encode(['success' => true, 'substrates' => $substrates]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'add_connection_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $charId = (int) ($_POST['char_id'] ?? 0);
+            if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
+                $stateA = (int) $_POST['state_a'];
+                $transition = (int) $_POST['transition'];
+                $stateB = (int) $_POST['state_b'];
+                $connId = $characterModel->addConnection($charId, $stateA, $transition, $stateB);
+                
+                // Get gene name
+                $gene = $characterModel->getGeneById($transition);
+                $geneName = $gene ? $gene['name'] : 'Gen #' . $transition;
+                
+                echo json_encode([
+                    'success' => true,
+                    'connection' => [
+                        'id' => $connId,
+                        'state_a' => $stateA,
+                        'transition' => $transition,
+                        'state_b' => $stateB,
+                        'gene_name' => $geneName
+                    ]
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'remove_connection_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $connectionId = (int) $_POST['connection_id'];
+            $activeCharacterId = (int)($session->get('active_character_id') ?? 0);
+            
+            // Verify permissions: teacher, admin, or character creator
+            $canDelete = false;
+            if ($session->isTeacher() || $session->isAdmin()) {
+                $canDelete = true;
+            } elseif ($activeCharacterId > 0) {
+                $character = $characterModel->getById($activeCharacterId);
+                if ($character && (int)$character['creator_id'] === $userId) {
+                    $canDelete = true;
+                }
+            }
+            
+            if ($canDelete) {
+                $characterModel->removeConnection($connectionId);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'add_allele_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $geneId = (int) ($session->get('active_gene_id') ?? 0);
+            if ($geneId > 0 && ($session->isTeacher() || $session->isAdmin())) {
+                $name = trim($_POST['allele_name']);
+                $value = $_POST['allele_value'] !== '' ? (float) $_POST['allele_value'] : null;
+                $additive = isset($_POST['allele_additive']) && $_POST['allele_additive'] == '1';
+                $dominance = $_POST['allele_dominance'] !== '' ? (float) $_POST['allele_dominance'] : null;
+                $epistasis = isset($_POST['allele_epistasis']) ? trim($_POST['allele_epistasis']) : null;
+                
+                $alleleId = $characterModel->addAllele($geneId, $name, $value, $dominance, $additive, $epistasis);
+                
+                echo json_encode([
+                    'success' => true,
+                    'allele' => [
+                        'id' => $alleleId,
+                        'name' => $name,
+                        'value' => $value,
+                        'dominance' => $dominance,
+                        'additive' => $additive ? 1 : 0,
+                        'epistasis' => $epistasis
+                    ]
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'remove_allele_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $geneId = (int) ($session->get('active_gene_id') ?? 0);
+            $alleleId = (int) $_POST['allele_id'];
+            if ($geneId > 0 && ($session->isTeacher() || $session->isAdmin())) {
+                $characterModel->removeAllele($geneId, $alleleId);
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="es">

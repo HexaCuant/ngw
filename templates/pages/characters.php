@@ -50,9 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($charAction === 'open' && !empty($_POST['char_id'])) {
         $session->set('active_character_id', (int) $_POST['char_id']);
+        // Resetear vistas al abrir un carácter
+        $session->remove('show_connections');
         redirect('index.php?option=1');
     } elseif ($charAction === 'close') {
         $session->remove('active_character_id');
+        $session->remove('show_connections');
         redirect('index.php?option=1');
     } elseif ($charAction === 'delete' && !empty($_POST['char_id']) && isset($_POST['confirm'])) {
         $charId = (int) $_POST['char_id'];
@@ -128,6 +131,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "No tienes permiso para eliminar alelos";
         }
         redirect('index.php?option=1');
+    } elseif ($charAction === 'add_connection' && $activeCharacterId) {
+        if ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($activeCharacterId, $userId)) {
+            $stateA = (int) $_POST['state_a'];
+            $transition = (int) $_POST['transition'];
+            $stateB = (int) $_POST['state_b'];
+            try {
+                $characterModel->addConnection($activeCharacterId, $stateA, $transition, $stateB);
+                $success = "Conexión creada correctamente";
+            } catch (\Exception $e) {
+                $error = "Error al crear conexión: " . $e->getMessage();
+            }
+        } else {
+            $error = "No tienes permiso para añadir conexiones";
+        }
+        redirect('index.php?option=1');
+    } elseif ($charAction === 'remove_connection' && !empty($_POST['connection_id']) && isset($_POST['confirm'])) {
+        $connectionId = (int) $_POST['connection_id'];
+        if ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($activeCharacterId, $userId)) {
+            $characterModel->removeConnection($connectionId);
+        } else {
+            $error = "No tienes permiso para eliminar conexiones";
+        }
+        redirect('index.php?option=1');
+    } elseif ($charAction === 'update_substrates' && $activeCharacterId) {
+        if ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($activeCharacterId, $userId)) {
+            $substrates = (int) $_POST['substrates'];
+            $characterModel->update($activeCharacterId, ['substrates' => $substrates]);
+            $success = "Número de sustratos actualizado";
+            // Mantener vista de conexiones abierta
+            $session->set('show_connections', true);
+        } else {
+            $error = "No tienes permiso para modificar sustratos";
+        }
+        redirect('index.php?option=1#connections');
+    } elseif ($charAction === 'toggle_connections_view') {
+        // Toggle del estado de vista de conexiones
+        $currentState = $session->get('show_connections', false);
+        $session->set('show_connections', !$currentState);
     }
 }
 
@@ -137,6 +178,8 @@ if ($activeCharacterId) {
     $activeGeneId = $session->get('active_gene_id');
     $activeGene = $activeGeneId ? $characterModel->getGeneById((int) $activeGeneId) : null;
     $alleles = $activeGene ? $characterModel->getAlleles((int) $activeGeneId) : [];
+    $connections = $characterModel->getConnections($activeCharacterId);
+    $showConnections = $session->get('show_connections', false);
 }
 ?>
 
@@ -244,10 +287,13 @@ if ($activeCharacterId) {
                         <button type="submit" class="btn-secondary">Cerrar carácter</button>
                     </form>
                     
-                    <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;">
-                        <input type="hidden" name="char_action" value="toggle_genes_view">
-                        <button type="submit" class="btn-primary">Ver Genes</button>
-                    </form>
+                    <button type="button" class="btn-primary" id="toggle-genes-btn" onclick="toggleGenesView()">
+                        Ver Genes
+                    </button>
+                    
+                    <button type="button" class="btn-primary" id="toggle-connections-btn" onclick="toggleConnectionsView()">
+                        <?= $showConnections ? 'Ocultar Conexiones' : 'Ver Conexiones' ?>
+                    </button>
                     
                     <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                         <button type="button" class="btn-success" onclick="document.getElementById('create-gene-form').style.display = document.getElementById('create-gene-form').style.display === 'none' ? 'block' : 'none';">
@@ -425,6 +471,124 @@ if ($activeCharacterId) {
                     </div>
                 <?php endif; ?>
             </div>
+
+            <!-- Sección de Conexiones -->
+            <a name="connections"></a>
+            <div id="connections-view" style="display: <?= $showConnections ? 'block' : 'none' ?>; margin-top: 1.5rem;" class="card">
+                <h4>Conexiones del Carácter</h4>
+                
+                <!-- Mostrar conexiones existentes -->
+                <?php if (!empty($connections)) : ?>
+                    <table id="connections-table" style="width: 100%; margin-bottom: 1rem;">
+                        <thead>
+                            <tr>
+                                <th>Estado A</th>
+                                <th>Gen (Transición)</th>
+                                <th>Estado B</th>
+                                <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
+                                    <th>Acciones</th>
+                                <?php endif; ?>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($connections as $conn) : ?>
+                                <?php
+                                    // Get gene name for transition
+                                    $transGene = $characterModel->getGeneById((int)$conn['transition']);
+                                    $geneName = $transGene ? $transGene['name'] : 'Gen #' . $conn['transition'];
+                                ?>
+                                <tr>
+                                    <td>S<?= e($conn['state_a']) ?></td>
+                                    <td><?= e($geneName) ?></td>
+                                    <td>S<?= e($conn['state_b']) ?></td>
+                                    <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
+                                        <td>
+                                            <button onclick="deleteConnectionRow(this, <?= e($conn['id']) ?>)" class="btn-danger btn-small">Borrar</button>
+                                        </td>
+                                    <?php endif; ?>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else : ?>
+                    <p class="text-center">No hay conexiones definidas para este carácter.</p>
+                <?php endif; ?>
+
+                <!-- Formulario para añadir conexiones -->
+                <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
+                    <div style="border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem;">
+                        <h5>Añadir nueva conexión</h5>
+                        
+                        <!-- Update substrates form -->
+                        <form method="post" id="substrates-form" style="margin-bottom: 1rem;">
+                            <input type="hidden" name="char_action" value="update_substrates">
+                            <div class="form-group">
+                                <label>Número de sustratos: 
+                                    <input type="number" 
+                                           id="substrates-input" 
+                                           name="substrates" 
+                                           value="<?= e($activeCharacter['substrates'] ?? 0) ?>" 
+                                           min="0" 
+                                           max="20"
+                                           style="width: 80px;">
+                                </label>
+                                <small style="color: var(--color-text-secondary); margin-left: 0.5rem;">
+                                    (Se actualiza automáticamente)
+                                </small>
+                            </div>
+                        </form>
+
+                        <?php 
+                        $numSubstrates = (int)($activeCharacter['substrates'] ?? 0);
+                        if ($numSubstrates > 0 && !empty($genes)) : 
+                        ?>
+                            <form method="post" id="add-connection-form-actual">
+                                <input type="hidden" name="char_action" value="add_connection">
+                                
+                                <div class="form-group">
+                                    <label>Estado inicial (S):</label>
+                                    <div id="state-a-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                        <?php for ($i = 0; $i < $numSubstrates; $i++) : ?>
+                                            <label>
+                                                <input type="radio" name="state_a" value="<?= $i ?>" required> S<?= $i ?>
+                                            </label>
+                                        <?php endfor; ?>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Gen (Transición):</label>
+                                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                        <?php foreach ($genes as $gene) : ?>
+                                            <label>
+                                                <input type="radio" name="transition" value="<?= e($gene['id']) ?>" required> <?= e($gene['name']) ?>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Estado final (S):</label>
+                                    <div id="state-b-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                        <?php for ($i = 0; $i < $numSubstrates; $i++) : ?>
+                                            <label>
+                                                <input type="radio" name="state_b" value="<?= $i ?>" required> S<?= $i ?>
+                                            </label>
+                                        <?php endfor; ?>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn-success">Guardar Conexión</button>
+                            </form>
+                        <?php elseif ($numSubstrates === 0) : ?>
+                            <p id="no-substrates-message" class="text-center" style="color: var(--color-warning);">Primero debes establecer el número de sustratos.</p>
+                        <?php elseif (empty($genes)) : ?>
+                            <p class="text-center" style="color: var(--color-warning);">Primero debes crear genes para este carácter.</p>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
         <?php endif; ?>
     </div>
 </div>
@@ -434,13 +598,7 @@ if ($activeCharacterId) {
 const genesViewBtn = document.querySelector('button[class*="btn"]');
 document.querySelectorAll('form').forEach(form => {
     const action = form.querySelector('input[name="char_action"]');
-    if (action && action.value === 'toggle_genes_view') {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const genesView = document.getElementById('genes-view');
-            genesView.style.display = genesView.style.display === 'none' ? 'block' : 'none';
-        });
-    }
+    // Removed old toggle handlers - now using direct button onclick
 });
 
 // Handle delete character confirmation
@@ -477,4 +635,298 @@ document.querySelectorAll('.delete-allele-form').forEach(function(form) {
         }
     });
 });
+
+// Confirm delete connection
+document.querySelectorAll('.delete-connection-form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+        if (!confirm('¿Eliminar conexión? Esta acción no se puede deshacer.')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+
+// Auto-submit substrates form on change
+const substratesInput = document.getElementById('substrates-input');
+if (substratesInput) {
+    let substratesTimeout;
+    substratesInput.addEventListener('input', function() {
+        // Limpiar timeout anterior
+        clearTimeout(substratesTimeout);
+        
+        // Esperar 800ms después de que el usuario termine de escribir
+        substratesTimeout = setTimeout(function() {
+            const value = parseInt(substratesInput.value);
+            // Solo enviar si es un número válido y diferente del valor actual
+            if (!isNaN(value) && value >= 0) {
+                document.getElementById('substrates-form').submit();
+            }
+        }, 800);
+    });
+    
+    // También enviar al perder el foco (blur) si el valor ha cambiado
+    substratesInput.addEventListener('blur', function() {
+        clearTimeout(substratesTimeout);
+        const value = parseInt(substratesInput.value);
+        if (!isNaN(value) && value >= 0) {
+            document.getElementById('substrates-form').submit();
+        }
+    });
+}
+</script>
+
+<!-- AJAX Handlers -->
+<script src="js/ajax-handlers.js"></script>
+<script>
+// Auto-update substrates via AJAX (override previous handler)
+const substratesInputAjax = document.getElementById('substrates-input');
+if (substratesInputAjax) {
+    const characterId = <?= $activeCharacterId ?? 0 ?>;
+    let substratesTimeout;
+    
+    // Remove old listeners by cloning the node
+    const newInput = substratesInputAjax.cloneNode(true);
+    substratesInputAjax.parentNode.replaceChild(newInput, substratesInputAjax);
+    
+    newInput.addEventListener('input', function() {
+        clearTimeout(substratesTimeout);
+        
+        substratesTimeout = setTimeout(function() {
+            const value = parseInt(newInput.value);
+            if (!isNaN(value) && value >= 0 && characterId > 0) {
+                updateSubstrates(characterId, value, function(data) {
+                    reloadSubstrateSelectors(data.substrates);
+                });
+            }
+        }, 800);
+    });
+    
+    newInput.addEventListener('blur', function() {
+        clearTimeout(substratesTimeout);
+        const value = parseInt(newInput.value);
+        if (!isNaN(value) && value >= 0 && characterId > 0) {
+            updateSubstrates(characterId, value, function(data) {
+                reloadSubstrateSelectors(data.substrates);
+            });
+        }
+    });
+}
+
+// Handle add connection form via AJAX
+const addConnectionForm = document.getElementById('add-connection-form-actual');
+if (addConnectionForm) {
+    addConnectionForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const characterId = <?= $activeCharacterId ?? 0 ?>;
+        const stateA = document.querySelector('input[name="state_a"]:checked')?.value;
+        const transition = document.querySelector('input[name="transition"]:checked')?.value;
+        const stateB = document.querySelector('input[name="state_b"]:checked')?.value;
+        
+        if (stateA !== undefined && transition && stateB !== undefined && characterId > 0) {
+            addConnection(characterId, parseInt(stateA), parseInt(transition), parseInt(stateB), function(data) {
+                console.log('Connection added, data:', data);
+                // Add new row to connections table
+                addConnectionToTable(data.connection);
+                
+                // Reset form
+                addConnectionForm.reset();
+            });
+        }
+    });
+}
+
+// Add connection row to table dynamically
+function addConnectionToTable(connection) {
+    console.log('Adding connection to table:', connection);
+    let tbody = document.querySelector('#connections-table tbody');
+    
+    // If table doesn't exist or shows "no connections" message, create/update it
+    if (!tbody) {
+        // Create table structure if it doesn't exist
+        const tableContainer = document.querySelector('#connections-view');
+        if (tableContainer) {
+            const noConnectionsMsg = tableContainer.querySelector('p.text-center');
+            if (noConnectionsMsg) {
+                noConnectionsMsg.remove();
+            }
+            
+            const table = document.createElement('table');
+            table.id = 'connections-table';
+            table.style.width = '100%';
+            table.style.marginBottom = '1rem';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Estado A</th>
+                        <th>Gen (Transición)</th>
+                        <th>Estado B</th>
+                        <?php if ($session->isTeacher() || $session->isAdmin() || (int)($activeCharacter['creator_id'] ?? 0) === $userId) : ?>
+                            <th>Acciones</th>
+                        <?php endif; ?>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+            
+            const addConnectionSection = document.querySelector('#connections-view > div[style*="border-top"]');
+            if (addConnectionSection) {
+                tableContainer.insertBefore(table, addConnectionSection);
+            } else {
+                tableContainer.appendChild(table);
+            }
+            
+            tbody = table.querySelector('tbody');
+        }
+    } else {
+        // Remove "no connections" row if it exists
+        const noConnRow = tbody.querySelector('td[colspan]');
+        if (noConnRow) {
+            noConnRow.closest('tr').remove();
+        }
+    }
+    
+    if (tbody) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>S${connection.state_a}</td>
+            <td>${connection.gene_name || 'Gen #' + connection.transition}</td>
+            <td>S${connection.state_b}</td>
+            <?php if ($session->isTeacher() || $session->isAdmin() || (int)($activeCharacter['creator_id'] ?? 0) === $userId) : ?>
+                <td>
+                    <button onclick="deleteConnectionRow(this, ${connection.id})" 
+                            class="btn-danger btn-small">Borrar</button>
+                </td>
+            <?php endif; ?>
+        `;
+        tbody.appendChild(row);
+        console.log('Row added to tbody, total rows:', tbody.children.length);
+    } else {
+        console.error('tbody not found!');
+    }
+}
+
+// Toggle views without page reload
+function toggleGenesView() {
+    const genesView = document.getElementById('genes-view');
+    if (genesView) {
+        genesView.style.display = genesView.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function toggleConnectionsView() {
+    const connectionsView = document.getElementById('connections-view');
+    const btn = document.getElementById('toggle-connections-btn');
+    
+    if (connectionsView) {
+        const isVisible = connectionsView.style.display !== 'none';
+        connectionsView.style.display = isVisible ? 'none' : 'block';
+        
+        if (btn) {
+            btn.textContent = isVisible ? 'Ver Conexiones' : 'Ocultar Conexiones';
+        }
+    }
+}
+
+// Disable same state selection (prevent state_a == state_b)
+function setupStateValidation() {
+    const stateAInputs = document.querySelectorAll('input[name="state_a"]');
+    const stateBInputs = document.querySelectorAll('input[name="state_b"]');
+    
+    if (stateAInputs.length === 0 || stateBInputs.length === 0) return;
+    
+    // When state_a is selected, disable the same value in state_b
+    stateAInputs.forEach(function(radioA) {
+        radioA.addEventListener('change', function() {
+            if (this.checked) {
+                const selectedValue = this.value;
+                
+                // Re-enable all state_b inputs first
+                stateBInputs.forEach(function(radioB) {
+                    const label = radioB.closest('label');
+                    radioB.disabled = false;
+                    if (label) {
+                        label.style.opacity = '1';
+                        label.style.cursor = 'pointer';
+                    }
+                });
+                
+                // Disable the matching state_b
+                stateBInputs.forEach(function(radioB) {
+                    if (radioB.value === selectedValue) {
+                        radioB.disabled = true;
+                        radioB.checked = false; // Uncheck if it was selected
+                        const label = radioB.closest('label');
+                        if (label) {
+                            label.style.opacity = '0.4';
+                            label.style.cursor = 'not-allowed';
+                        }
+                    }
+                });
+            }
+        });
+    });
+    
+    // When state_b is selected, disable the same value in state_a
+    stateBInputs.forEach(function(radioB) {
+        radioB.addEventListener('change', function() {
+            if (this.checked) {
+                const selectedValue = this.value;
+                
+                // Re-enable all state_a inputs first
+                stateAInputs.forEach(function(radioA) {
+                    const label = radioA.closest('label');
+                    radioA.disabled = false;
+                    if (label) {
+                        label.style.opacity = '1';
+                        label.style.cursor = 'pointer';
+                    }
+                });
+                
+                // Disable the matching state_a
+                stateAInputs.forEach(function(radioA) {
+                    if (radioA.value === selectedValue) {
+                        radioA.disabled = true;
+                        radioA.checked = false; // Uncheck if it was selected
+                        const label = radioA.closest('label');
+                        if (label) {
+                            label.style.opacity = '0.4';
+                            label.style.cursor = 'not-allowed';
+                        }
+                    }
+                });
+            }
+        });
+    });
+}
+
+// Initialize state validation on page load
+setupStateValidation();
+
+// Delete connection and remove row from table
+function deleteConnectionRow(button, connectionId) {
+    if (!confirm('¿Estás seguro de que deseas borrar esta conexión?')) {
+        return;
+    }
+    
+    const row = button.closest('tr');
+    
+    deleteConnection(connectionId, function(data) {
+        // Remove the row from the table
+        row.remove();
+        
+        // Check if table is now empty
+        const tbody = document.querySelector('#connections-table tbody');
+        if (tbody && tbody.children.length === 0) {
+            // Replace table with "no connections" message
+            const table = document.getElementById('connections-table');
+            if (table) {
+                const noConnMsg = document.createElement('p');
+                noConnMsg.className = 'text-center';
+                noConnMsg.textContent = 'No hay conexiones definidas para este carácter.';
+                table.replaceWith(noConnMsg);
+            }
+        }
+    });
+}
 </script>
