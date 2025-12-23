@@ -839,40 +839,12 @@ if (createGeneForm) {
         });
     });
 }
-
-// Auto-submit substrates form on change
-const substratesInput = document.getElementById('substrates-input');
-if (substratesInput) {
-    let substratesTimeout;
-    substratesInput.addEventListener('input', function() {
-        // Limpiar timeout anterior
-        clearTimeout(substratesTimeout);
-        
-        // Esperar 800ms después de que el usuario termine de escribir
-        substratesTimeout = setTimeout(function() {
-            const value = parseInt(substratesInput.value);
-            // Solo enviar si es un número válido y diferente del valor actual
-            if (!isNaN(value) && value >= 0) {
-                document.getElementById('substrates-form').submit();
-            }
-        }, 800);
-    });
-    
-    // También enviar al perder el foco (blur) si el valor ha cambiado
-    substratesInput.addEventListener('blur', function() {
-        clearTimeout(substratesTimeout);
-        const value = parseInt(substratesInput.value);
-        if (!isNaN(value) && value >= 0) {
-            document.getElementById('substrates-form').submit();
-        }
-    });
-}
 </script>
 
 <!-- AJAX Handlers -->
 <script src="js/ajax-handlers.js"></script>
 <script>
-// Auto-update substrates via AJAX (override previous handler)
+// Auto-update substrates via AJAX
 const substratesInputAjax = document.getElementById('substrates-input');
 if (substratesInputAjax) {
     const characterId = <?= $activeCharacterId ?? 0 ?>;
