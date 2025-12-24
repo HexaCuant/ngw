@@ -886,6 +886,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             
             // Create generation record
             $generationModel->create($projectId, $generationNumber, $populationSize, 'random');
+            // Fetch created generation metadata
+            $generation = $generationModel->getByNumber($projectId, $generationNumber);
             
             // Parse output and get individuals (sorted in the model)
             $individuals = $generationModel->parseGenerationOutput($projectId, $generationNumber);
@@ -905,6 +907,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             echo json_encode([
                 'success' => true,
                 'generation_number' => $generationNumber,
+                'type' => $generation['type'] ?? 'random',
+                'created_at' => $generation['created_at'] ?? null,
                 'individuals' => $individualsList,
                 'population_size' => count($individuals)
             ]);

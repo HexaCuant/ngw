@@ -248,10 +248,29 @@ function createRandomGeneration() {
     })
     .then(data => {
         if (data.success) {
-            alert('Generación ' + data.generation_number + ' creada con éxito');
-            
-            // Reload page to update the generations list
-            window.location.reload();
+            // Add new generation to list (if list exists)
+            const tbody = document.querySelector('#generationsList tbody');
+            const genNum = data.generation_number;
+            const pop = data.population_size || '';
+            const type = data.type || 'random';
+
+            if (tbody) {
+                const rowHtml = `\n                    <tr id="gen-row-${genNum}">\n                        <td>${genNum}</td>\n                        <td>${escapeHtml(type)}</td>\n                        <td>${escapeHtml(pop)}</td>\n                        <td class="actions-cell">\n                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>\n                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>\n                        </td>\n                    </tr>`;
+                tbody.insertAdjacentHTML('afterbegin', rowHtml);
+            } else {
+                // Fallback: reload if we cannot update list
+                window.location.reload();
+                return;
+            }
+
+            // Open the newly created generation in the viewer using returned data
+            renderGenerationData({
+                generation_number: data.generation_number,
+                population_size: data.population_size,
+                type: data.type,
+                created_at: data.created_at,
+                individuals: data.individuals
+            });
         } else {
             alert('Error: ' + (data.error || 'Error desconocido'));
         }
@@ -279,41 +298,7 @@ function viewGeneration(generationNumber) {
     })
     .then(data => {
         if (data.success) {
-            currentGeneration = generationNumber;
-            
-            // Update viewer content
-            document.getElementById('genNumber').textContent = data.generation_number;
-            document.getElementById('genPopulation').textContent = data.population_size;
-            document.getElementById('genType').textContent = data.type;
-            document.getElementById('genDate').textContent = data.created_at;
-            
-            // Build individuals table
-            let tableHtml = '<table><thead><tr><th>ID Individuo</th>';
-            
-            // Get character names from first individual
-            const firstIndividual = data.individuals && data.individuals[0];
-            if (firstIndividual && firstIndividual.phenotypes) {
-                for (const charName in firstIndividual.phenotypes) {
-                    tableHtml += '<th>' + escapeHtml(charName) + '</th>';
-                }
-            }
-            tableHtml += '</tr></thead><tbody>';
-            
-            // Add rows for each individual (order preserved from backend)
-            for (const item of data.individuals || []) {
-                tableHtml += '<tr><td>' + escapeHtml(item.id) + '</td>';
-                for (const value of Object.values(item.phenotypes || {})) {
-                    tableHtml += '<td>' + Number(value).toFixed(4) + '</td>';
-                }
-                tableHtml += '</tr>';
-            }
-            
-            tableHtml += '</tbody></table>';
-            document.getElementById('individualsTable').innerHTML = tableHtml;
-            
-            // Show viewer, hide empty state
-            document.getElementById('emptyViewer').style.display = 'none';
-            document.getElementById('generationViewer').style.display = 'block';
+            renderGenerationData(data);
         } else {
             alert('Error: ' + (data.error || 'Error al cargar la generación'));
         }
@@ -390,5 +375,41 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Render generation data (used by view and create)
+function renderGenerationData(data) {
+    currentGeneration = data.generation_number;
+
+    // Update viewer content
+    document.getElementById('genNumber').textContent = data.generation_number;
+    document.getElementById('genPopulation').textContent = data.population_size || '';
+    document.getElementById('genType').textContent = data.type || '';
+    document.getElementById('genDate').textContent = data.created_at || '';
+
+    // Build individuals table
+    let tableHtml = '<table><thead><tr><th>ID Individuo</th>';
+    const firstIndividual = data.individuals && data.individuals[0];
+    if (firstIndividual && firstIndividual.phenotypes) {
+        for (const charName in firstIndividual.phenotypes) {
+            tableHtml += '<th>' + escapeHtml(charName) + '</th>';
+        }
+    }
+    tableHtml += '</tr></thead><tbody>';
+
+    for (const item of data.individuals || []) {
+        tableHtml += '<tr><td>' + escapeHtml(item.id) + '</td>';
+        for (const value of Object.values(item.phenotypes || {})) {
+            tableHtml += '<td>' + Number(value).toFixed(4) + '</td>';
+        }
+        tableHtml += '</tr>';
+    }
+
+    tableHtml += '</tbody></table>';
+    document.getElementById('individualsTable').innerHTML = tableHtml;
+
+    // Show viewer, hide empty state
+    document.getElementById('emptyViewer').style.display = 'none';
+    document.getElementById('generationViewer').style.display = 'block';
 }
 </script>
