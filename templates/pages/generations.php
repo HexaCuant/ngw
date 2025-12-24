@@ -622,6 +622,10 @@ function deleteGeneration(generationNumber) {
                 // Cancel parent selection mode if the deleted generation was the source
                 if (typeof parentSelectionSource !== 'undefined' && Number(parentSelectionSource) === Number(generationNumber)) {
                     cancelParentSelection();
+                    // Update parent generation selects so the new generation can be used as source immediately
+                    addGenerationOption(genNum, type);
+                    // Add new generation to parent selects so it can be used as source immediately
+                    addGenerationOption(genNum, type);
                 }
                 // Close viewer if this generation was open
                 if (currentGeneration === generationNumber) {
@@ -1292,6 +1296,8 @@ function createMultipleCrosses() {
                 } catch (err) {
                     console.error('delegated click handler error', err);
                 }
+                            // Ensure the new generation is available as a parent source in selects
+                            addGenerationOption(genNum, 'cross');
             });
             document._generationClickDelegated = true;
         }
