@@ -786,6 +786,16 @@ function showToast(message, type = 'success', duration = 3500) {
 
 function openParentSelector(parentGen, targetGen) {
     console.debug('openParentSelector called', parentGen, targetGen);
+    // Validate inputs
+    if (!parentGen || parentGen <= 0) {
+        showToast('Generación parentales (fuente) inválida', 'error');
+        return;
+    }
+    if (!targetGen || targetGen <= 0) {
+        showToast('Generación objetivo inválida', 'error');
+        return;
+    }
+
     parentSelectionMode = true;
     parentSelectionSource = parentGen;
     parentSelectionTarget = targetGen;
@@ -799,7 +809,8 @@ function openParentSelector(parentGen, targetGen) {
     fetch('index.php?option=2', { method: 'POST', body: formData })
     .then(r => r.json())
     .then(data => {
-        if (data.success && Array.isArray(data.parentals)) {
+        console.debug('get_parentals response for target', targetGen, data);
+        if (data && data.success && Array.isArray(data.parentals)) {
             for (const p of data.parentals) {
                 if (Number(p.parent_generation_number) === Number(parentGen)) {
                     parentSelectionExisting.add(String(p.individual_id));
@@ -812,7 +823,7 @@ function openParentSelector(parentGen, targetGen) {
     })
     .catch(err => {
         console.error(err);
-        showToast('Error al cargar parentales existentes: ' + err.message, 'error');
+        showToast('Error al cargar parentales existentes: ' + (err && err.message ? err.message : String(err)), 'error');
     });
 }
 
