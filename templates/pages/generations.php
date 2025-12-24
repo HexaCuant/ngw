@@ -1297,7 +1297,6 @@ function createMultipleCrosses() {
                     console.error('delegated click handler error', err);
                 }
                             // Ensure the new generation is available as a parent source in selects
-                            addGenerationOption(genNum, 'cross');
             });
             document._generationClickDelegated = true;
         }
