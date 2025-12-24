@@ -26,8 +26,6 @@ if ($activeProjectId) {
         <div class="alert alert-success">
             <strong>Proyecto activo:</strong> <?= e($activeProject['name']) ?> (ID: <?= e($activeProject['id']) ?>)
         </div>
-        <!-- Toast message -->
-        <div id="toast" class="toast" style="display:none; position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 12px 18px; border-radius: 6px; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"></div>
         
         <div class="generations-layout">
             <!-- Panel izquierdo: controles y lista -->
@@ -361,7 +359,7 @@ function deleteGeneration(generationNumber) {
                 closeGenerationViewer();
             }
         } else {
-            alert('Error: ' + (data.error || 'Error al borrar la generación'));
+            showToast('Error: ' + (data.error || 'Error al borrar la generación'), 'error');
         }
     })
     .catch(error => {

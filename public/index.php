@@ -1043,6 +1043,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
 <body>
     <div class="container">
         <h1></h1>
+        <div id="global-toast"></div>
         
         <?php if (isset($error)): ?>
             <div class="alert alert-error">
@@ -1278,13 +1279,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                     
                     if (password !== confirm) {
                         e.preventDefault();
-                        alert('Las contraseñas no coinciden. Por favor, verifica e intenta de nuevo.');
+                        showToast('Las contraseñas no coinciden. Por favor, verifica e intenta de nuevo.', 'error');
                         return false;
                     }
                     
                     if (password.length < 6) {
                         e.preventDefault();
-                        alert('La contraseña debe tener al menos 6 caracteres.');
+                        showToast('La contraseña debe tener al menos 6 caracteres.', 'error');
                         return false;
                     }
                     
@@ -1342,6 +1343,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             });
         }
     })();
+    </script>
+    <script>
+    // Global showToast function used across pages (if not already defined)
+    function showToast(message, type = 'success', duration = 3500) {
+        const el = document.getElementById('global-toast');
+        if (!el) return;
+        el.textContent = message;
+        el.classList.remove('toast-success', 'toast-error');
+        el.classList.add(type === 'success' ? 'toast-success' : 'toast-error');
+        el.style.display = 'block';
+
+        clearTimeout(window._globalToastTimeout);
+        window._globalToastTimeout = setTimeout(() => {
+            el.style.display = 'none';
+        }, duration);
+    }
     </script>
     <script>
     // Smooth page transitions

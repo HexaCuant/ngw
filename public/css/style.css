@@ -402,6 +402,26 @@ tr:last-child td {
     color: #fcd34d;
 }
 
+/* Global toast (transient non-blocking messages) */
+#global-toast {
+    display: none;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    padding: 12px 18px;
+    border-radius: 6px;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-weight: 600;
+}
+.toast-success {
+    background-color: var(--color-success);
+}
+.toast-error {
+    background-color: var(--color-danger);
+}
+
 .alert-info {
     background-color: #1f2f4a;
     border-color: var(--color-primary);
