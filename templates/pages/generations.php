@@ -1339,4 +1339,18 @@ function createMultipleCrosses() {
         console.error('initGenerationBindings error', err);
     }
 })();
+
+// Expose key functions on window to ensure inline onclick handlers can find them
+try {
+    window.deleteGeneration = deleteGeneration;
+    window.viewGeneration = viewGeneration;
+    window.openParentSelector = openParentSelector;
+    window.createRandomGeneration = createRandomGeneration;
+    window.createCrossGeneration = createCrossGeneration;
+    window.createMultipleCrosses = createMultipleCrosses;
+    window.addSelectedParentals = addSelectedParentals;
+    console.debug('Exposed functions on window for inline handlers');
+} catch (err) {
+    console.error('Error exposing functions to window', err);
+}
 </script>
