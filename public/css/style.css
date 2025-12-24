@@ -79,11 +79,18 @@ h1 {
     font-weight: 700;
     color: var(--color-text);
     margin-bottom: var(--spacing-lg);
-    padding: var(--spacing-lg);
-    background-color: var(--color-surface);
+    padding: 0;
+    height: 200px;
+    background: url('GW200.png'), url('calc.png'), url('hist.png'), #ffffff;
+    background-repeat: no-repeat;
+    background-position: left center, center center, right center;
+    background-size: auto 200px, auto 200px, auto 200px;
     border-bottom: 2px solid var(--color-border-light);
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 h2 {

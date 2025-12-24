@@ -850,11 +850,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta http-equiv="cache-control" content="no-cache">
     <title>GenWeb NG - Sistema de Generaciones Genéticas</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="css/style.css?v=<?= time() ?>">
 </head>
 <body>
     <div class="container">
-        <h1>GenWeb NG</h1>
+        <h1></h1>
         
         <?php if (isset($error)): ?>
             <div class="alert alert-error">
