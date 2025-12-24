@@ -622,10 +622,7 @@ function deleteGeneration(generationNumber) {
                 // Cancel parent selection mode if the deleted generation was the source
                 if (typeof parentSelectionSource !== 'undefined' && Number(parentSelectionSource) === Number(generationNumber)) {
                     cancelParentSelection();
-                    // Add option to selects
-                    addGenerationOption(genNum, 'cross');
-                    // Add new generation to parent selects
-                    addGenerationOption(genNum, type);
+                }
                 // Close viewer if this generation was open
                 if (currentGeneration === generationNumber) {
                     closeGenerationViewer();
