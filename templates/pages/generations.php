@@ -622,6 +622,8 @@ function deleteGeneration(generationNumber) {
                 // Cancel parent selection mode if the deleted generation was the source
                 if (typeof parentSelectionSource !== 'undefined' && Number(parentSelectionSource) === Number(generationNumber)) {
                     cancelParentSelection();
+                    // Add option to selects so this generation can be used as a source immediately
+                    addGenerationOption(genNum, 'cross');
                     // Update parent generation selects so the new generation can be used as source immediately
                     addGenerationOption(genNum, type);
                     // Add new generation to parent selects so it can be used as source immediately
