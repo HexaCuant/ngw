@@ -73,6 +73,47 @@ if ($activeProjectId) {
                     </form>
                 </div>
 
+                <div class="card">
+                    <h3>Crear Múltiples Cruces</h3>
+                    <form id="formMultipleCrosses" onsubmit="return false;">
+                        <div class="form-group">
+                            <label for="multi_source_gen">Generación parentales (fuente):</label>
+                            <select id="multi_source_gen" name="multi_source_gen">
+                                <?php foreach ($generations as $g) : ?>
+                                    <option value="<?= e($g['generation_number']) ?>"><?= e($g['generation_number']) ?> - <?= e($g['type']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1">
+                                <label for="multi_num_indiv">Num. individuos por cruce:</label>
+                                <input type="number" id="multi_num_indiv" value="2" min="1">
+                            </div>
+                            <div class="form-group" style="flex:1">
+                                <label for="multi_num_crosses">Número de cruces:</label>
+                                <input type="number" id="multi_num_crosses" value="3" min="1">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1">
+                                <label for="multi_population">Tamaño población (cada cruce):</label>
+                                <input type="number" id="multi_population" value="10" min="1">
+                            </div>
+                            <div class="form-group" style="flex:1">
+                                <label>Tipo de cruce:</label>
+                                <div class="form-row">
+                                    <label><input type="radio" name="multi_cross_type" value="associative" checked> Asociativo</label>
+                                    <label style="margin-left:10px;"><input type="radio" name="multi_cross_type" value="random"> Aleatorio</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <button type="button" onclick="createMultipleCrosses()" class="btn-primary">Crear múltiples cruces</button>
+                            <div id="multiCrossSpinner" style="display:none;">⏳ Creando...</div>
+                        </div>
+                    </form>
+                </div>
+
                 <?php if (!empty($generations)) : ?>
                     <div class="card">
                         <div class="generations-list-header">
@@ -1060,6 +1101,77 @@ function createCrossGeneration() {
     .catch(err => {
         console.error(err);
         showToast('Error al crear generación por cruce: ' + err.message, 'error');
+    });
+}
+
+function createMultipleCrosses() {
+    const source = Number(document.getElementById('multi_source_gen').value);
+    const numIndiv = Number(document.getElementById('multi_num_indiv').value);
+    const numCrosses = Number(document.getElementById('multi_num_crosses').value);
+    const population = Number(document.getElementById('multi_population').value);
+    const typeEl = document.querySelector('input[name="multi_cross_type"]:checked');
+    const type = typeEl ? typeEl.value : 'associative';
+
+    if (!source || source <= 0) { showToast('Generación fuente inválida','error'); return; }
+    if (!numIndiv || numIndiv <= 0) { showToast('Número de individuos inválido','error'); return; }
+    if (!numCrosses || numCrosses <= 0) { showToast('Número de cruces inválido','error'); return; }
+    if (!population || population <= 0) { showToast('Tamaño de población inválido','error'); return; }
+
+    const spinner = document.getElementById('multiCrossSpinner');
+    if (spinner) spinner.style.display = 'inline-block';
+
+    const form = new FormData();
+    form.append('project_action','create_multiple_crosses');
+    form.append('source_generation', source);
+    form.append('individuals_per_cross', numIndiv);
+    form.append('number_of_crosses', numCrosses);
+    form.append('population_size', population);
+    form.append('cross_type', type);
+
+    fetch('index.php?option=2', { method: 'POST', body: form })
+    .then(r => r.json())
+    .then(data => {
+        if (spinner) spinner.style.display = 'none';
+        if (!data) return;
+        if (!data.success) {
+            showToast('Error: ' + (data.error || 'Error desconocido'),'error');
+            return;
+        }
+        let firstCreated = null;
+        for (const res of data.results || []) {
+            if (res.success) {
+                const genNum = res.generation_number;
+                const pop = res.population_size || '';
+                const tbody = document.querySelector('#generationsList tbody');
+                if (tbody) {
+                    const rowHtml = `\n                    <tr id="gen-row-${genNum}">\n                        <td>${genNum}</td>\n                        <td>${escapeHtml('cross')}</td>\n                        <td>${escapeHtml(pop)}</td>\n                        <td class="actions-cell">\n                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>\n                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>\n                        </td>\n                    </tr>`;
+                    tbody.insertAdjacentHTML('afterbegin', rowHtml);
+                }
+                showToast('Cruce creado: ' + genNum, 'success');
+                if (!firstCreated) {
+                    firstCreated = res;
+                }
+            } else {
+                showToast('Error creating gen ' + res.generation_number + ': ' + (res.error || 'error'), 'error');
+            }
+        }
+
+        // Open first created generation in viewer
+        if (firstCreated) {
+            renderGenerationData({
+                generation_number: firstCreated.generation_number,
+                population_size: firstCreated.population_size,
+                type: 'cross',
+                created_at: firstCreated.created_at,
+                individuals: firstCreated.individuals,
+                parentals: firstCreated.parentals || {}
+            });
+        }
+    })
+    .catch(err => {
+        if (spinner) spinner.style.display = 'none';
+        console.error(err);
+        showToast('Error al crear múltiples cruces: ' + err.message,'error');
     });
 }
 

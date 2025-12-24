@@ -1015,6 +1015,132 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
         }
         exit;
     }
+    elseif ($projectAction === 'create_multiple_crosses') {
+        header('Content-Type: application/json');
+        ob_start();
+
+        try {
+            $projectId = $session->get('active_project_id');
+            if (!$projectId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+
+            $sourceGen = (int)($_POST['source_generation'] ?? 0);
+            $numIndiv = (int)($_POST['individuals_per_cross'] ?? 0);
+            $numCrosses = (int)($_POST['number_of_crosses'] ?? 0);
+            $populationSize = (int)($_POST['population_size'] ?? 0);
+            $crossType = ($_POST['cross_type'] ?? 'associative'); // 'associative'|'random'
+
+            if ($sourceGen <= 0 || $numIndiv <= 0 || $numCrosses <= 0 || $populationSize <= 0) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Parámetros inválidos']);
+                exit;
+            }
+
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            require_once __DIR__ . '/../src/Models/Project.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+            $projectModel = new \Ngw\Models\Project($db);
+
+            // Ensure source exists
+            $src = $generationModel->getByNumber($projectId, $sourceGen);
+            if (!$src) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Generación fuente no encontrada']);
+                exit;
+            }
+
+            // Get ordered individuals for source generation
+            $orderedIndividuals = $generationModel->parseGenerationOutput($projectId, $sourceGen);
+            $orderedIds = array_values(array_keys($orderedIndividuals));
+            $availableCount = count($orderedIds);
+            $totalNeeded = $numIndiv * $numCrosses;
+
+            if ($totalNeeded > $availableCount) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay suficientes individuos únicos en la generación fuente para crear todos los cruces sin reemplazo']);
+                exit;
+            }
+
+            $results = [];
+            $used = [];
+
+            // Reserve starting generation number
+            $startGen = $generationModel->getNextGenerationNumber($projectId);
+
+            for ($i = 0; $i < $numCrosses; $i++) {
+                $targetGen = $startGen + $i;
+
+                // double-check target does not exist
+                $existing = $generationModel->getByNumber($projectId, $targetGen);
+                if ($existing) {
+                    $results[] = ['generation_number' => $targetGen, 'success' => false, 'error' => 'La generación destino ya existe'];
+                    continue;
+                }
+
+                // Selection without replacement across the whole batch
+                $selected = [];
+                if ($crossType === 'random') {
+                    // sample without replacement from remaining ids
+                    $remaining = array_values(array_diff($orderedIds, $used));
+                    shuffle($remaining);
+                    $selected = array_slice($remaining, 0, $numIndiv);
+                } else {
+                    // associative: find contiguous block of length numIndiv where none are used
+                    $len = count($orderedIds);
+                    $candidates = [];
+                    for ($s = 0; $s <= $len - $numIndiv; $s++) {
+                        $slice = array_slice($orderedIds, $s, $numIndiv);
+                        $ok = true;
+                        foreach ($slice as $id) {
+                            if (in_array($id, $used, true)) { $ok = false; break; }
+                        }
+                        if ($ok) $candidates[] = $s;
+                    }
+                    if (empty($candidates)) {
+                        $results[] = ['generation_number' => $targetGen, 'success' => false, 'error' => 'No hay bloques disponibles para selección asociativa'];
+                        continue;
+                    }
+                    $startIdx = $candidates[array_rand($candidates)];
+                    $selected = array_slice($orderedIds, $startIdx, $numIndiv);
+                }
+
+                // Mark used
+                foreach ($selected as $sid) $used[] = $sid;
+
+                // Insert parentals for this child generation
+                $inserted = $generationModel->addParentals($projectId, $targetGen, $sourceGen, array_map('intval', $selected));
+
+                // Build POC and execute engine
+                $poc = $projectModel->generatePocFile($projectId, $populationSize, $targetGen, 'cross');
+                $execRes = $generationModel->executeGengine($projectId);
+                if (!$execRes['success']) {
+                    $results[] = ['generation_number' => $targetGen, 'success' => false, 'error' => 'Error al ejecutar gengine (código ' . $execRes['return_code'] . ')'];
+                    continue;
+                }
+
+                // Create generation record and parse output
+                $generationModel->create($projectId, $targetGen, $populationSize, 'cross');
+                $generation = $generationModel->getByNumber($projectId, $targetGen);
+                $individuals = $generationModel->parseGenerationOutput($projectId, $targetGen);
+                $individualsList = [];
+                foreach ($individuals as $id => $phenotypes) {
+                    $individualsList[] = ['id' => $id, 'phenotypes' => $phenotypes];
+                }
+
+                $results[] = ['generation_number' => $targetGen, 'success' => true, 'created_at' => $generation['created_at'] ?? null, 'population_size' => count($individualsList), 'individuals' => $individualsList, 'parentals' => [$sourceGen => $selected]];
+            }
+
+            ob_end_clean();
+            echo json_encode(['success' => true, 'results' => $results]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
     elseif ($projectAction === 'get_generation_details') {
         header('Content-Type: application/json');
         ob_start();
