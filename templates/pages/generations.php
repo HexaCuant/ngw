@@ -1096,7 +1096,8 @@ function createCrossGeneration() {
         form.append('population_size', population);
         form.append('generation_number', targetGen);
         // If a source is selected and panel visible, we can refresh the parentals panel (no `data` available here)
-        const selectedParent = Number(document.getElementById('cross_parent_gen')?.value) || null;
+        const parentEl = document.getElementById('cross_parent_gen');
+        const selectedParent = parentEl ? Number(parentEl.value) : null;
         if (parentalsVisible) {
             // reload the parentals list for the current target (will fetch fresh data)
             loadParentalsForTarget(targetGen);
@@ -1241,8 +1242,10 @@ function createMultipleCrosses() {
             if (openBtn && !openBtn._bound) {
                 openBtn.addEventListener('click', function (ev) {
                     ev.preventDefault();
-                    const parentGen = Number(document.getElementById('cross_parent_gen')?.value);
-                    const targetGen = Number(document.getElementById('cross_target_gen')?.value);
+                    const parentEl = document.getElementById('cross_parent_gen');
+                    const targetEl = document.getElementById('cross_target_gen');
+                    const parentGen = parentEl ? Number(parentEl.value) : null;
+                    const targetGen = targetEl ? Number(targetEl.value) : null;
                     openParentSelector(parentGen, targetGen);
                 });
                 openBtn._bound = true;
