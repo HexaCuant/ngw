@@ -63,7 +63,7 @@ if ($activeProjectId) {
                             <input type="number" id="cross_population" name="cross_population" min="1" value="10" required>
                         </div>
                         <div class="form-row gap-1">
-                            <button type="button" onclick="openParentSelector(Number(document.getElementById('cross_parent_gen').value), Number(document.getElementById('cross_target_gen').value))" class="btn-primary">Seleccionar parentales</button>
+                            <button type="button" id="btnOpenParentSelector" onclick="openParentSelector(Number(document.getElementById('cross_parent_gen').value), Number(document.getElementById('cross_target_gen').value))" class="btn-primary">Seleccionar parentales</button>
                             <button type="button" onclick="createCrossGeneration()" class="btn-success">Crear por Cruce</button>
                             <button type="button" id="btnToggleParentals" onclick="toggleParentals()" class="btn-secondary">Mostrar parentales</button>
                         </div>
@@ -1223,6 +1223,22 @@ function createMultipleCrosses() {
             });
             b._bound = true;
         });
+
+        // Ensure the 'Seleccionar parentales' button works even if inline handler fails
+        try {
+            const openBtn = document.getElementById('btnOpenParentSelector');
+            if (openBtn && !openBtn._bound) {
+                openBtn.addEventListener('click', function (ev) {
+                    ev.preventDefault();
+                    const parentGen = Number(document.getElementById('cross_parent_gen')?.value);
+                    const targetGen = Number(document.getElementById('cross_target_gen')?.value);
+                    openParentSelector(parentGen, targetGen);
+                });
+                openBtn._bound = true;
+            }
+        } catch (err) {
+            console.error('open parent selector binding error', err);
+        }
 
         // Keep selection count in sync when checkboxes change (event delegation)
         if (!document._parentalCheckboxChangeBound) {
