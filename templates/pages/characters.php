@@ -487,42 +487,42 @@ if (createCharacterForm) {
 document.querySelectorAll('.delete-allele-form').forEach(function(form) {
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        
-        if (!confirm('¿Eliminar alelo? Esta acción no se puede deshacer.')) {
-            return false;
-        }
-        
         const alleleId = this.querySelector('[name="allele_id"]').value;
         const row = this.closest('tr');
-        
-        const formData = new FormData();
-        formData.append('char_action', 'remove_allele_ajax');
-        formData.append('allele_id', alleleId);
-        
-        fetch('index.php?option=1', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('Alelo eliminado', 'success');
-                row.remove();
-                
-                // Check if table is now empty
-                const tbody = row.closest('tbody');
-                if (tbody && tbody.children.length === 0) {
-                    const emptyRow = document.createElement('tr');
-                    emptyRow.innerHTML = '<td colspan="5" class="text-center">No hay alelos definidos</td>';
-                    tbody.appendChild(emptyRow);
+
+        confirmAction('¿Eliminar alelo? Esta acción no se puede deshacer.', 'Eliminar', 'Cancelar')
+        .then(ok => {
+            if (!ok) return false;
+
+            const formData = new FormData();
+            formData.append('char_action', 'remove_allele_ajax');
+            formData.append('allele_id', alleleId);
+
+            fetch('index.php?option=1', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Alelo eliminado', 'success');
+                    row.remove();
+                    
+                    // Check if table is now empty
+                    const tbody = row.closest('tbody');
+                    if (tbody && tbody.children.length === 0) {
+                        const emptyRow = document.createElement('tr');
+                        emptyRow.innerHTML = '<td colspan="5" class="text-center">No hay alelos definidos</td>';
+                        tbody.appendChild(emptyRow);
+                    }
+                } else {
+                    showNotification(data.error || 'Error al eliminar alelo', 'error');
                 }
-            } else {
-                showNotification(data.error || 'Error al eliminar alelo', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Error de conexión', 'error');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error de conexión', 'error');
+            });
         });
     });
 });
@@ -530,10 +530,12 @@ document.querySelectorAll('.delete-allele-form').forEach(function(form) {
 // Confirm delete connection
 document.querySelectorAll('.delete-connection-form').forEach(function(form) {
     form.addEventListener('submit', function(e) {
-        if (!confirm('¿Eliminar conexión? Esta acción no se puede deshacer.')) {
-            e.preventDefault();
-            return false;
-        }
+        e.preventDefault();
+        confirmAction('¿Eliminar conexión? Esta acción no se puede deshacer.', 'Eliminar', 'Cancelar')
+        .then(ok => {
+            if (!ok) return false;
+            form.submit();
+        });
     });
 });
 
@@ -589,41 +591,41 @@ if (addAlleleForm) {
                     if (newForm) {
                         newForm.addEventListener('submit', function(e) {
                             e.preventDefault();
-                            
-                            if (!confirm('¿Eliminar alelo? Esta acción no se puede deshacer.')) {
-                                return false;
-                            }
-                            
                             const alleleId = this.querySelector('[name="allele_id"]').value;
                             const row = this.closest('tr');
-                            
-                            const formData = new FormData();
-                            formData.append('char_action', 'remove_allele_ajax');
-                            formData.append('allele_id', alleleId);
-                            
-                            fetch('index.php?option=1', {
-                                method: 'POST',
-                                body: formData
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    showNotification('Alelo eliminado', 'success');
-                                    row.remove();
+
+                            confirmAction('¿Eliminar alelo? Esta acción no se puede deshacer.', 'Eliminar', 'Cancelar')
+                            .then(ok => {
+                                if (!ok) return false;
+
+                                const formData = new FormData();
+                                formData.append('char_action', 'remove_allele_ajax');
+                                formData.append('allele_id', alleleId);
+
+                                fetch('index.php?option=1', {
+                                    method: 'POST',
+                                    body: formData
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        showNotification('Alelo eliminado', 'success');
+                                        row.remove();
                                     
-                                    const tbody = document.querySelector('#genes-view table tbody');
-                                    if (tbody && tbody.children.length === 0) {
-                                        const emptyRow = document.createElement('tr');
-                                        emptyRow.innerHTML = '<td colspan="5" class="text-center">No hay alelos definidos</td>';
-                                        tbody.appendChild(emptyRow);
+                                        const tbody = document.querySelector('#genes-view table tbody');
+                                        if (tbody && tbody.children.length === 0) {
+                                            const emptyRow = document.createElement('tr');
+                                            emptyRow.innerHTML = '<td colspan="5" class="text-center">No hay alelos definidos</td>';
+                                            tbody.appendChild(emptyRow);
+                                        }
+                                    } else {
+                                        showNotification(data.error || 'Error al eliminar alelo', 'error');
                                     }
-                                } else {
-                                    showNotification(data.error || 'Error al eliminar alelo', 'error');
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                                showNotification('Error de conexión', 'error');
+                                })
+                                .catch(error => {
+                                    console.error('Error:', error);
+                                    showNotification('Error de conexión', 'error');
+                                });
                             });
                         });
                     }

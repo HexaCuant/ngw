@@ -422,6 +422,14 @@ tr:last-child td {
     background-color: var(--color-danger);
 }
 
+/* Confirmation modal styles (fallback inline styles exist) */
+#global-confirm-modal {
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+#global-confirm-box { max-width: 420px; width: calc(100% - 40px); }
+
 .alert-info {
     background-color: #1f2f4a;
     border-color: var(--color-primary);

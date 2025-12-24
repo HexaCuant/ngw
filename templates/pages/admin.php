@@ -97,15 +97,13 @@ $allUsers = $auth->getAllUsers();
                         <td><?= e($request['reason'] ?: '-') ?></td>
                         <td><?= e($request['requested_at']) ?></td>
                         <td>
-                            <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
-                                  onsubmit="return confirm('¿Aprobar esta solicitud? El usuario podrá iniciar sesión con su contraseña.');">
+                                                        <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" class="admin-approve-form">
                                 <input type="hidden" name="admin_action" value="approve">
                                 <input type="hidden" name="request_id" value="<?= $request['id'] ?>">
                                 <button type="submit" class="btn-success btn-small">Aprobar</button>
                             </form>
                             
-                            <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
-                                  onsubmit="return confirm('¿Rechazar esta solicitud?');">
+                                                        <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" class="admin-reject-form">
                                 <input type="hidden" name="admin_action" value="reject">
                                 <input type="hidden" name="request_id" value="<?= $request['id'] ?>">
                                 <button type="submit" class="btn-danger btn-small">Rechazar</button>
@@ -251,11 +249,26 @@ document.querySelectorAll('.delete-user-form').forEach(function(form) {
     form.addEventListener('submit', function(e) {
         const username = this.getAttribute('data-username');
         const message = '¿Estás seguro de eliminar al usuario "' + username + '"?\n\nEsta acción no se puede deshacer.';
-        
-        if (!confirm(message)) {
-            e.preventDefault();
-            return false;
-        }
+        e.preventDefault();
+        confirmAction(message, 'Eliminar', 'Cancelar')
+        .then(ok => {
+            if (!ok) return false;
+            form.submit();
+        });
+    });
+});
+
+// Hook approve/reject forms to use modal confirm
+document.querySelectorAll('.admin-approve-form, .admin-reject-form').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const isApprove = form.classList.contains('admin-approve-form');
+        const message = isApprove ? '¿Aprobar esta solicitud? El usuario podrá iniciar sesión con su contraseña.' : '¿Rechazar esta solicitud?';
+        confirmAction(message, isApprove ? 'Aprobar' : 'Rechazar', 'Cancelar')
+        .then(ok => {
+            if (!ok) return false;
+            form.submit();
+        });
     });
 });
 </script>

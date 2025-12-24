@@ -1044,6 +1044,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
     <div class="container">
         <h1></h1>
         <div id="global-toast"></div>
+        <!-- Global confirmation modal -->
+        <div id="global-confirm-modal" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:10000;">
+            <div id="global-confirm-backdrop" style="position:absolute; inset:0; background:rgba(0,0,0,0.5);"></div>
+            <div id="global-confirm-box" style="position:relative; background:var(--color-surface); color:var(--color-text); padding:1.25rem; border-radius:8px; width: 420px; box-shadow:var(--shadow-lg); z-index:10001;">
+                <div id="global-confirm-message" style="margin-bottom:1rem; white-space:pre-wrap;"></div>
+                <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                    <button id="global-confirm-cancel" class="btn-secondary btn-small">Cancelar</button>
+                    <button id="global-confirm-accept" class="btn-danger btn-small">Borrar</button>
+                </div>
+            </div>
+        </div>
         
         <?php if (isset($error)): ?>
             <div class="alert alert-error">
@@ -1358,6 +1369,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
         window._globalToastTimeout = setTimeout(() => {
             el.style.display = 'none';
         }, duration);
+    }
+    
+    // Global confirmation modal API
+    function confirmAction(message, acceptLabel = 'Borrar', cancelLabel = 'Cancelar') {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('global-confirm-modal');
+            const msg = document.getElementById('global-confirm-message');
+            const acceptBtn = document.getElementById('global-confirm-accept');
+            const cancelBtn = document.getElementById('global-confirm-cancel');
+            const backdrop = document.getElementById('global-confirm-backdrop');
+
+            if (!modal || !msg || !acceptBtn || !cancelBtn) {
+                // fallback to native confirm
+                resolve(window.confirm(message));
+                return;
+            }
+
+            msg.textContent = message;
+            acceptBtn.textContent = acceptLabel;
+            cancelBtn.textContent = cancelLabel;
+
+            function cleanup() {
+                acceptBtn.removeEventListener('click', onAccept);
+                cancelBtn.removeEventListener('click', onCancel);
+                backdrop.removeEventListener('click', onCancel);
+                document.removeEventListener('keydown', onKey);
+                modal.style.display = 'none';
+            }
+
+            function onAccept() { cleanup(); resolve(true); }
+            function onCancel() { cleanup(); resolve(false); }
+            function onKey(e) { if (e.key === 'Escape') onCancel(); }
+
+            acceptBtn.addEventListener('click', onAccept);
+            cancelBtn.addEventListener('click', onCancel);
+            backdrop.addEventListener('click', onCancel);
+            document.addEventListener('keydown', onKey);
+
+            modal.style.display = 'flex';
+        });
     }
     </script>
     <script>

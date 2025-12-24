@@ -115,45 +115,46 @@ function closeCharacter() {
  * Delete character via AJAX
  */
 function deleteCharacter(characterId, charName) {
-    if (!confirm('¿Estás seguro de eliminar el carácter "' + charName + '"?\n\nEsta acción no se puede deshacer y eliminará todos los genes asociados.')) {
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('char_action', 'delete_character_ajax');
-    formData.append('char_id', characterId);
-    
-    fetch('index.php?option=1', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('Carácter eliminado', 'success');
-            // Remove row from table
-            const rows = document.querySelectorAll('table tbody tr');
-            rows.forEach(row => {
-                const cells = row.cells;
-                if (cells && cells[0] && cells[0].textContent == characterId) {
-                    row.remove();
+    confirmAction('¿Estás seguro de eliminar el carácter "' + charName + '"?\n\nEsta acción no se puede deshacer y eliminará todos los genes asociados.', 'Eliminar', 'Cancelar')
+    .then(ok => {
+        if (!ok) return;
+
+        const formData = new FormData();
+        formData.append('char_action', 'delete_character_ajax');
+        formData.append('char_id', characterId);
+        
+        fetch('index.php?option=1', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Carácter eliminado', 'success');
+                // Remove row from table
+                const rows = document.querySelectorAll('table tbody tr');
+                rows.forEach(row => {
+                    const cells = row.cells;
+                    if (cells && cells[0] && cells[0].textContent == characterId) {
+                        row.remove();
+                    }
+                });
+                
+                // Check if table is empty
+                const tbody = document.querySelector('table tbody');
+                if (tbody && tbody.children.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = '<td colspan="4" class="text-center">No hay caracteres disponibles</td>';
+                    tbody.appendChild(emptyRow);
                 }
-            });
-            
-            // Check if table is empty
-            const tbody = document.querySelector('table tbody');
-            if (tbody && tbody.children.length === 0) {
-                const emptyRow = document.createElement('tr');
-                emptyRow.innerHTML = '<td colspan="4" class="text-center">No hay caracteres disponibles</td>';
-                tbody.appendChild(emptyRow);
+            } else {
+                showNotification(data.error || 'Error al eliminar carácter', 'error');
             }
-        } else {
-            showNotification(data.error || 'Error al eliminar carácter', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Error de conexión', 'error');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error de conexión', 'error');
+        });
     });
 }
 
@@ -279,22 +280,22 @@ function closeGene() {
  * Delete gene via AJAX
  */
 function deleteGene(geneId, geneName) {
-    if (!confirm('¿Estás seguro de eliminar el gen "' + geneName + '"?\n\nEsta acción no se puede deshacer.')) {
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('char_action', 'delete_gene_ajax');
-    formData.append('gene_id', geneId);
-    
-    fetch('index.php?option=1', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('Gen eliminado', 'success');
+    confirmAction('¿Estás seguro de eliminar el gen "' + geneName + '"?\n\nEsta acción no se puede deshacer.', 'Eliminar', 'Cancelar')
+    .then(ok => {
+        if (!ok) return;
+        
+        const formData = new FormData();
+        formData.append('char_action', 'delete_gene_ajax');
+        formData.append('gene_id', geneId);
+        
+        fetch('index.php?option=1', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Gen eliminado', 'success');
             // Remove row from table
             const rows = document.querySelectorAll('#genes-view table tbody tr');
             rows.forEach(row => {
@@ -315,9 +316,11 @@ function deleteGene(geneId, geneName) {
             showNotification(data.error || 'Error al eliminar gen', 'error');
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('Error de conexión', 'error');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error de conexión', 'error');
+        });
     });
 }
 

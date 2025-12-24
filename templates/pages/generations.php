@@ -326,45 +326,46 @@ function closeGenerationViewer() {
 }
 
 function deleteGeneration(generationNumber) {
-    if (!confirm('¿Estás seguro de que quieres borrar la generación ' + generationNumber + '?')) {
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('project_action', 'delete_generation');
-    formData.append('generation_number', generationNumber);
-    
-    fetch('index.php?option=2', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('HTTP error ' + response.status);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            showToast('Generación ' + generationNumber + ' borrada con éxito', 'success');
-            
-            // Remove row from table
-            const row = document.getElementById('gen-row-' + generationNumber);
-            if (row) {
-                row.remove();
+    confirmAction('¿Estás seguro de que quieres borrar la generación ' + generationNumber + '?', 'Borrar', 'Cancelar')
+    .then(ok => {
+        if (!ok) return;
+
+        const formData = new FormData();
+        formData.append('project_action', 'delete_generation');
+        formData.append('generation_number', generationNumber);
+        
+        fetch('index.php?option=2', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP error ' + response.status);
             }
-            
-            // Close viewer if this generation was open
-            if (currentGeneration === generationNumber) {
-                closeGenerationViewer();
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showToast('Generación ' + generationNumber + ' borrada con éxito', 'success');
+                
+                // Remove row from table
+                const row = document.getElementById('gen-row-' + generationNumber);
+                if (row) {
+                    row.remove();
+                }
+                
+                // Close viewer if this generation was open
+                if (currentGeneration === generationNumber) {
+                    closeGenerationViewer();
+                }
+            } else {
+                showToast('Error: ' + (data.error || 'Error al borrar la generación'), 'error');
             }
-        } else {
-            showToast('Error: ' + (data.error || 'Error al borrar la generación'), 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('Error al borrar la generación: ' + error.message, 'error');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error al borrar la generación: ' + error.message, 'error');
+        });
     });
 }
 
