@@ -362,8 +362,8 @@ window.addEventListener('unhandledrejection', function (ev) {
     const gt = document.getElementById('global-toast');
     if (gt) {
         gt.textContent = 'Unhandled Promise Rejection: ' + (ev.reason && ev.reason.message ? ev.reason.message : String(ev.reason));
-        gt.classList.add('toast-error');
-        gt.style.display = 'block';
+                    // Update selects so this generation can be used as a source immediately
+                    refreshGenerationSelects();
         setTimeout(() => gt.style.display = 'none', 8000);
     }
 });
@@ -622,13 +622,9 @@ function deleteGeneration(generationNumber) {
                 // Cancel parent selection mode if the deleted generation was the source
                 if (typeof parentSelectionSource !== 'undefined' && Number(parentSelectionSource) === Number(generationNumber)) {
                     cancelParentSelection();
-                    // Add option to selects so this generation can be used as a source immediately
-                    addGenerationOption(genNum, 'cross');
-                    // Update parent generation selects so the new generation can be used as source immediately
-                    addGenerationOption(genNum, type);
-                    // Add new generation to parent selects so it can be used as source immediately
-                    addGenerationOption(genNum, type);
                 }
+                // Rebuild selects to reflect the deletion
+                refreshGenerationSelects();
                 // Close viewer if this generation was open
                 if (currentGeneration === generationNumber) {
                     closeGenerationViewer();
@@ -666,6 +662,7 @@ function escapeHtml(text) {
 // Add a generation option to parent selection selects safely
 function addGenerationOption(genNum, type) {
     try {
+        console.debug('addGenerationOption called', genNum, type);
         const text = genNum + ' - ' + (type || '');
         const selIds = ['cross_parent_gen', 'multi_source_gen'];
         selIds.forEach(id => {
@@ -673,12 +670,48 @@ function addGenerationOption(genNum, type) {
             if (!s) return;
             if (s.querySelector('option[value="' + genNum + '"]')) return;
             const opt = document.createElement('option');
-            opt.value = genNum;
+            opt.value = String(genNum);
             opt.textContent = text;
-            s.insertBefore(opt, s.firstChild);
+            // insert as first option (newest first)
+            if (s.firstElementChild) s.insertBefore(opt, s.firstElementChild);
+            else s.appendChild(opt);
         });
     } catch (err) {
         console.error('addGenerationOption error', err);
+    }
+}
+
+// Rebuild both parent generation selects from the current generations list (keeps order)
+function refreshGenerationSelects() {
+    try {
+        const tbody = document.querySelector('#generationsList tbody');
+        if (!tbody) return;
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const gens = rows.map(r => {
+            const tds = r.querySelectorAll('td');
+            return { num: Number(tds[0].textContent.trim()), type: tds[1] ? tds[1].textContent.trim() : '' };
+        });
+        // sort descending by generation number
+        gens.sort((a,b) => Number(b.num) - Number(a.num));
+
+        const selIds = ['cross_parent_gen', 'multi_source_gen'];
+        selIds.forEach(id => {
+            const s = document.getElementById(id);
+            if (!s) return;
+            // preserve current selection
+            const prev = s.value;
+            s.innerHTML = '';
+            for (const g of gens) {
+                const opt = document.createElement('option');
+                opt.value = String(g.num);
+                opt.textContent = g.num + ' - ' + (g.type || '');
+                s.appendChild(opt);
+            }
+            // restore selection if present
+            if (prev && s.querySelector('option[value="' + prev + '"]')) s.value = prev;
+        });
+    } catch (err) {
+        console.error('refreshGenerationSelects error', err);
     }
 }
 
