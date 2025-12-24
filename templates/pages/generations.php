@@ -362,10 +362,8 @@ window.addEventListener('unhandledrejection', function (ev) {
     const gt = document.getElementById('global-toast');
     if (gt) {
         gt.textContent = 'Unhandled Promise Rejection: ' + (ev.reason && ev.reason.message ? ev.reason.message : String(ev.reason));
-                    // Update selects so this generation can be used as a source immediately
-                    refreshGenerationSelects();
-        setTimeout(() => gt.style.display = 'none', 8000);
-    }
+                // Rebuild parent generation selects so the new generation is available as a source
+                refreshGenerationSelects();
 });
 console.debug('generations.js initialized');
 // Load generation parentals helper
