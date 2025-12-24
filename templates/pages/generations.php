@@ -521,6 +521,8 @@ function createRandomGeneration() {
             if (tbody) {
                 const rowHtml = `\n                    <tr id="gen-row-${genNum}">\n                        <td>${genNum}</td>\n                        <td>${escapeHtml(type)}</td>\n                        <td>${escapeHtml(pop)}</td>\n                        <td class="actions-cell">\n                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>\n                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>\n                        </td>\n                    </tr>`;
                 tbody.insertAdjacentHTML('afterbegin', rowHtml);
+                // Add new generation to parent selects
+                addGenerationOption(genNum, type);
             } else {
                 // Fallback: reload if we cannot update list
                 window.location.reload();
@@ -614,11 +616,16 @@ function deleteGeneration(generationNumber) {
                 // Remove option from parent generation select if present
                 const parentSelectOpt = document.querySelector('#cross_parent_gen option[value="' + generationNumber + '"]');
                 if (parentSelectOpt) parentSelectOpt.remove();
+                // Also remove from multiple-cross source select
+                const multiSelectOpt = document.querySelector('#multi_source_gen option[value="' + generationNumber + '"]');
+                if (multiSelectOpt) multiSelectOpt.remove();
                 // Cancel parent selection mode if the deleted generation was the source
                 if (typeof parentSelectionSource !== 'undefined' && Number(parentSelectionSource) === Number(generationNumber)) {
                     cancelParentSelection();
-                }
-
+                    // Add option to selects
+                    addGenerationOption(genNum, 'cross');
+                    // Add new generation to parent selects
+                    addGenerationOption(genNum, type);
                 // Close viewer if this generation was open
                 if (currentGeneration === generationNumber) {
                     closeGenerationViewer();
@@ -651,6 +658,25 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Add a generation option to parent selection selects safely
+function addGenerationOption(genNum, type) {
+    try {
+        const text = genNum + ' - ' + (type || '');
+        const selIds = ['cross_parent_gen', 'multi_source_gen'];
+        selIds.forEach(id => {
+            const s = document.getElementById(id);
+            if (!s) return;
+            if (s.querySelector('option[value="' + genNum + '"]')) return;
+            const opt = document.createElement('option');
+            opt.value = genNum;
+            opt.textContent = text;
+            s.insertBefore(opt, s.firstChild);
+        });
+    } catch (err) {
+        console.error('addGenerationOption error', err);
+    }
 }
 
 // Render generation data (used by view and create)
