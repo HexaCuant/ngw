@@ -362,8 +362,8 @@ window.addEventListener('unhandledrejection', function (ev) {
     const gt = document.getElementById('global-toast');
     if (gt) {
         gt.textContent = 'Unhandled Promise Rejection: ' + (ev.reason && ev.reason.message ? ev.reason.message : String(ev.reason));
-                // Rebuild parent generation selects so the new generation is available as a source
-                refreshGenerationSelects();
+                    // Update selects so this generation can be used as a source immediately
+                    refreshGenerationSelects();
 });
 console.debug('generations.js initialized');
 // Load generation parentals helper
@@ -519,8 +519,8 @@ function createRandomGeneration() {
             if (tbody) {
                 const rowHtml = `\n                    <tr id="gen-row-${genNum}">\n                        <td>${genNum}</td>\n                        <td>${escapeHtml(type)}</td>\n                        <td>${escapeHtml(pop)}</td>\n                        <td class="actions-cell">\n                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>\n                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>\n                        </td>\n                    </tr>`;
                 tbody.insertAdjacentHTML('afterbegin', rowHtml);
-                // Add new generation to parent selects
-                addGenerationOption(genNum, type);
+                // Rebuild parent generation selects so the new generation is available as a source
+                refreshGenerationSelects();
             } else {
                 // Fallback: reload if we cannot update list
                 window.location.reload();
@@ -1151,6 +1151,8 @@ function createCrossGeneration() {
             if (tbody) {
                 const rowHtml = `\n                    <tr id="gen-row-${genNum}">\n                        <td>${genNum}</td>\n                        <td>${escapeHtml(type)}</td>\n                        <td>${escapeHtml(pop)}</td>\n                        <td class="actions-cell">\n                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>\n                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>\n                        </td>\n                    </tr>`;
                 tbody.insertAdjacentHTML('afterbegin', rowHtml);
+                // Rebuild parent generation selects so the new generation is available as a source
+                refreshGenerationSelects();
             } else {
                 window.location.reload();
                 return;
