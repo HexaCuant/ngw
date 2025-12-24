@@ -1,15 +1,10 @@
 <?php
 
-/**
- * Main entry point - GenWeb Next Generation
- */
-
-// Bootstrap application
 $app = require_once __DIR__ . '/../src/bootstrap.php';
-
-/** @var \Ngw\Database\Database $db */
 $db = $app['db'];
-/** @var \Ngw\Auth\SessionManager $session */
+$session = $app['session'];
+$auth = $app['auth'];
+$config = $app['config'];
 $session = $app['session'];
 /** @var \Ngw\Auth\Auth $auth */
 $auth = $app['auth'];
@@ -918,6 +913,108 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
         }
         exit;
     }
+    elseif ($projectAction === 'create_cross_generation') {
+        header('Content-Type: application/json');
+        ob_start();
+
+        try {
+            $projectId = $session->get('active_project_id');
+
+            if (!$projectId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+
+            $populationSize = (int)($_POST['population_size'] ?? 0);
+            $generationNumber = (int)($_POST['generation_number'] ?? 0);
+
+            if ($populationSize <= 0) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'El tamaño de población debe ser mayor que 0']);
+                exit;
+            }
+            if ($generationNumber <= 0) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Número de generación inválido']);
+                exit;
+            }
+
+            // Create generation model
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+
+            // Prevent overwriting existing generation
+            $existing = $generationModel->getByNumber($projectId, $generationNumber);
+            if ($existing) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Ya existe una generación con ese número']);
+                exit;
+            }
+
+            // Generate POC file for cross (must have parentals added beforehand)
+            // Ensure parentals exist for the target generation
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+            $parentals = $generationModel->getParentals($projectId, $generationNumber);
+            if (empty($parentals)) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay parentales asignados para la generación objetivo']);
+                exit;
+            }
+
+            $pocPath = $projectModel->generatePocFile($projectId, $populationSize, $generationNumber, 'cross');
+
+            // Execute gengine
+            $result = $generationModel->executeGengine($projectId);
+
+            if (!$result['success']) {
+                ob_end_clean();
+                echo json_encode([
+                    'success' => false, 
+                    'error' => 'Error al ejecutar gengine (código ' . $result['return_code'] . ')'
+                ]);
+                exit;
+            }
+
+            // Create generation record
+            $generationModel->create($projectId, $generationNumber, $populationSize, 'cross');
+            $generation = $generationModel->getByNumber($projectId, $generationNumber);
+
+            // Parse output and get individuals
+            $individuals = $generationModel->parseGenerationOutput($projectId, $generationNumber);
+
+            $individualsList = [];
+            foreach ($individuals as $id => $phenotypes) {
+                $individualsList[] = [
+                    'id' => $id,
+                    'phenotypes' => $phenotypes
+                ];
+            }
+
+            // Include grouped parentals for the newly created cross generation so the client can display them immediately
+            $parentals = $generationModel->getParentals($projectId, $generationNumber);
+            $groupedParentals = [];
+            foreach ($parentals as $p) {
+                $groupedParentals[$p['parent_generation_number']][] = (int)$p['individual_id'];
+            }
+
+            ob_end_clean();
+            echo json_encode([
+                'success' => true,
+                'generation_number' => $generationNumber,
+                'type' => $generation['type'] ?? 'cross',
+                'created_at' => $generation['created_at'] ?? null,
+                'individuals' => $individualsList,
+                'population_size' => count($individuals),
+                'parentals' => $groupedParentals
+            ]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
     elseif ($projectAction === 'get_generation_details') {
         header('Content-Type: application/json');
         ob_start();
@@ -964,6 +1061,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 ];
             }
             
+            // Optionally include parentals for a provided target generation (used in parent selection)
+            $targetGenParam = isset($_POST['target_generation']) ? (int)$_POST['target_generation'] : $generationNumber;
+            $parentals = $generationModel->getParentals($projectId, $targetGenParam);
+            $groupedParentals = [];
+            foreach ($parentals as $p) {
+                $groupedParentals[$p['parent_generation_number']][] = (int)$p['individual_id'];
+            }
+
             ob_end_clean();
             
             echo json_encode([
@@ -972,7 +1077,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 'type' => $generation['type'],
                 'population_size' => $generation['population_size'],
                 'created_at' => $generation['created_at'],
-                'individuals' => $individualsList
+                'individuals' => $individualsList,
+                'parentals' => $groupedParentals
             ]);
         } catch (\Exception $e) {
             ob_end_clean();
@@ -1020,6 +1126,131 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 'success' => true,
                 'message' => 'Generación borrada con éxito'
             ]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'add_parental') {
+        header('Content-Type: application/json');
+        ob_start();
+
+        try {
+            $projectId = $session->get('active_project_id');
+            if (!$projectId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+
+            $targetGen = (int)($_POST['generation_number'] ?? 0);
+            $parentGen = (int)($_POST['parent_generation_number'] ?? 0);
+            $individuals = $_POST['individual_ids'] ?? [];
+
+            if ($targetGen <= 0 || $parentGen <= 0 || empty($individuals)) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Parámetros inválidos']);
+                exit;
+            }
+
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+
+            // Ensure individuals array
+            if (!is_array($individuals)) {
+                $individuals = [$individuals];
+            }
+
+            $inserted = $generationModel->addParentals($projectId, $targetGen, $parentGen, array_map('intval', $individuals));
+            // Disallow adding parentals if the target generation already exists (children already generated)
+            $existingGen = $generationModel->getByNumber($projectId, $targetGen);
+            if ($existingGen) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No se pueden agregar parentales: la generación objetivo ya existe']);
+                exit;
+            }
+
+            ob_end_clean();
+            echo json_encode(['success' => true, 'inserted' => $inserted]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'get_parentals') {
+        header('Content-Type: application/json');
+        ob_start();
+
+        try {
+            $projectId = $session->get('active_project_id');
+            if (!$projectId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+
+            $targetGen = (int)($_POST['generation_number'] ?? 0);
+            if ($targetGen <= 0) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Número de generación inválido']);
+                exit;
+            }
+
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+
+            $parentals = $generationModel->getParentals($projectId, $targetGen);
+
+            // Also return whether the target generation already exists (to disable deletions)
+            $existingGen = $generationModel->getByNumber($projectId, $targetGen);
+
+            ob_end_clean();
+            echo json_encode(['success' => true, 'parentals' => $parentals, 'target_exists' => $existingGen ? true : false]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'delete_parental') {
+        header('Content-Type: application/json');
+        ob_start();
+
+        try {
+            $projectId = $session->get('active_project_id');
+            if (!$projectId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+
+            $targetGen = (int)($_POST['generation_number'] ?? 0);
+            $parentGen = (int)($_POST['parent_generation_number'] ?? 0);
+            $individualId = (int)($_POST['individual_id'] ?? 0);
+
+            if ($targetGen <= 0 || $parentGen <= 0 || $individualId <= 0) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Parámetros inválidos']);
+                exit;
+            }
+
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+
+            $ok = $generationModel->deleteParental($projectId, $targetGen, $parentGen, $individualId);
+
+            // Disallow deleting parentals if the target generation already exists
+            $existingGen = $generationModel->getByNumber($projectId, $targetGen);
+            if ($existingGen) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No se pueden borrar parentales: la generación objetivo ya existe (ya se generaron individuos)']);
+                exit;
+            }
+
+            ob_end_clean();
+            echo json_encode(['success' => $ok]);
         } catch (\Exception $e) {
             ob_end_clean();
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);

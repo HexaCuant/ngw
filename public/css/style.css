@@ -368,6 +368,20 @@ tr:last-child td {
     border: 1px solid var(--color-border);
 }
 
+/* Parentals specific styles - visually distinguish parentales table/card from descendant tables */
+.parentals-card {
+    /* subtle tint to separate from regular cards */
+    background-color: rgba(16, 185, 129, 0.04);
+    border-left: 4px solid var(--color-secondary);
+}
+.parentals-card h4 {
+    color: var(--color-secondary);
+    margin-top: 0;
+}
+.parentals-card table thead th {
+    background-color: rgba(16, 185, 129, 0.06);
+}
+
 .card-header {
     margin-bottom: var(--spacing-lg);
     padding-bottom: var(--spacing-md);
@@ -671,5 +685,64 @@ a:visited {
     .two-column-layout {
         grid-template-columns: 1fr;
     }
+}
+
+/* Parent selection controls layout */
+.parent-selection-controls {
+    display: block;
+}
+.parent-selection-controls .psc-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 0.6rem;
+}
+.parent-selection-controls .psc-count {
+    font-weight: 600;
+}
+.parent-selection-controls .psc-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+.parent-selection-controls .psc-box {
+    background-color: rgba(16, 185, 129, 0.03);
+    border: 1px solid rgba(16, 185, 129, 0.06);
+    padding: 0.6rem;
+    border-radius: 6px;
+}
+.parent-selection-controls .psc-box {
+    border-left: 4px solid var(--color-secondary);
+}
+.parent-selection-controls .psc-actions-row {
+    margin-top: 0.6rem;
+}
+.parent-selection-controls .psc-inputs {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.parent-selection-controls .psc-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+}
+.parent-selection-controls .psc-label {
+    font-weight: 600;
+}
+.parent-selection-controls .psc-input-number {
+    width: 5rem;
+    padding: 0.25rem 0.4rem;
+}
+.parent-selection-controls .psc-select {
+    min-width: 8rem;
+}
+
+@media (max-width: 720px) {
+    .parent-selection-controls .psc-row { flex-direction: column; align-items: stretch; }
+    .parent-selection-controls .psc-actions { margin-left: 0; justify-content: flex-end; }
 }
 
