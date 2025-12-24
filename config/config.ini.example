@@ -21,6 +21,7 @@ APP_NAME=GenWeb NG
 
 [paths]
 PROJECTS_PATH=/var/www/proyectosGengine
+GENGINE_SCRIPT=/usr/local/bin/ngen2web
 
 [admin]
 ; Default admin username (created during init)

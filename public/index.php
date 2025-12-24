@@ -839,6 +839,189 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
         }
         exit;
     }
+    elseif ($projectAction === 'create_random_generation') {
+        header('Content-Type: application/json');
+        
+        // Prevent any output before JSON
+        ob_start();
+        
+        try {
+            $projectId = $session->get('active_project_id');
+            
+            if (!$projectId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+            
+            $populationSize = (int)($_POST['population_size'] ?? 0);
+            
+            if ($populationSize <= 0) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'El tamaño de población debe ser mayor que 0']);
+                exit;
+            }
+            
+            // Create generation model
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+            
+            // Get next generation number
+            $generationNumber = $generationModel->getNextGenerationNumber($projectId);
+            
+            // Generate POC file
+            $pocPath = $projectModel->generatePocFile($projectId, $populationSize, $generationNumber, 'random');
+            
+            // Execute gengine
+            $result = $generationModel->executeGengine($projectId);
+            
+            if (!$result['success']) {
+                ob_end_clean();
+                echo json_encode([
+                    'success' => false, 
+                    'error' => 'Error al ejecutar gengine (código ' . $result['return_code'] . ')'
+                ]);
+                exit;
+            }
+            
+            // Create generation record
+            $generationModel->create($projectId, $generationNumber, $populationSize, 'random');
+            
+            // Parse output and get individuals (sorted in the model)
+            $individuals = $generationModel->parseGenerationOutput($projectId, $generationNumber);
+
+            // Reindex as list to preserve order on JSON (avoid JS reordering numeric keys)
+            $individualsList = [];
+            foreach ($individuals as $id => $phenotypes) {
+                $individualsList[] = [
+                    'id' => $id,
+                    'phenotypes' => $phenotypes
+                ];
+            }
+            
+            // Clear any debug output
+            ob_end_clean();
+            
+            echo json_encode([
+                'success' => true,
+                'generation_number' => $generationNumber,
+                'individuals' => $individualsList,
+                'population_size' => count($individuals)
+            ]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'get_generation_details') {
+        header('Content-Type: application/json');
+        ob_start();
+        
+        try {
+            $projectId = $session->get('active_project_id');
+            
+            if (!$projectId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+            
+            $generationNumber = (int)($_POST['generation_number'] ?? 0);
+            
+            if ($generationNumber <= 0) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Número de generación inválido']);
+                exit;
+            }
+            
+            // Create generation model
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+            
+            // Get generation details
+            $generation = $generationModel->getByNumber($projectId, $generationNumber);
+            
+            if (!$generation) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Generación no encontrada']);
+                exit;
+            }
+            
+            // Parse individuals from .dat file (sorted in model)
+            $individuals = $generationModel->parseGenerationOutput($projectId, $generationNumber);
+
+            // Reindex as list to preserve order on JSON (avoid JS reordering numeric keys)
+            $individualsList = [];
+            foreach ($individuals as $id => $phenotypes) {
+                $individualsList[] = [
+                    'id' => $id,
+                    'phenotypes' => $phenotypes
+                ];
+            }
+            
+            ob_end_clean();
+            
+            echo json_encode([
+                'success' => true,
+                'generation_number' => $generation['generation_number'],
+                'type' => $generation['type'],
+                'population_size' => $generation['population_size'],
+                'created_at' => $generation['created_at'],
+                'individuals' => $individualsList
+            ]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'delete_generation') {
+        header('Content-Type: application/json');
+        ob_start();
+        
+        try {
+            $projectId = $session->get('active_project_id');
+            
+            if (!$projectId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+            
+            $generationNumber = (int)($_POST['generation_number'] ?? 0);
+            
+            if ($generationNumber <= 0) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Número de generación inválido']);
+                exit;
+            }
+            
+            // Create generation model
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+            
+            // Delete generation
+            $success = $generationModel->delete($projectId, $generationNumber);
+            
+            if (!$success) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Error al borrar la generación']);
+                exit;
+            }
+            
+            ob_end_clean();
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Generación borrada con éxito'
+            ]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
 }
 
 ?>

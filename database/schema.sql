@@ -132,6 +132,18 @@ CREATE TABLE IF NOT EXISTS generations (
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
+-- Parentals table (for cross generations)
+-- Only stores selected individuals for breeding, not all individuals
+CREATE TABLE IF NOT EXISTS parentals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    generation_number INTEGER NOT NULL, -- The new generation being created
+    individual_id INTEGER NOT NULL, -- Individual ID from parent generation
+    parent_generation_number INTEGER NOT NULL, -- Which generation this individual comes from
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_approved ON users(is_approved);
@@ -143,6 +155,7 @@ CREATE INDEX IF NOT EXISTS idx_project_characters_project ON project_characters(
 CREATE INDEX IF NOT EXISTS idx_project_characters_character ON project_characters(character_id);
 CREATE INDEX IF NOT EXISTS idx_character_genes_character ON character_genes(character_id);
 CREATE INDEX IF NOT EXISTS idx_generations_project ON generations(project_id);
+CREATE INDEX IF NOT EXISTS idx_parentals_project_gen ON parentals(project_id, generation_number);
 
 -- Create default admin user (password: admin123 - CHANGE THIS!)
 -- Password hash for 'admin123'
