@@ -26,6 +26,8 @@ if ($activeProjectId) {
         <div class="alert alert-success">
             <strong>Proyecto activo:</strong> <?= e($activeProject['name']) ?> (ID: <?= e($activeProject['id']) ?>)
         </div>
+        <!-- Toast message -->
+        <div id="toast" class="toast" style="display:none; position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 12px 18px; border-radius: 6px; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"></div>
         
         <div class="generations-layout">
             <!-- Panel izquierdo: controles y lista -->
@@ -217,6 +219,14 @@ if ($activeProjectId) {
     height: fit-content;
 }
 
+/* Toast styles */
+.toast-success {
+    background-color: #28a745;
+}
+.toast-error {
+    background-color: #dc3545;
+}
+
 #individualsTable table {
     margin-top: 15px;
 }
@@ -271,13 +281,15 @@ function createRandomGeneration() {
                 created_at: data.created_at,
                 individuals: data.individuals
             });
+            // Show success toast
+            showToast('Generación ' + data.generation_number + ' creada con éxito', 'success');
         } else {
-            alert('Error: ' + (data.error || 'Error desconocido'));
+            showToast('Error: ' + (data.error || 'Error desconocido'), 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error al crear la generación: ' + error.message);
+        showToast('Error al crear la generación: ' + error.message, 'error');
     });
 }
 
@@ -300,12 +312,12 @@ function viewGeneration(generationNumber) {
         if (data.success) {
             renderGenerationData(data);
         } else {
-            alert('Error: ' + (data.error || 'Error al cargar la generación'));
+            showToast('Error: ' + (data.error || 'Error al cargar la generación'), 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error al cargar la generación: ' + error.message);
+        showToast('Error al cargar la generación: ' + error.message, 'error');
     });
 }
 
@@ -336,7 +348,7 @@ function deleteGeneration(generationNumber) {
     })
     .then(data => {
         if (data.success) {
-            alert('Generación ' + generationNumber + ' borrada con éxito');
+            showToast('Generación ' + generationNumber + ' borrada con éxito', 'success');
             
             // Remove row from table
             const row = document.getElementById('gen-row-' + generationNumber);
@@ -354,7 +366,7 @@ function deleteGeneration(generationNumber) {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error al borrar la generación: ' + error.message);
+        showToast('Error al borrar la generación: ' + error.message, 'error');
     });
 }
 
@@ -411,5 +423,20 @@ function renderGenerationData(data) {
     // Show viewer, hide empty state
     document.getElementById('emptyViewer').style.display = 'none';
     document.getElementById('generationViewer').style.display = 'block';
+}
+
+// Show a transient toast message (type: 'success'|'error')
+function showToast(message, type = 'success', duration = 3500) {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.remove('toast-success', 'toast-error');
+    el.classList.add(type === 'success' ? 'toast-success' : 'toast-error');
+    el.style.display = 'block';
+
+    clearTimeout(window._toastTimeout);
+    window._toastTimeout = setTimeout(() => {
+        el.style.display = 'none';
+    }, duration);
 }
 </script>
