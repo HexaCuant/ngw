@@ -153,6 +153,34 @@ ngw/
 
 ## 💡 Ventajas sobre el sistema original (gw)
 
+---
+
+## 🗃️ Database dump for git (SQL snapshot)
+
+To keep a readable, versionable snapshot of the development database in the repository, this project provides a script that exports a normalized SQL dump suitable for git.
+
+- The binary DB file (`data/ngw.db`) is ignored in `.gitignore` (committed to the repo). Use the dump instead when you want to track schema or seed data changes.
+- Generate a normalized dump with:
+
+```bash
+./bin/dump-db.sh [path/to/db] [path/to/output.sql]
+# defaults: ./bin/dump-db.sh data/ngw.db data/ngw.sql
+```
+
+What the script does:
+- Exports schema and data by table
+- Orders rows by primary key where possible to make output deterministic
+- Normalizes timestamp literals to a constant (`1970-01-01 00:00:00`) to reduce noisy diffs
+- Removes SQLite internal sequences (`sqlite_sequence`)
+
+Important notes:
+- Do **not** commit production or sensitive data: **always** review `data/ngw.sql` before committing/pushing.
+- The script is intended for development/seed snapshots and not as a replacement for a proper migration system. For structural changes prefer creating migration scripts.
+
+---
+
+## 💡 Ventajas sobre el sistema original (gw)
+
 | Característica | gw (original) | ngw (mejorado) |
 |---|---|---|
 | Base de datos | PostgreSQL (servidor externo) | SQLite (archivo local) |
