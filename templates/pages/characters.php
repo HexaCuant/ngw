@@ -679,24 +679,38 @@ if (createGeneForm) {
                     }
                     
                     const gene = data.gene;
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${gene.id}</td>
-                        <td>${gene.name}</td>
-                        <td>${gene.chromosome}</td>
-                        <td>${gene.position}</td>
-                        <td>
-                            <button type="button" onclick="openGene(${gene.id})" class="btn-primary btn-small">Abrir</button>
-                            <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                                <button type="button" onclick="deleteGene(${gene.id}, '${gene.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button>
-                            <?php endif; ?>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                }
-                
-                // Reset form
-                createGeneForm.reset();
+                    // Ensure genes view is visible
+                    const genesView = document.getElementById('genes-view');
+                    if (genesView) {
+                        genesView.style.display = 'block';
+                    }
+
+                    const tbody = document.querySelector('#genes-view > table tbody');
+                    if (tbody) {
+                        // Remove 'no genes' placeholder if present
+                        const emptyRow = tbody.querySelector('td[colspan]');
+                        if (emptyRow) emptyRow.closest('tr').remove();
+
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${gene.id}</td>
+                            <td>${gene.name}</td>
+                            <td>${gene.chromosome}</td>
+                            <td>${gene.position}</td>
+                            <td>
+                                <button type="button" id="gene-toggle-${gene.id}" onclick="toggleGene(${gene.id}, this)" class="btn-primary btn-small">Abrir</button>
+                                <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
+                                    <button type="button" onclick="deleteGene(${gene.id}, '${gene.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button>
+                                <?php endif; ?>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    }
+
+                    // Reset and hide form
+                    createGeneForm.reset();
+                    const formContainer = document.getElementById('create-gene-form-container');
+                    if (formContainer) formContainer.style.display = 'none';
             } else {
                 showNotification(data.error || 'Error al crear gen', 'error');
             }
