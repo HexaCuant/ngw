@@ -650,6 +650,13 @@ if (createGeneForm) {
     createGeneForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
+        // Validate that at least one gene_type checkbox is selected
+        const anyTypeChecked = this.querySelectorAll('input[name="gene_type[]"]:checked').length > 0;
+        if (!anyTypeChecked) {
+            showNotification('Selecciona al menos un tipo de cromosoma (X, Y, A o B)', 'error');
+            return;
+        }
+
         const formData = new FormData(this);
         formData.set('char_action', 'create_gene_ajax');
         

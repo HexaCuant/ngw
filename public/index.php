@@ -623,8 +623,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                 $chr = isset($_POST['gene_chr']) ? trim($_POST['gene_chr']) : null;
                 $type = isset($_POST['gene_type']) ? implode('', $_POST['gene_type']) : '';
                 $pos = isset($_POST['gene_pos']) ? trim($_POST['gene_pos']) : null;
+
+                // Server-side validation: ensure at least one type is selected
+                if (empty($type)) {
+                    echo json_encode(['success' => false, 'error' => 'Selecciona al menos un tipo de cromosoma (X, Y, A o B)']);
+                    exit;
+                }
                 
-                $geneId = $characterModel->addGene($charId, $name, $chr, $type, $pos);
+                // Note: addGene signature is (characterId, name, chromosome, position, code)
+                $geneId = $characterModel->addGene($charId, $name, $chr, $pos, $type);
                 
                 // Build chromosome display
                 $chrDisplay = '';
