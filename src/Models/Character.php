@@ -204,13 +204,38 @@ class Character
      */
     public function removeGene(int $characterId, int $geneId): bool
     {
-        // Delete from character_genes
-        $sql = "DELETE FROM character_genes WHERE gene_id = :gene_id AND character_id = :character_id";
-        $this->db->execute($sql, ['gene_id' => $geneId, 'character_id' => $characterId]);
+        // Use transaction to ensure consistent cleanup
+        $this->db->beginTransaction();
+        try {
+            // Remove connections that reference this gene for the character
+            $sql = "DELETE FROM connections WHERE transition = :transition AND character_id = :character_id";
+            $this->db->execute($sql, ['transition' => $geneId, 'character_id' => $characterId]);
 
-        // Delete gene itself
-        $sql = "DELETE FROM genes WHERE id = :id";
-        return $this->db->execute($sql, ['id' => $geneId]) > 0;
+            // Find allele ids linked to this gene
+            $sql = "SELECT allele_id FROM gene_alleles WHERE gene_id = :gene_id";
+            $alleles = $this->db->fetchAll($sql, ['gene_id' => $geneId]);
+            foreach ($alleles as $a) {
+                $aid = (int) $a['allele_id'];
+                // Remove link rows
+                $this->db->execute("DELETE FROM gene_alleles WHERE allele_id = :id", ['id' => $aid]);
+                // Remove allele record
+                $this->db->execute("DELETE FROM alleles WHERE id = :id", ['id' => $aid]);
+            }
+
+            // Remove the character-gene link
+            $sql = "DELETE FROM character_genes WHERE gene_id = :gene_id AND character_id = :character_id";
+            $this->db->execute($sql, ['gene_id' => $geneId, 'character_id' => $characterId]);
+
+            // Delete gene itself
+            $sql = "DELETE FROM genes WHERE id = :id";
+            $affected = $this->db->execute($sql, ['id' => $geneId]);
+
+            $this->db->commit();
+            return $affected > 0;
+        } catch (\Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
     }
 
     /**

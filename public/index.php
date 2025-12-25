@@ -80,25 +80,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
     if ($charAction === 'create_character_ajax') {
         header('Content-Type: application/json');
         try {
-            if ($session->isTeacher() || $session->isAdmin()) {
-                $name = trim($_POST['char_name']);
-                $visible = isset($_POST['visible']) ? 1 : 0;
-                $public = isset($_POST['public']) ? 1 : 0;
-                
-                $charId = $characterModel->create($name, $userId, $visible, $public);
-                
-                echo json_encode([
-                    'success' => true,
-                    'character' => [
-                        'id' => $charId,
-                        'name' => $name,
-                        'is_public' => $public,
-                        'is_visible' => $visible
-                    ]
-                ]);
-            } else {
-                echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
+            $name = trim($_POST['char_name']);
+            $visible = isset($_POST['visible']) ? 1 : 0;
+            $public = isset($_POST['public']) ? 1 : 0;
+            
+            // Only teachers and admins can set visibility and public flags
+            if (!($session->isTeacher() || $session->isAdmin())) {
+                $visible = 1;  // Default visible for students
+                $public = 0;   // Default not public for students
             }
+            
+            $charId = $characterModel->create($name, $userId, $public, $visible);
+            
+            echo json_encode([
+                'success' => true,
+                'character' => [
+                    'id' => $charId,
+                    'name' => $name,
+                    'is_public' => $public,
+                    'is_visible' => $visible
+                ]
+            ]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
@@ -168,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                         <button type="button" class="btn-primary" id="toggle-genes-btn" onclick="toggleGenesView()">Ver Genes</button>
                         <button type="button" class="btn-primary" id="toggle-connections-btn" onclick="toggleConnectionsView()">Ver Conexiones</button>
                         <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                            <button type="button" class="btn-success" onclick="document.getElementById('create-gene-form').style.display = document.getElementById('create-gene-form').style.display === 'none' ? 'block' : 'none';">Crear nuevo gen</button>
+                            <button type="button" class="btn-success" onclick="document.getElementById('create-gene-form-container').style.display = document.getElementById('create-gene-form-container').style.display === 'none' ? 'block' : 'none';">Crear nuevo gen</button>
                         <?php endif; ?>
                     </div>
                     
@@ -194,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                                             <td><?= e($gene['chromosome']) ?></td>
                                             <td><?= e($gene['position']) ?></td>
                                             <td>
-                                                <button type="button" id="gene-toggle-<?= e($gene['id']) ?>" onclick="toggleGene(<?= e($gene['id']) ?>)" class="btn-primary btn-small">Abrir</button>
+                                                <button type="button" id="gene-toggle-<?= e($gene['id']) ?>" onclick="toggleGene(<?= e($gene['id']) ?>, this)" class="btn-primary btn-small">Abrir</button>
                                                 <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                                                     <button type="button" onclick="deleteGene(<?= e($gene['id']) ?>, '<?= e(addslashes($gene['name'])) ?>')" class="btn-danger btn-small">Borrar</button>
                                                 <?php endif; ?>
@@ -302,7 +304,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                     </div>
                     
                     <!-- Create gene form -->
-                    <div id="create-gene-form" style="display: none; margin-top: 1.5rem;"></div>
+                    <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
+                        <div id="create-gene-form-container" style="display: none; margin-top: 1.5rem;">
+                            <h4>Crear nuevo gen</h4>
+                            <form method="post" id="create-gene-form">
+                                <input type="hidden" name="char_action" value="create_gene">
+                                <div class="form-group">
+                                    <label>Nombre</label>
+                                    <input type="text" name="gene_name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Cromosoma nº</label>
+                                    <input type="text" name="gene_chr" placeholder="Ej: 1, 2, 3...">
+                                </div>
+                                <div class="form-group">
+                                    <label>Tipo de cromosoma</label>
+                                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                                        <label><input type="checkbox" name="gene_type[]" value="X"> X</label>
+                                        <label><input type="checkbox" name="gene_type[]" value="Y"> Y</label>
+                                        <label><input type="checkbox" name="gene_type[]" value="A" checked> A</label>
+                                        <label><input type="checkbox" name="gene_type[]" value="B" checked> B</label>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Posición</label>
+                                    <input type="text" name="gene_pos">
+                                </div>
+                                <button type="submit" class="btn-success btn-small">Crear Gen</button>
+                            </form>
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <?php
                 $html = ob_get_clean();
@@ -322,7 +353,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             $session->remove('active_character_id');
             $session->remove('active_gene_id');
             $session->remove('show_connections');
-            echo json_encode(['success' => true]);
+            
+            // Generate create form HTML
+            $isTeacher = $session->isTeacher();
+            $isAdmin = $session->isAdmin();
+            $formHtml = '<div class="card">';
+            $formHtml .= '<h3>Crear Nuevo Carácter</h3>';
+            $formHtml .= '<form method="post" id="create-character-form">';
+            $formHtml .= '<input type="hidden" name="char_action" value="create">';
+            $formHtml .= '<div class="form-group">';
+            $formHtml .= '<label for="char_name">Nombre del Carácter</label>';
+            $formHtml .= '<input type="text" id="char_name" name="char_name" required>';
+            $formHtml .= '</div>';
+            
+            if ($isTeacher || $isAdmin) {
+                $formHtml .= '<div class="form-group form-inline">';
+                $formHtml .= '<label><input type="checkbox" name="visible"> Visible</label>';
+                $formHtml .= '<label style="margin-left: 1rem;"><input type="checkbox" name="public"> Público</label>';
+                $formHtml .= '</div>';
+            }
+            
+            $formHtml .= '<button type="submit" class="btn-success">Crear Carácter</button>';
+            $formHtml .= '</form>';
+            $formHtml .= '</div>';
+            
+            echo json_encode(['success' => true, 'html' => $formHtml]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
@@ -409,7 +464,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
         header('Content-Type: application/json');
         try {
             $geneId = (int) ($session->get('active_gene_id') ?? 0);
-            if ($geneId > 0 && ($session->isTeacher() || $session->isAdmin())) {
+            $activeCharId = (int) ($session->get('active_character_id') ?? 0);
+            if ($geneId > 0 && ($session->isTeacher() || $session->isAdmin() || ($activeCharId > 0 && $characterModel->isOwner($activeCharId, $userId)))) {
                 $name = trim($_POST['allele_name']);
                 $value = $_POST['allele_value'] !== '' ? (float) $_POST['allele_value'] : null;
                 $additive = isset($_POST['allele_additive']) && $_POST['allele_additive'] == '1';
@@ -469,7 +525,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                 // Render HTML for alleles section
                 ob_start();
                 ?>
-                <div id="alleles-section" style="margin-top: 1.5rem;">
+                <div id="alleles-section" data-gene-id="<?= (int)$activeGene['id'] ?>" style="margin-top: 1.5rem;">
                     <h4>Gen abierto: <?= htmlspecialchars($activeGene['name']) ?></h4>
                     <table style="width: 100%; margin-top: 1rem;">
                         <thead>
@@ -507,6 +563,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                             <?php endif; ?>
                         </tbody>
                     </table>
+                    
+                    <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
+                        <form method="post" id="add-allele-form" style="margin-top: 1rem;">
+                            <input type="hidden" name="char_action" value="add_allele">
+                            <h5>Añadir nuevo alelo</h5>
+                            <div class="form-group">
+                                <label>Nombre</label>
+                                <input type="text" name="allele_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Valor</label>
+                                <input type="text" name="allele_value">
+                            </div>
+                            <div class="form-group">
+                                <label>Aditivo</label>
+                                <label><input type="checkbox" name="allele_additive" value="1"> Sí</label>
+                            </div>
+                            <div class="form-group">
+                                <label>Dominancia</label>
+                                <input type="text" name="allele_dominance">
+                            </div>
+                            <div class="form-group">
+                                <label>Epistasis</label>
+                                <input type="text" name="allele_epistasis">
+                            </div>
+                            <button type="submit" class="btn-success btn-small">Añadir Alelo</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
                 <?php
                 $html = ob_get_clean();
@@ -577,7 +661,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             $charId = (int)($session->get('active_character_id') ?? 0);
             
             if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
-                $characterModel->deleteGene($geneId);
+                $characterModel->removeGene($charId, $geneId);
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
@@ -1502,6 +1586,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
     <title>GenWeb NG - Sistema de Generaciones Genéticas</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="css/style.css?v=<?= time() ?>">
+    <script src="js/ajax-handlers.js?v=<?= time() ?>" defer></script>
+    <script src="js/project-handlers.js?v=<?= time() ?>" defer></script>
 </head>
 <body>
     <div class="container">

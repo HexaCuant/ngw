@@ -136,7 +136,7 @@ if ($activeCharacterId) {
                     </button>
                     
                     <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                        <button type="button" class="btn-success" onclick="document.getElementById('create-gene-form').style.display = document.getElementById('create-gene-form').style.display === 'none' ? 'block' : 'none';">
+                        <button type="button" class="btn-success" onclick="document.getElementById('create-gene-form-container').style.display = document.getElementById('create-gene-form-container').style.display === 'none' ? 'block' : 'none';">
                             Crear nuevo gen
                         </button>
                     <?php endif; ?>
@@ -181,7 +181,7 @@ if ($activeCharacterId) {
 
                 <!-- Formulario de crear gen (oculto por defecto) -->
                 <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                    <div id="create-gene-form" style="display: none; margin-top: 1.5rem;">
+                    <div id="create-gene-form-container" style="display: none; margin-top: 1.5rem;">
                         <h4>Crear nuevo gen</h4>
                         <form method="post" id="create-gene-form">
                             <input type="hidden" name="char_action" value="create_gene">
@@ -203,10 +203,10 @@ if ($activeCharacterId) {
                                         <input type="checkbox" name="gene_type[]" value="Y"> Y
                                     </label>
                                     <label>
-                                        <input type="checkbox" name="gene_type[]" value="A"> A
+                                        <input type="checkbox" name="gene_type[]" value="A" checked> A
                                     </label>
                                     <label>
-                                        <input type="checkbox" name="gene_type[]" value="B"> B
+                                        <input type="checkbox" name="gene_type[]" value="B" checked> B
                                     </label>
                                 </div>
                             </div>
@@ -429,7 +429,7 @@ document.querySelectorAll('form').forEach(form => {
     // Removed old toggle handlers - now using direct button onclick
 });
 
-// Handle delete character confirmation with AJAX
+// Handle character form submission with AJAX
 const createCharacterForm = document.getElementById('create-character-form');
 if (createCharacterForm) {
     createCharacterForm.addEventListener('submit', function(e) {
@@ -702,8 +702,6 @@ if (createGeneForm) {
 }
 </script>
 
-<!-- AJAX Handlers -->
-<script src="js/ajax-handlers.js"></script>
 <script>
 // Auto-update substrates via AJAX
 const substratesInputAjax = document.getElementById('substrates-input');
@@ -851,15 +849,29 @@ function toggleGenesView() {
     }
 }
 
-function toggleGene(geneId) {
-    const btn = document.getElementById('gene-toggle-' + geneId);
+function toggleGene(geneId, btnElement) {
+    // If the button element is provided, use it; otherwise fall back to lookup by id
+    const btn = btnElement || document.getElementById('gene-toggle-' + geneId);
     const allelesSection = document.getElementById('alleles-section');
+    console.debug('toggleGene called for', geneId, 'btnElement?', !!btnElement, 'existing allelesSection?', !!allelesSection);
     
     // Check if this gene is currently open
     if (allelesSection) {
         closeGene();
+        // Also update button state
+        if (btn) {
+            btn.textContent = 'Abrir';
+            btn.className = 'btn-primary btn-small';
+            console.debug('toggleGene: set to Abrir for gene', geneId);
+        }
     } else {
         openGene(geneId);
+        // Update button state optimistically
+        if (btn) {
+            btn.textContent = 'Cerrar';
+            btn.className = 'btn-secondary btn-small';
+            console.debug('toggleGene: optimistically set to Cerrar for gene', geneId);
+        }
     }
 }
 

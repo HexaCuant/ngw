@@ -48,11 +48,20 @@ function openCharacter(characterId) {
         if (data.success) {
             showNotification('Carácter abierto', 'success');
             
-            // Hide create form and show character details
-            const createForm = document.getElementById('create-character-form');
-            if (createForm) {
-                createForm.closest('.card').style.display = 'none';
+            // Remove create form if exists
+            const createFormCard = document.querySelector('.column-right .card h3');
+            if (createFormCard && createFormCard.textContent.includes('Crear Nuevo Carácter')) {
+                createFormCard.closest('.card').remove();
             }
+            
+            // Remove any existing character details to avoid duplicates
+            const existingDetails = document.querySelectorAll('.column-right .card');
+            existingDetails.forEach(card => {
+                const h3 = card.querySelector('h3');
+                if (h3 && h3.textContent.includes('Detalles del Carácter:')) {
+                    card.remove();
+                }
+            });
             
             // Insert character details HTML
             const columnRight = document.querySelector('.column-right');
@@ -60,6 +69,76 @@ function openCharacter(characterId) {
                 const detailsCard = document.createElement('div');
                 detailsCard.innerHTML = data.html;
                 columnRight.appendChild(detailsCard.firstElementChild);
+                
+                // Attach event handler to create gene form
+                const createGeneForm = document.getElementById('create-gene-form');
+                if (createGeneForm) {
+                    createGeneForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        
+                        const formData = new FormData(this);
+                        formData.set('char_action', 'create_gene_ajax');
+                        
+                        fetch('index.php?option=1', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showNotification('Gen creado', 'success');
+                                
+                                // Make sure genes view is visible
+                                const genesView = document.getElementById('genes-view');
+                                if (genesView) {
+                                    genesView.style.display = 'block';
+                                }
+                                
+                                // Add row to genes table
+                                const tbody = document.querySelector('#genes-view table tbody');
+                                if (tbody) {
+                                    // Remove "no genes" message if exists
+                                    const emptyMessage = tbody.querySelector('p');
+                                    if (emptyMessage) {
+                                        emptyMessage.closest('tr')?.remove();
+                                    }
+                                    
+                                    // Check if tbody only has empty message row
+                                    if (tbody.children.length === 0 || tbody.querySelector('td[colspan]')) {
+                                        tbody.innerHTML = ''; // Clear empty state
+                                    }
+                                    
+                                    const gene = data.gene;
+                                    const row = document.createElement('tr');
+                                    row.innerHTML = `
+                                        <td>${gene.id}</td>
+                                        <td>${gene.name}</td>
+                                        <td>${gene.chromosome || ''}</td>
+                                        <td>${gene.position || ''}</td>
+                                        <td>
+                                            <button type="button" id="gene-toggle-${gene.id}" onclick="toggleGene(${gene.id}, this)" class="btn-primary btn-small">Abrir</button>
+                                            <button type="button" onclick="deleteGene(${gene.id}, '${gene.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button>
+                                        </td>
+                                    `;
+                                    tbody.appendChild(row);
+                                }
+                                
+                                // Reset and hide form
+                                createGeneForm.reset();
+                                const formContainer = document.getElementById('create-gene-form-container');
+                                if (formContainer) {
+                                    formContainer.style.display = 'none';
+                                }
+                            } else {
+                                showNotification(data.error || 'Error al crear gen', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showNotification('Error de conexión', 'error');
+                        });
+                    });
+                }
             }
         } else {
             showNotification(data.error || 'Error al abrir carácter', 'error');
@@ -87,7 +166,7 @@ function closeCharacter() {
         if (data.success) {
             showNotification('Carácter cerrado', 'success');
             
-            // Remove character details card - find by title text
+            // Remove character details card
             const allCards = document.querySelectorAll('.column-right .card');
             allCards.forEach(card => {
                 const h3 = card.querySelector('h3');
@@ -96,10 +175,41 @@ function closeCharacter() {
                 }
             });
             
-            // Show create form again
-            const createForm = document.getElementById('create-character-form');
-            if (createForm) {
-                createForm.closest('.card').style.display = 'block';
+            // Insert create form HTML
+            const columnRight = document.querySelector('.column-right');
+            if (columnRight && data.html) {
+                columnRight.insertAdjacentHTML('beforeend', data.html);
+                
+                // Re-attach form submit handler
+                const createCharacterForm = document.getElementById('create-character-form');
+                if (createCharacterForm) {
+                    createCharacterForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        
+                        const formData = new FormData(this);
+                        formData.set('char_action', 'create_character_ajax');
+                        
+                        fetch('index.php?option=1', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showNotification('Carácter creado', 'success');
+                                setTimeout(() => {
+                                    window.location.href = 'index.php?option=1';
+                                }, 500);
+                            } else {
+                                showNotification(data.error || 'Error al crear carácter', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showNotification('Error de conexión', 'error');
+                        });
+                    });
+                }
             }
         } else {
             showNotification(data.error || 'Error al cerrar carácter', 'error');
@@ -218,17 +328,83 @@ function openGene(geneId) {
             // Insert alleles HTML inside genes-view
             const genesView = document.getElementById('genes-view');
             if (genesView && data.html) {
-                const allelesDiv = document.createElement('div');
-                allelesDiv.innerHTML = data.html;
-                genesView.appendChild(allelesDiv.firstElementChild);
-            }
-            
-            // Change this gene's button to 'Cerrar'
-            const btn = document.getElementById('gene-toggle-' + geneId);
-            if (btn) {
-                btn.textContent = 'Cerrar';
-                btn.className = 'btn-secondary btn-small';
-            }
+                    const allelesDiv = document.createElement('div');
+                    allelesDiv.innerHTML = data.html;
+                    genesView.appendChild(allelesDiv.firstElementChild);
+
+                    // Attach add-allele form handler if present
+                    const addAlleleForm = document.getElementById('add-allele-form');
+                    if (addAlleleForm) {
+                        addAlleleForm.addEventListener('submit', function(e) {
+                            e.preventDefault();
+
+                            const formData = new FormData(this);
+                            formData.set('char_action', 'add_allele_ajax');
+
+                            fetch('index.php?option=1', {
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    showNotification('Alelo añadido', 'success');
+
+                                    // Insert new allele row into table
+                                    const tbody = document.querySelector('#alleles-section table tbody');
+                                    if (tbody) {
+                                        // Remove 'no alelos' row if present
+                                        const emptyRow = tbody.querySelector('td[colspan]');
+                                        if (emptyRow) emptyRow.closest('tr').remove();
+
+                                        const allele = data.allele;
+                                        const tr = document.createElement('tr');
+
+                                        tr.innerHTML = `
+                                            <td>${allele.id}</td>
+                                            <td>${allele.name}</td>
+                                            <td>${allele.value ?? ''}</td>
+                                            <td>${allele.additive == 1 ? 'Sí' : 'No'}</td>
+                                            <td>${allele.dominance ?? ''}</td>
+                                            <td>${allele.epistasis ?? ''}</td>
+                                        `;
+
+                                        // Actions cell
+                                        const actionsTd = document.createElement('td');
+                                        const delBtn = document.createElement('button');
+                                        delBtn.className = 'btn-danger btn-small';
+                                        delBtn.textContent = 'Eliminar';
+                                        delBtn.addEventListener('click', function() {
+                                            deleteAllele(allele.id, () => tr.remove());
+                                        });
+                                        actionsTd.appendChild(delBtn);
+                                        tr.appendChild(actionsTd);
+
+                                        tbody.appendChild(tr);
+                                    }
+
+                                    // Reset form
+                                    addAlleleForm.reset();
+                                } else {
+                                    showNotification(data.error || 'Error al añadir alelo', 'error');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                showNotification('Error de conexión', 'error');
+                            });
+                        });
+                    }
+                }
+
+                // Change this gene's button to 'Cerrar'
+                const btn = document.getElementById('gene-toggle-' + geneId);
+                console.debug('openGene: setting button state for gene', geneId, 'found btn?', !!btn);
+                if (btn) {
+                    btn.textContent = 'Cerrar';
+                    btn.className = 'btn-secondary btn-small';
+                    console.debug('openGene: button updated to Cerrar for gene', geneId);
+                }
         } else {
             showNotification(data.error || 'Error al abrir gen', 'error');
         }
@@ -246,7 +422,7 @@ function closeGene() {
     const formData = new FormData();
     formData.append('char_action', 'close_gene_ajax');
     
-    fetch('index.php?option=1', {
+    return fetch('index.php?option=1', {
         method: 'POST',
         body: formData
     })
@@ -254,13 +430,37 @@ function closeGene() {
     .then(data => {
         if (data.success) {
             showNotification('Gen cerrado', 'success');
-            
-            // Remove alleles section
-            const allelesSection = document.getElementById('alleles-section');
+
+            // Try to remove alleles section by id
+            let allelesSection = document.getElementById('alleles-section');
             if (allelesSection) {
                 allelesSection.remove();
+                console.debug('closeGene: removed alleles-section by id');
+            } else {
+                // Fallback: search for headings 'Gen abierto' and remove their container
+                const containers = document.querySelectorAll('#genes-view, .column-right');
+                containers.forEach(container => {
+                    const headings = container.querySelectorAll('h4');
+                    headings.forEach(h => {
+                        if (h.textContent && h.textContent.trim().startsWith('Gen abierto')) {
+                            const card = h.closest('div');
+                            if (card) {
+                                card.remove();
+                                console.debug('closeGene: removed alleles section by heading');
+                            }
+                        }
+                    });
+                });
             }
-            
+
+            // Ensure any add-allele form is removed
+            const addAlleleForm = document.getElementById('add-allele-form');
+            if (addAlleleForm) {
+                if (addAlleleForm.closest('div')) addAlleleForm.closest('div').remove();
+                else addAlleleForm.remove();
+                console.debug('closeGene: removed add-allele-form');
+            }
+
             // Reset all gene buttons to 'Abrir'
             document.querySelectorAll('[id^="gene-toggle-"]').forEach(btn => {
                 btn.textContent = 'Abrir';
@@ -269,10 +469,12 @@ function closeGene() {
         } else {
             showNotification(data.error || 'Error al cerrar gen', 'error');
         }
+        return data;
     })
     .catch(error => {
         console.error('Error:', error);
         showNotification('Error de conexión', 'error');
+        throw error;
     });
 }
 
@@ -283,39 +485,83 @@ function deleteGene(geneId, geneName) {
     confirmAction('¿Estás seguro de eliminar el gen "' + geneName + '"?\n\nEsta acción no se puede deshacer.', 'Eliminar', 'Cancelar')
     .then(ok => {
         if (!ok) return;
-        
-        const formData = new FormData();
-        formData.append('char_action', 'delete_gene_ajax');
-        formData.append('gene_id', geneId);
-        
-        fetch('index.php?option=1', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('Gen eliminado', 'success');
-            // Remove row from table
-            const rows = document.querySelectorAll('#genes-view table tbody tr');
-            rows.forEach(row => {
-                const cells = row.cells;
-                if (cells && cells[0] && cells[0].textContent == geneId) {
-                    row.remove();
-                }
-            });
+
+        // If this gene is currently open, close it first to ensure UI cleanup
+        const allelesSection = document.getElementById('alleles-section');
+        const openGeneId = allelesSection ? parseInt(allelesSection.getAttribute('data-gene-id') || '0', 10) : 0;
+        const needToClose = openGeneId === Number(geneId);
+
+        const proceed = needToClose ? closeGene().catch(err => { console.debug('deleteGene: closeGene failed, proceeding anyway', err); }) : Promise.resolve();
+        proceed.then(() => {
+            const formData = new FormData();
+            formData.append('char_action', 'delete_gene_ajax');
+            formData.append('gene_id', geneId);
             
-            // Check if table is empty
-            const tbody = document.querySelector('#genes-view table tbody');
-            if (tbody && tbody.children.length === 0) {
-                const emptyRow = document.createElement('tr');
-                emptyRow.innerHTML = '<td colspan="5" class="text-center">No hay genes definidos</td>';
-                tbody.appendChild(emptyRow);
+            return fetch('index.php?option=1', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(text => {
+                console.debug('deleteGene: raw response', text);
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error('deleteGene: JSON parse error', e, 'text:', text);
+                    showNotification('Error de servidor: respuesta inválida', 'error');
+                    return;
+                }
+                return data;
+            })
+        }).then(data => {
+            if (data && data.success) {
+                showNotification('Gen eliminado', 'success');
+                // Remove row from table
+                const rows = document.querySelectorAll('#genes-view table tbody tr');
+                rows.forEach(row => {
+                    const cells = row.cells;
+                    if (cells && cells[0] && cells[0].textContent == geneId) {
+                        row.remove();
+                    }
+                });
+                
+                // Remove alleles panel if it belongs to the deleted gene
+                const allelesSection2 = document.getElementById('alleles-section');
+                if (allelesSection2) {
+                    const openGeneId2 = parseInt(allelesSection2.getAttribute('data-gene-id') || '0', 10);
+                    if (openGeneId2 === Number(geneId)) {
+                        allelesSection2.remove();
+                    }
+                }
+
+                // Fallback: remove any visible 'Gen abierto' sections in #genes-view
+                const genesView = document.getElementById('genes-view');
+                if (genesView) {
+                    genesView.querySelectorAll('h4').forEach(h => {
+                        if (h.textContent && h.textContent.trim().startsWith('Gen abierto')) {
+                            const container = h.closest('div');
+                            if (container) container.remove();
+                        }
+                    });
+                    // Also clear the alleles table body if present, but only inside the alleles section
+                    const allelesSection = document.getElementById('alleles-section');
+                    if (allelesSection) {
+                        const allelesTbody = allelesSection.querySelector('table tbody');
+                        if (allelesTbody) allelesTbody.innerHTML = '';
+                    }
+                }
+
+                // Check if table is empty
+                const tbody = document.querySelector('#genes-view table tbody');
+                if (tbody && tbody.children.length === 0) {
+                    const emptyRow = document.createElement('tr');
+                    emptyRow.innerHTML = '<td colspan="5" class="text-center">No hay genes definidos</td>';
+                    tbody.appendChild(emptyRow);
+                }
+            } else {
+                showNotification((data && data.error) || 'Error al eliminar gen', 'error');
             }
-        } else {
-            showNotification(data.error || 'Error al eliminar gen', 'error');
-        }
-    })
         })
         .catch(error => {
             console.error('Error:', error);
