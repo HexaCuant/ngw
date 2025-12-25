@@ -28,25 +28,46 @@ for tbl in $TABLES; do
   sqlite3 "$DB" "SELECT sql FROM sqlite_master WHERE type='table' AND name='$tbl';" >> "$OUT"
   echo ";" >> "$OUT"
 
-  # Get column list
+  # Get full column list
   cols=$(sqlite3 "$DB" "PRAGMA table_info('$tbl');" | awk -F'|' '{print $2}' | paste -sd',' -)
   # first column (used for ordering if present)
   firstcol=$(echo "$cols" | awk -F',' '{print $1}')
 
-  # Build expression of quotes: quote(col1) || ',' || quote(col2) ...
-  expr=""
+  # Exclude changing metadata columns to keep dumps stable (no noisy diffs)
+  EXCLUDE_REGEX='^(created_at|updated_at|last_login|created|updated|timestamp)$'
+  # Build filtered columns array
   IFS=',' read -r -a colarr <<< "$cols"
+  filtered_cols_arr=()
   for c in "${colarr[@]}"; do
-    if [ -z "$expr" ]; then
-      expr="quote($c)"
-    else
-      expr="$expr || ',' || quote($c)"
+    if [[ "$c" =~ $EXCLUDE_REGEX ]]; then
+      continue
     fi
+    filtered_cols_arr+=("$c")
   done
+  filtered_cols=$(IFS=","; echo "${filtered_cols_arr[*]}")
 
-  # Generate ordered INSERT statements per row
-  if [ -n "$expr" ]; then
-    sqlite3 -batch "$DB" "SELECT 'INSERT INTO \"$tbl\" ($cols) VALUES(' || ($expr) || ');' FROM \"$tbl\" $( [ -n "$firstcol" ] && echo "ORDER BY $firstcol" ) ;" >> "$OUT" || true
+  # If no non-metadata columns remain, skip INSERT generation for this table
+  if [ -z "$filtered_cols" ]; then
+    echo "-- Skipping data for $tbl (only metadata columns present)" >> "$OUT"
+  else
+    # Build expression of quotes for filtered columns
+    expr=""
+    for c in "${filtered_cols_arr[@]}"; do
+      if [ -z "$expr" ]; then
+        expr="quote($c)"
+      else
+        expr="$expr || ',' || quote($c)"
+      fi
+    done
+
+    # Determine order clause: prefer first filtered column if present
+    ordercol=$firstcol
+    if ! echo ",${filtered_cols}," | grep -q ",${firstcol},"; then
+      ordercol=$(echo "$filtered_cols" | awk -F',' '{print $1}')
+    fi
+
+    # Generate ordered INSERT statements per row using filtered columns
+    sqlite3 -batch "$DB" "SELECT 'INSERT INTO \"$tbl\" ($filtered_cols) VALUES(' || ($expr) || ');' FROM \"$tbl\" $( [ -n "$ordercol" ] && echo "ORDER BY $ordercol" ) ;" >> "$OUT" || true
   fi
 
   echo "" >> "$OUT"

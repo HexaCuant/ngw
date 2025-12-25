@@ -7,8 +7,6 @@ set -euo pipefail
 COMMIT=false
 PUSH=false
 MSG="Update DB dump"
-DB=${3:-data/ngw.db}
-OUT=${4:-data/ngw.sql}
 
 # parse args
 while [[ $# -gt 0 ]]; do
@@ -18,12 +16,21 @@ while [[ $# -gt 0 ]]; do
     --push)
       PUSH=true; shift ;;
     -m)
+      if [[ -z ${2:-} ]]; then echo "-m requires a message"; exit 1; fi
       MSG="$2"; shift 2 ;;
     -h|--help)
       echo "Usage: $0 [--commit] [--push] [-m \"Commit message\"] [db_path] [out_path]"; exit 0 ;;
-    *) shift ;;
+    --)
+      shift; break ;;
+    *)
+      # treat as positional argument
+      break ;;
   esac
 done
+
+# Positional arguments after options
+DB=${1:-data/ngw.db}
+OUT=${2:-data/ngw.sql}
 
 # Ensure dump script exists
 if [ ! -x "./bin/dump-db.sh" ]; then

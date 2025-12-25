@@ -170,7 +170,8 @@ To keep a readable, versionable snapshot of the development database in the repo
 What the script does:
 - Exports schema and data by table
 - Orders rows by primary key where possible to make output deterministic
-- Normalizes timestamp literals to a constant (`1970-01-01 00:00:00`) to reduce noisy diffs
+- Removes mutable metadata columns (by default: `created_at`, `updated_at`, `last_login`, `created`, `updated`, `timestamp`) from INSERTs to keep diffs focused on actual data changes.
+- Normalizes timestamp literals to a constant (`1970-01-01 00:00:00`) to reduce noisy diffs (if any remain in other contexts).
 - Removes SQLite internal sequences (`sqlite_sequence`)
 
 Important notes:
