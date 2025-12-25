@@ -266,6 +266,46 @@ class Generation
     }
 
     /**
+     * Get summary data for all generations in a project
+     */
+    public function getProjectSummary(int $projectId): array
+    {
+        $generations = $this->getProjectGenerations($projectId);
+        // Sort by generation number ascending for the summary table
+        usort($generations, function($a, $b) {
+            return $a['generation_number'] <=> $b['generation_number'];
+        });
+
+        $summary = [];
+        foreach ($generations as $gen) {
+            try {
+                $individuals = $this->parseGenerationOutput($projectId, (int)$gen['generation_number']);
+                $stats = $this->calculateStatistics($individuals);
+                
+                $summary[] = [
+                    'generation_number' => $gen['generation_number'],
+                    'type' => $gen['type'],
+                    'population_size' => $gen['population_size'],
+                    'created_at' => $gen['created_at'],
+                    'stats' => $stats
+                ];
+            } catch (\Exception $e) {
+                // Skip if file not found or error parsing
+                $summary[] = [
+                    'generation_number' => $gen['generation_number'],
+                    'type' => $gen['type'],
+                    'population_size' => $gen['population_size'],
+                    'created_at' => $gen['created_at'],
+                    'stats' => [],
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
      * Get generation by number
      */
     public function getByNumber(int $projectId, int $generationNumber): ?array

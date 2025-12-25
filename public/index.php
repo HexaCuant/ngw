@@ -1435,6 +1435,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             echo json_encode(['success' => $ok]);
         } catch (\Exception $e) {
             ob_end_clean();
+            echo json_encode(['success' => false, 'error' => 'Error al borrar parental: ' . $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'get_project_summary_ajax') {
+        header('Content-Type: application/json');
+        ob_start();
+
+        try {
+            $projectId = $session->get('active_project_id');
+            if (!$projectId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+            $summary = $generationModel->getProjectSummary($projectId);
+            $projectCharacters = $projectModel->getCharacters($projectId);
+
+            ob_end_clean();
+            echo json_encode([
+                'success' => true, 
+                'summary' => $summary,
+                'characters' => $projectCharacters
+            ]);
+        } catch (\Exception $e) {
+            ob_end_clean();
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
         exit;
@@ -1563,6 +1592,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                         } else {
                             echo '<div class="alert alert-error">Acceso denegado</div>';
                         }
+                        break;
+                    case 0:
+                        // Summary page
+                        include __DIR__ . '/../templates/pages/summary.php';
                         break;
                     default:
                         // Dashboard
