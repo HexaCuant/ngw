@@ -101,34 +101,45 @@ function openCharacter(characterId) {
                                     genesView.style.display = 'block';
                                 }
                                 
-                                // Add row to genes table
-                                const tbody = document.querySelector('#genes-view table tbody');
-                                if (tbody) {
-                                    // Remove "no genes" message if exists
-                                    const emptyMessage = tbody.querySelector('p');
-                                    if (emptyMessage) {
-                                        emptyMessage.closest('tr')?.remove();
-                                    }
-                                    
-                                    // Check if tbody only has empty message row
-                                    if (tbody.children.length === 0 || tbody.querySelector('td[colspan]')) {
-                                        tbody.innerHTML = ''; // Clear empty state
-                                    }
-                                    
-                                    const gene = data.gene;
-                                    const row = document.createElement('tr');
-                                    row.innerHTML = `
-                                        <td>${gene.id}</td>
-                                        <td>${gene.name}</td>
-                                        <td>${gene.chromosome || ''}</td>
-                                        <td>${gene.position || ''}</td>
-                                        <td>
-                                            <button type="button" id="gene-toggle-${gene.id}" onclick="toggleGene(${gene.id}, this)" class="btn-primary btn-small">Abrir</button>
-                                            <button type="button" onclick="deleteGene(${gene.id}, '${gene.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button>
-                                        </td>
+                                // Add row to genes table (create table if missing)
+                                const genesViewTable = document.querySelector('#genes-view table');
+                                let tbody = genesViewTable ? genesViewTable.querySelector('tbody') : null;
+                                if (!tbody) {
+                                    // Build table structure
+                                    const table = document.createElement('table');
+                                    table.innerHTML = `
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Nombre</th>
+                                                <th>Cromosoma</th>
+                                                <th>Posición</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
                                     `;
-                                    tbody.appendChild(row);
+                                    genesView.appendChild(table);
+                                    tbody = table.querySelector('tbody');
                                 }
+
+                                // Remove any placeholder message rows
+                                const placeholder = tbody.querySelector('td[colspan]');
+                                if (placeholder) placeholder.closest('tr')?.remove();
+
+                                const gene = data.gene;
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>${gene.id}</td>
+                                    <td>${gene.name}</td>
+                                    <td>${gene.chromosome || ''}</td>
+                                    <td>${gene.position || ''}</td>
+                                    <td>
+                                        <button type="button" id="gene-toggle-${gene.id}" onclick="toggleGene(${gene.id}, this)" class="btn-primary btn-small">Abrir</button>
+                                        <button type="button" onclick="deleteGene(${gene.id}, '${gene.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button>
+                                    </td>
+                                `;
+                                tbody.appendChild(row);
                                 
                                 // Reset and hide form
                                 createGeneForm.reset();
