@@ -279,15 +279,55 @@ class Generation
         $summary = [];
         foreach ($generations as $gen) {
             try {
-                $individuals = $this->parseGenerationOutput($projectId, (int)$gen['generation_number']);
+                $genNum = (int)$gen['generation_number'];
+                $individuals = $this->parseGenerationOutput($projectId, $genNum);
                 $stats = $this->calculateStatistics($individuals);
+
+                // Calculate parental statistics if it's a cross generation
+                $parentalStats = [];
+                $parentalCount = 0;
+                $parentalSourceGen = null;
+
+                if ($gen['type'] === 'cross') {
+                    $parentals = $this->getParentals($projectId, $genNum);
+                    $parentalCount = count($parentals);
+                    $groupedParentals = [];
+                    foreach ($parentals as $p) {
+                        $groupedParentals[$p['parent_generation_number']][] = (int)$p['individual_id'];
+                    }
+
+                    if (!empty($groupedParentals)) {
+                        $sourceGens = array_keys($groupedParentals);
+                        $parentalSourceGen = implode(', ', $sourceGens);
+
+                        $parentalIndividuals = [];
+                        foreach ($groupedParentals as $pgNum => $ids) {
+                            try {
+                                $pgIndividuals = $this->parseGenerationOutput($projectId, (int)$pgNum);
+                                foreach ($ids as $id) {
+                                    if (isset($pgIndividuals[$id])) {
+                                        $parentalIndividuals[] = $pgIndividuals[$id];
+                                    }
+                                }
+                            } catch (\Exception $e) {
+                                // Skip if parent generation file not found
+                            }
+                        }
+                        if (!empty($parentalIndividuals)) {
+                            $parentalStats = $this->calculateStatistics($parentalIndividuals);
+                        }
+                    }
+                }
                 
                 $summary[] = [
                     'generation_number' => $gen['generation_number'],
                     'type' => $gen['type'],
                     'population_size' => $gen['population_size'],
                     'created_at' => $gen['created_at'],
-                    'stats' => $stats
+                    'stats' => $stats,
+                    'parental_stats' => $parentalStats,
+                    'parental_count' => $parentalCount,
+                    'parental_source_gen' => $parentalSourceGen
                 ];
             } catch (\Exception $e) {
                 // Skip if file not found or error parsing
@@ -297,6 +337,7 @@ class Generation
                     'population_size' => $gen['population_size'],
                     'created_at' => $gen['created_at'],
                     'stats' => [],
+                    'parental_stats' => [],
                     'error' => $e->getMessage()
                 ];
             }

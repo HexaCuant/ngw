@@ -1468,6 +1468,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
         }
         exit;
     }
+    elseif ($projectAction === 'check_new_generations_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $projectId = $session->get('active_project_id');
+            if (!$projectId) {
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+
+            $sql = "SELECT COUNT(*) as count FROM generations WHERE project_id = :project_id";
+            $result = $db->fetchOne($sql, ['project_id' => $projectId]);
+            
+            echo json_encode([
+                'success' => true, 
+                'count' => (int)$result['count']
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
 }
 
 ?>

@@ -26,13 +26,11 @@ if ($activeProjectId) {
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h2>Resumen del Proyecto</h2>
-        <?php if ($activeProject) : ?>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.25rem; cursor: pointer;">
-                    <input type="checkbox" id="autoRefreshSummary"> Auto-actualizar
-                </label>
-                <button id="refreshSummary" class="btn-secondary btn-small">Actualizar</button>
-            </div>
+        <?php if ($activeProject && !empty($summaryData)) : ?>
+            <button id="downloadSummary" 
+                    data-project-name="<?= e($activeProject['name']) ?>"
+                    data-timestamp="<?= time() ?>"
+                    class="btn-secondary btn-small">Descargar HTML</button>
         <?php endif; ?>
     </div>
     
@@ -50,17 +48,30 @@ if ($activeProjectId) {
                 <table class="summary-table">
                     <thead>
                         <tr>
-                            <th rowspan="2">Gen.</th>
-                            <th rowspan="2">Tipo</th>
-                            <th rowspan="2">Pob.</th>
+                            <th rowspan="3">Gen.</th>
+                            <th rowspan="3">Tipo</th>
+                            <th colspan="<?= 2 + (count($projectCharacters) * 2) ?>" class="text-center parental-header">Parentales</th>
+                            <th colspan="<?= 1 + (count($projectCharacters) * 2) ?>" class="text-center generation-header">Generación</th>
+                        </tr>
+                        <tr>
+                            <th rowspan="2" class="text-center parental-cell">Gen</th>
+                            <th rowspan="2" class="text-center parental-cell">Num</th>
                             <?php foreach ($projectCharacters as $char) : ?>
-                                <th colspan="2" class="text-center"><?= e($char['name']) ?></th>
+                                <th colspan="2" class="text-center parental-cell"><?= e($char['name']) ?></th>
+                            <?php endforeach; ?>
+                            <th rowspan="2" class="text-center generation-cell">Pob.</th>
+                            <?php foreach ($projectCharacters as $char) : ?>
+                                <th colspan="2" class="text-center generation-cell"><?= e($char['name']) ?></th>
                             <?php endforeach; ?>
                         </tr>
                         <tr>
                             <?php foreach ($projectCharacters as $char) : ?>
-                                <th class="text-center">Media</th>
-                                <th class="text-center">Var.</th>
+                                <th class="text-center parental-cell">Media</th>
+                                <th class="text-center parental-cell">Var.</th>
+                            <?php endforeach; ?>
+                            <?php foreach ($projectCharacters as $char) : ?>
+                                <th class="text-center generation-cell">Media</th>
+                                <th class="text-center generation-cell">Var.</th>
                             <?php endforeach; ?>
                         </tr>
                     </thead>
@@ -69,14 +80,28 @@ if ($activeProjectId) {
                             <tr>
                                 <td><?= $row['generation_number'] ?></td>
                                 <td><?= e($row['type']) ?></td>
-                                <td><?= $row['population_size'] ?></td>
+                                
+                                <!-- Parentales -->
+                                <td class="text-center parental-cell"><?= $row['parental_source_gen'] ?? '-' ?></td>
+                                <td class="text-center parental-cell"><?= $row['parental_count'] ?: '-' ?></td>
+                                <?php foreach ($projectCharacters as $char) : ?>
+                                    <?php 
+                                    $charName = $char['name'];
+                                    $pStats = $row['parental_stats'][$charName] ?? null;
+                                    ?>
+                                    <td class="text-center parental-cell"><?= $pStats ? number_format($pStats['mean'], 4) : '-' ?></td>
+                                    <td class="text-center parental-cell"><?= $pStats ? number_format($pStats['variance'], 4) : '-' ?></td>
+                                <?php endforeach; ?>
+
+                                <!-- Generación -->
+                                <td class="text-center generation-cell"><?= $row['population_size'] ?></td>
                                 <?php foreach ($projectCharacters as $char) : ?>
                                     <?php 
                                     $charName = $char['name'];
                                     $stats = $row['stats'][$charName] ?? null;
                                     ?>
-                                    <td class="text-center"><?= $stats ? number_format($stats['mean'], 4) : '-' ?></td>
-                                    <td class="text-center"><?= $stats ? number_format($stats['variance'], 4) : '-' ?></td>
+                                    <td class="text-center generation-cell"><?= $stats ? number_format($stats['mean'], 4) : '-' ?></td>
+                                    <td class="text-center generation-cell"><?= $stats ? number_format($stats['variance'], 4) : '-' ?></td>
                                 <?php endforeach; ?>
                             </tr>
                         <?php endforeach; ?>
@@ -103,6 +128,24 @@ if ($activeProjectId) {
     padding: 0.5rem;
 }
 
+.parental-header {
+    background-color: rgba(52, 152, 219, 0.15) !important;
+    color: #3498db;
+}
+
+.generation-header {
+    background-color: rgba(46, 204, 113, 0.15) !important;
+    color: #2ecc71;
+}
+
+.parental-cell {
+    background-color: rgba(52, 152, 219, 0.05);
+}
+
+.generation-cell {
+    background-color: rgba(46, 204, 113, 0.05);
+}
+
 .summary-table thead th {
     background-color: var(--color-surface-light);
     position: sticky;
@@ -124,7 +167,6 @@ if ($activeProjectId) {
 
 .table-responsive {
     overflow-x: auto;
-    max-height: 70vh;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
 }
@@ -136,18 +178,10 @@ if ($activeProjectId) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const refreshBtn = document.getElementById('refreshSummary');
-    if (!refreshBtn) return;
-
-    const autoRefreshCheck = document.getElementById('autoRefreshSummary');
     let autoRefreshInterval = null;
+    let currentGenCount = <?= count($summaryData) ?>;
 
-    function performRefresh(isAuto = false) {
-        if (!isAuto) {
-            refreshBtn.disabled = true;
-            refreshBtn.textContent = 'Actualizando...';
-        }
-        
+    function performRefresh() {
         const formData = new FormData();
         formData.append('project_action', 'get_project_summary_ajax');
         
@@ -159,34 +193,92 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 updateSummaryTable(data.summary, data.characters);
-                if (!isAuto) showToast('Resumen actualizado', 'success');
-            } else {
-                if (!isAuto) showToast('Error: ' + data.error, 'error');
+                currentGenCount = data.summary.length;
             }
         })
         .catch(error => {
-            if (!isAuto) showToast('Error de conexión', 'error');
-        })
-        .finally(() => {
-            if (!isAuto) {
-                refreshBtn.disabled = false;
-                refreshBtn.textContent = 'Actualizar';
-            }
+            console.error('Error refreshing summary:', error);
         });
     }
 
-    refreshBtn.addEventListener('click', () => performRefresh(false));
-
-    if (autoRefreshCheck) {
-        autoRefreshCheck.addEventListener('change', function() {
-            if (this.checked) {
-                // Refresh every 10 seconds if checked
-                autoRefreshInterval = setInterval(() => performRefresh(true), 10000);
-                performRefresh(true);
-            } else {
-                if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-                autoRefreshInterval = null;
+    function checkForUpdates() {
+        const formData = new FormData();
+        formData.append('project_action', 'check_new_generations_ajax');
+        
+        fetch('index.php?option=0', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.count !== currentGenCount) {
+                performRefresh();
             }
+        })
+        .catch(error => {
+            console.error('Error checking for updates:', error);
+        });
+    }
+
+    // Check for updates every 5 seconds
+    autoRefreshInterval = setInterval(checkForUpdates, 5000);
+
+    // Clean up interval when leaving the page
+    window.addEventListener('beforeunload', () => {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    });
+
+    const downloadBtn = document.getElementById('downloadSummary');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const table = document.querySelector('.summary-table');
+            if (!table) {
+                console.error('No se encontró la tabla');
+                return;
+            }
+
+            const projectName = downloadBtn.getAttribute('data-project-name') || 'proyecto';
+            const safeName = projectName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            
+            console.log('Project name:', projectName);
+            console.log('Safe name:', safeName);
+            console.log('Download filename:', `resumen_${safeName}.html`);
+
+            // Create a simple HTML structure for the table
+            let html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Resumen - ${projectName}</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .parental-header { background-color: #e3f2fd; }
+        .generation-header { background-color: #e8f5e9; }
+        .text-center { text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Resumen del Proyecto: ${projectName}</h1>
+    <p>Exportado el: ${new Date().toLocaleString()}</p>
+    ${table.outerHTML}
+</body>
+</html>`;
+
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `resumen_${safeName}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         });
     }
 
@@ -202,15 +294,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 <table class="summary-table">
                     <thead>
                         <tr>
-                            <th rowspan="2">Gen.</th>
-                            <th rowspan="2">Tipo</th>
-                            <th rowspan="2">Pob.</th>
-                            ${characters.map(char => `<th colspan="2" class="text-center">${escapeHtml(char.name)}</th>`).join('')}
+                            <th rowspan="3">Gen.</th>
+                            <th rowspan="3">Tipo</th>
+                            <th colspan="${2 + (characters.length * 2)}" class="text-center parental-header">Parentales</th>
+                            <th colspan="${1 + (characters.length * 2)}" class="text-center generation-header">Generación</th>
+                        </tr>
+                        <tr>
+                            <th rowspan="2" class="text-center parental-cell">Gen</th>
+                            <th rowspan="2" class="text-center parental-cell">Num</th>
+                            ${characters.map(char => `<th colspan="2" class="text-center parental-cell">${escapeHtml(char.name)}</th>`).join('')}
+                            <th rowspan="2" class="text-center generation-cell">Pob.</th>
+                            ${characters.map(char => `<th colspan="2" class="text-center generation-cell">${escapeHtml(char.name)}</th>`).join('')}
                         </tr>
                         <tr>
                             ${characters.map(() => `
-                                <th class="text-center">Media</th>
-                                <th class="text-center">Var.</th>
+                                <th class="text-center parental-cell">Media</th>
+                                <th class="text-center parental-cell">Var.</th>
+                            `).join('')}
+                            ${characters.map(() => `
+                                <th class="text-center generation-cell">Media</th>
+                                <th class="text-center generation-cell">Var.</th>
                             `).join('')}
                         </tr>
                     </thead>
@@ -219,12 +322,25 @@ document.addEventListener('DOMContentLoaded', function() {
                             <tr>
                                 <td>${row.generation_number}</td>
                                 <td>${escapeHtml(row.type)}</td>
-                                <td>${row.population_size}</td>
+                                
+                                <!-- Parentales -->
+                                <td class="text-center parental-cell">${row.parental_source_gen || '-'}</td>
+                                <td class="text-center parental-cell">${row.parental_count || '-'}</td>
+                                ${characters.map(char => {
+                                    const pStats = row.parental_stats ? row.parental_stats[char.name] : null;
+                                    return `
+                                        <td class="text-center parental-cell">${pStats ? pStats.mean.toFixed(4) : '-'}</td>
+                                        <td class="text-center parental-cell">${pStats ? pStats.variance.toFixed(4) : '-'}</td>
+                                    `;
+                                }).join('')}
+
+                                <!-- Generación -->
+                                <td class="text-center generation-cell">${row.population_size}</td>
                                 ${characters.map(char => {
                                     const stats = row.stats[char.name];
                                     return `
-                                        <td class="text-center">${stats ? stats.mean.toFixed(4) : '-'}</td>
-                                        <td class="text-center">${stats ? stats.variance.toFixed(4) : '-'}</td>
+                                        <td class="text-center generation-cell">${stats ? stats.mean.toFixed(4) : '-'}</td>
+                                        <td class="text-center generation-cell">${stats ? stats.variance.toFixed(4) : '-'}</td>
                                     `;
                                 }).join('')}
                             </tr>
