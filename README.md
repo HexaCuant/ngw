@@ -177,6 +177,28 @@ Important notes:
 - Do **not** commit production or sensitive data: **always** review `data/ngw.sql` before committing/pushing.
 - The script is intended for development/seed snapshots and not as a replacement for a proper migration system. For structural changes prefer creating migration scripts.
 
+### Quick helper: generate and commit dump
+
+A convenience script is provided to generate the normalized dump and optionally commit it:
+
+```bash
+# generate dump (dry-run, will not commit)
+./bin/dump-and-commit.sh
+
+# generate dump and commit with default message
+./bin/dump-and-commit.sh --commit -m "Update DB dump"
+
+# generate dump, commit and push
+./bin/dump-and-commit.sh --commit --push -m "Update DB dump"
+```
+
+The script will:
+- Run `./bin/dump-db.sh` to produce `data/ngw.sql` (by default).
+- If `--commit` is passed and the dump changed, it will `git add` and `git commit` the file with the provided message.
+- Pass `--push` to also `git push` the new commit.
+
+Always inspect the generated `data/ngw.sql` before committing to ensure no sensitive or unintended data is included.
+
 ---
 
 ## 💡 Ventajas sobre el sistema original (gw)
