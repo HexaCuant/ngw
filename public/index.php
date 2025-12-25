@@ -896,6 +896,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 ];
             }
             
+            // Calculate statistics
+            $stats = $generationModel->calculateStatistics($individuals);
+
             // Clear any debug output
             ob_end_clean();
             
@@ -905,7 +908,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 'type' => $generation['type'] ?? 'random',
                 'created_at' => $generation['created_at'] ?? null,
                 'individuals' => $individualsList,
-                'population_size' => count($individuals)
+                'population_size' => count($individuals),
+                'stats' => $stats
             ]);
         } catch (\Exception $e) {
             ob_end_clean();
@@ -999,6 +1003,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 $groupedParentals[$p['parent_generation_number']][] = (int)$p['individual_id'];
             }
 
+            // Calculate statistics for current generation
+            $stats = $generationModel->calculateStatistics($individuals);
+
+            // Calculate statistics for parentals
+            $parentalStats = [];
+            if (!empty($groupedParentals)) {
+                $parentalIndividuals = [];
+                foreach ($groupedParentals as $pgNum => $ids) {
+                    try {
+                        $pgIndividuals = $generationModel->parseGenerationOutput($projectId, (int)$pgNum);
+                        foreach ($ids as $id) {
+                            if (isset($pgIndividuals[$id])) {
+                                $parentalIndividuals[] = $pgIndividuals[$id];
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // Skip if parent generation file not found
+                    }
+                }
+                if (!empty($parentalIndividuals)) {
+                    $parentalStats = $generationModel->calculateStatistics($parentalIndividuals);
+                }
+            }
+
             ob_end_clean();
             echo json_encode([
                 'success' => true,
@@ -1007,7 +1035,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 'created_at' => $generation['created_at'] ?? null,
                 'individuals' => $individualsList,
                 'population_size' => count($individuals),
-                'parentals' => $groupedParentals
+                'parentals' => $groupedParentals,
+                'stats' => $stats,
+                'parental_stats' => $parentalStats
             ]);
         } catch (\Exception $e) {
             ob_end_clean();
@@ -1195,6 +1225,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 $groupedParentals[$p['parent_generation_number']][] = (int)$p['individual_id'];
             }
 
+            // Calculate statistics for current generation
+            $stats = $generationModel->calculateStatistics($individuals);
+
+            // Calculate statistics for parentals if it's a cross generation
+            $parentalStats = [];
+            if ($generation['type'] === 'cross' && !empty($groupedParentals)) {
+                $parentalIndividuals = [];
+                foreach ($groupedParentals as $pgNum => $ids) {
+                    try {
+                        $pgIndividuals = $generationModel->parseGenerationOutput($projectId, (int)$pgNum);
+                        foreach ($ids as $id) {
+                            if (isset($pgIndividuals[$id])) {
+                                $parentalIndividuals[] = $pgIndividuals[$id];
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // Skip if parent generation file not found
+                    }
+                }
+                if (!empty($parentalIndividuals)) {
+                    $parentalStats = $generationModel->calculateStatistics($parentalIndividuals);
+                }
+            }
+
             ob_end_clean();
             
             echo json_encode([
@@ -1204,7 +1258,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 'population_size' => $generation['population_size'],
                 'created_at' => $generation['created_at'],
                 'individuals' => $individualsList,
-                'parentals' => $groupedParentals
+                'parentals' => $groupedParentals,
+                'stats' => $stats,
+                'parental_stats' => $parentalStats
             ]);
         } catch (\Exception $e) {
             ob_end_clean();

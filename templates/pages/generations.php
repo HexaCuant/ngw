@@ -330,6 +330,25 @@ if ($activeProjectId) {
     margin-top: 15px;
 }
 
+.stats-row td {
+    background-color: var(--color-surface-dark) !important;
+    color: var(--color-text) !important;
+    font-weight: 700 !important;
+    border-top: 1px solid var(--color-border-light);
+}
+
+.stats-row:hover td {
+    background-color: var(--color-surface-dark) !important;
+}
+
+.parental-stats-row td {
+    background-color: var(--color-bg-dark) !important;
+}
+
+.parental-stats-row:hover td {
+    background-color: var(--color-bg-dark) !important;
+}
+
 @media (max-width: 1024px) {
     .generations-layout {
         grid-template-columns: 1fr;
@@ -371,7 +390,7 @@ console.debug('generations.js initialized');
 // Load generation parentals helper
 // (kept inline to avoid extra HTTP requests; small helper copied from _generation_parentals.js)
 // Render parentals for a cross generation: for each parent generation, show rows with id and phenotype summary
-async function renderGenerationParentals(groupedParentals) {
+async function renderGenerationParentals(groupedParentals, parentalStats) {
     const container = document.getElementById('generationParentals');
     if (!container) return;
     if (!groupedParentals || Object.keys(groupedParentals).length === 0) {
@@ -464,6 +483,22 @@ async function renderGenerationParentals(groupedParentals) {
             }
             html += '</tr>';
         }
+    }
+
+    // Add parental statistics rows if available
+    if (parentalStats && Object.keys(parentalStats).length > 0) {
+        html += '<tr class="stats-row parental-stats-row"><td colspan="2"><strong>Media (Parentales)</strong></td>';
+        for (const cname of charNames) {
+            const s = parentalStats[cname];
+            html += '<td>' + (s ? s.mean.toFixed(4) : '-') + '</td>';
+        }
+        html += '</tr>';
+        html += '<tr class="stats-row parental-stats-row"><td colspan="2"><strong>Varianza (Parentales)</strong></td>';
+        for (const cname of charNames) {
+            const s = parentalStats[cname];
+            html += '<td>' + (s ? s.variance.toFixed(4) : '-') + '</td>';
+        }
+        html += '</tr>';
     }
 
     html += '</tbody></table></div>';
@@ -755,6 +790,26 @@ function renderGenerationData(data) {
         tableHtml += '</tr>';
     }
 
+    // Add statistics rows
+    if (data.stats && Object.keys(data.stats).length > 0) {
+        tableHtml += '<tr class="stats-row"><td colspan="' + (selectionActive ? 2 : 1) + '"><strong>Media</strong></td>';
+        if (firstIndividual && firstIndividual.phenotypes) {
+            for (const charName in firstIndividual.phenotypes) {
+                const s = data.stats[charName];
+                tableHtml += '<td>' + (s ? s.mean.toFixed(4) : '-') + '</td>';
+            }
+        }
+        tableHtml += '</tr>';
+        tableHtml += '<tr class="stats-row"><td colspan="' + (selectionActive ? 2 : 1) + '"><strong>Varianza</strong></td>';
+        if (firstIndividual && firstIndividual.phenotypes) {
+            for (const charName in firstIndividual.phenotypes) {
+                const s = data.stats[charName];
+                tableHtml += '<td>' + (s ? s.variance.toFixed(4) : '-') + '</td>';
+            }
+        }
+        tableHtml += '</tr>';
+    }
+
     tableHtml += '</tbody></table>';
     document.getElementById('individualsTable').innerHTML = tableHtml;
 
@@ -781,7 +836,7 @@ function renderGenerationData(data) {
             if (genParentalsContainer) {
                 if (data.parentals && Object.keys(data.parentals).length > 0) {
                     console.debug('Rendering parentals for generation', data.generation_number, data.parentals);
-                    renderGenerationParentals(data.parentals);
+                    renderGenerationParentals(data.parentals, data.parental_stats);
                 } else {
                     genParentalsContainer.innerHTML = '';
                 }

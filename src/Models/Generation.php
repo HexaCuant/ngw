@@ -220,6 +220,52 @@ class Generation
     }
 
     /**
+     * Calculate mean and variance for phenotypes
+     */
+    public function calculateStatistics(array $individuals): array
+    {
+        if (empty($individuals)) {
+            return [];
+        }
+
+        $stats = [];
+        $sums = [];
+        $sumsSq = [];
+        $counts = [];
+
+        foreach ($individuals as $indiv) {
+            // Handle both [id => phenotypes] and ['id' => id, 'phenotypes' => phenotypes] formats
+            $phenotypes = isset($indiv['phenotypes']) ? $indiv['phenotypes'] : $indiv;
+            
+            foreach ($phenotypes as $name => $value) {
+                if (!isset($sums[$name])) {
+                    $sums[$name] = 0;
+                    $sumsSq[$name] = 0;
+                    $counts[$name] = 0;
+                }
+                $sums[$name] += $value;
+                $sumsSq[$name] += ($value * $value);
+                $counts[$name]++;
+            }
+        }
+
+        foreach ($sums as $name => $sum) {
+            $n = $counts[$name];
+            if ($n > 0) {
+                $mean = $sum / $n;
+                // Population variance: (sum(x^2) / n) - mean^2
+                $variance = ($sumsSq[$name] / $n) - ($mean * $mean);
+                $stats[$name] = [
+                    'mean' => round($mean, 4),
+                    'variance' => round($variance, 4)
+                ];
+            }
+        }
+
+        return $stats;
+    }
+
+    /**
      * Get generation by number
      */
     public function getByNumber(int $projectId, int $generationNumber): ?array
