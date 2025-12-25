@@ -293,8 +293,26 @@ class Project
         // Type of generation
         if ($type == 'random') {
             fwrite($fh, "*create\n");
+        } elseif ($type == 'cross') {
+            // For cross, read parent generations and parentals from DB
+            // distinct parent_generation_number
+            $sqlRead = "SELECT DISTINCT parent_generation_number FROM parentals WHERE project_id = :project_id AND generation_number = :generation_number ORDER BY parent_generation_number";
+            $reads = $this->db->fetchAll($sqlRead, ['project_id' => $projectId, 'generation_number' => $generationNumber]);
+            foreach ($reads as $r) {
+                fwrite($fh, "*read\n");
+                fwrite($fh, $r['parent_generation_number'] . "\n");
+            }
+
+            // Build cross line: indiv,parent_gen:...=,pop:
+            $sqlCross = "SELECT individual_id, parent_generation_number FROM parentals WHERE project_id = :project_id AND generation_number = :generation_number ORDER BY parent_generation_number, individual_id";
+            $rows = $this->db->fetchAll($sqlCross, ['project_id' => $projectId, 'generation_number' => $generationNumber]);
+            $line = "";
+            foreach ($rows as $row) {
+                $line .= $row['individual_id'] . "," . $row['parent_generation_number'] . ":";
+            }
+            fwrite($fh, "*cross\n");
+            fwrite($fh, $line . "=," . $populationSize . ":\n");
         }
-        // TODO: implement cross type when needed
 
         fwrite($fh, "*end\n");
         fclose($fh);

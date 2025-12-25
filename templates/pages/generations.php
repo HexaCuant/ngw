@@ -362,8 +362,10 @@ window.addEventListener('unhandledrejection', function (ev) {
     const gt = document.getElementById('global-toast');
     if (gt) {
         gt.textContent = 'Unhandled Promise Rejection: ' + (ev.reason && ev.reason.message ? ev.reason.message : String(ev.reason));
-                    // Update selects so this generation can be used as a source immediately
-                    refreshGenerationSelects();
+        gt.classList.add('toast-error');
+        gt.style.display = 'block';
+        setTimeout(function() { gt.style.display = 'none'; }, 8000);
+    }
 });
 console.debug('generations.js initialized');
 // Load generation parentals helper
@@ -802,7 +804,9 @@ function renderGenerationData(data) {
 }
 
 // Show a transient toast message (type: 'success'|'error')
-function showToast(message, type = 'success', duration = 3500) {
+function showToast(message, type, duration) {
+    if (typeof type === 'undefined') type = 'success';
+    if (typeof duration === 'undefined') duration = 3500;
     const el = document.getElementById('toast');
     if (!el) return;
     el.textContent = message;
@@ -811,7 +815,7 @@ function showToast(message, type = 'success', duration = 3500) {
     el.style.display = 'block';
 
     clearTimeout(window._toastTimeout);
-    window._toastTimeout = setTimeout(() => {
+    window._toastTimeout = setTimeout(function() {
         el.style.display = 'none';
     }, duration);
 }
@@ -1031,7 +1035,8 @@ function toggleParentals() {
     }
 }
 
-function renderParentals(parentals, targetGen, targetExists = false) {
+function renderParentals(parentals, targetGen, targetExists) {
+    if (typeof targetExists === 'undefined') targetExists = false;
     const container = document.getElementById('parentalsList');
     if (!container) return;
     if (!parentals || parentals.length === 0) {

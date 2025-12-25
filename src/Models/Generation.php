@@ -54,6 +54,59 @@ class Generation
     }
 
     /**
+     * Add parentals for a target generation
+     * individualIds: array of individual IDs from parentGenerationNumber
+     */
+    public function addParentals(int $projectId, int $targetGeneration, int $parentGenerationNumber, array $individualIds): int
+    {
+        $inserted = 0;
+        foreach ($individualIds as $indiv) {
+            $sqlCheck = "SELECT id FROM parentals WHERE project_id = :project_id AND generation_number = :generation_number AND individual_id = :individual_id AND parent_generation_number = :parent_generation_number";
+            $exists = $this->db->fetchOne($sqlCheck, [
+                'project_id' => $projectId,
+                'generation_number' => $targetGeneration,
+                'individual_id' => $indiv,
+                'parent_generation_number' => $parentGenerationNumber
+            ]);
+            if ($exists) continue;
+
+            $sql = "INSERT INTO parentals (project_id, generation_number, individual_id, parent_generation_number) VALUES (:project_id, :generation_number, :individual_id, :parent_generation_number)";
+            $this->db->execute($sql, [
+                'project_id' => $projectId,
+                'generation_number' => $targetGeneration,
+                'individual_id' => $indiv,
+                'parent_generation_number' => $parentGenerationNumber
+            ]);
+            $inserted++;
+        }
+
+        return $inserted;
+    }
+
+    /**
+     * Get parentals for a target generation
+     */
+    public function getParentals(int $projectId, int $targetGeneration): array
+    {
+        $sql = "SELECT individual_id, parent_generation_number FROM parentals WHERE project_id = :project_id AND generation_number = :generation_number ORDER BY parent_generation_number, individual_id";
+        return $this->db->fetchAll($sql, ['project_id' => $projectId, 'generation_number' => $targetGeneration]);
+    }
+
+    /**
+     * Delete a parental
+     */
+    public function deleteParental(int $projectId, int $targetGeneration, int $parentGenerationNumber, int $individualId): bool
+    {
+        $sql = "DELETE FROM parentals WHERE project_id = :project_id AND generation_number = :generation_number AND parent_generation_number = :parent_generation_number AND individual_id = :individual_id";
+        return $this->db->execute($sql, [
+            'project_id' => $projectId,
+            'generation_number' => $targetGeneration,
+            'parent_generation_number' => $parentGenerationNumber,
+            'individual_id' => $individualId
+        ]) > 0;
+    }
+
+    /**
      * Execute gengine for a project
      */
     public function executeGengine(int $projectId): array

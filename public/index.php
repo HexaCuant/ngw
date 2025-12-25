@@ -1729,8 +1729,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
     }
     
     // Global confirmation modal API
-    function confirmAction(message, acceptLabel = 'Borrar', cancelLabel = 'Cancelar') {
-        return new Promise((resolve) => {
+    function confirmAction(message, acceptLabel, cancelLabel) {
+        if (typeof acceptLabel === 'undefined') acceptLabel = 'Borrar';
+        if (typeof cancelLabel === 'undefined') cancelLabel = 'Cancelar';
+        return new Promise(function(resolve) {
             const modal = document.getElementById('global-confirm-modal');
             const msg = document.getElementById('global-confirm-message');
             const acceptBtn = document.getElementById('global-confirm-accept');
