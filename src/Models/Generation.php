@@ -49,7 +49,7 @@ class Generation
      */
     public function getProjectGenerations(int $projectId): array
     {
-        $sql = "SELECT * FROM generations WHERE project_id = :project_id ORDER BY generation_number DESC";
+        $sql = "SELECT * FROM generations WHERE project_id = :project_id ORDER BY generation_number ASC";
         return $this->db->fetchAll($sql, ['project_id' => $projectId]);
     }
 

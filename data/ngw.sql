@@ -189,18 +189,20 @@ CREATE TABLE registration_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL,
     email TEXT,
+    password TEXT NOT NULL,
+    role TEXT DEFAULT 'student', -- student or teacher
     reason TEXT,
     status TEXT DEFAULT 'pending', -- pending, approved, rejected
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     processed_at DATETIME,
-    processed_by INTEGER, password TEXT,
+    processed_by INTEGER,
     FOREIGN KEY (processed_by) REFERENCES users(id)
 )
 ;
-INSERT INTO "registration_requests" (id,username,email,reason,status,requested_at,processed_at,processed_by,password) VALUES(1,'mburgos','mburgos@go.ugr.es','Nueva interfaz','approved','1970-01-01 00:00:00','1970-01-01 00:00:00',1,NULL);
-INSERT INTO "registration_requests" (id,username,email,reason,status,requested_at,processed_at,processed_by,password) VALUES(2,'mburgos','','','approved','1970-01-01 00:00:00','1970-01-01 00:00:00',1,'$2y$12$VlyvHBsH16FE41b.DACW9.vlkdv5/PgAxa1K3HNbGeCBjGvx8NjTi');
-INSERT INTO "registration_requests" (id,username,email,reason,status,requested_at,processed_at,processed_by,password) VALUES(3,'mburgos','','','approved','1970-01-01 00:00:00','1970-01-01 00:00:00',1,'$2y$12$ZzHSofb0FuMkZtwAzCxYCuwImnnuhaKCLzy3jzyBBs6JRfL.RuTHa');
-INSERT INTO "registration_requests" (id,username,email,reason,status,requested_at,processed_at,processed_by,password) VALUES(4,'mburgos','','','approved','1970-01-01 00:00:00','1970-01-01 00:00:00',1,'$2y$12$1kXBdGhdnJaZsrCFLDiwl.TA8X17glEZRJLql1S9kMC.adE0BcbHy');
+INSERT INTO "registration_requests" (id,username,email,password,role,reason,status,requested_at,processed_at,processed_by) VALUES(1,'mburgos','mburgos@go.ugr.es',NULL,'student','Nueva interfaz','approved','1970-01-01 00:00:00','1970-01-01 00:00:00',1);
+INSERT INTO "registration_requests" (id,username,email,password,role,reason,status,requested_at,processed_at,processed_by) VALUES(2,'mburgos','','$2y$12$VlyvHBsH16FE41b.DACW9.vlkdv5/PgAxa1K3HNbGeCBjGvx8NjTi','student','','approved','1970-01-01 00:00:00','1970-01-01 00:00:00',1);
+INSERT INTO "registration_requests" (id,username,email,password,role,reason,status,requested_at,processed_at,processed_by) VALUES(3,'mburgos','','$2y$12$ZzHSofb0FuMkZtwAzCxYCuwImnnuhaKCLzy3jzyBBs6JRfL.RuTHa','student','','approved','1970-01-01 00:00:00','1970-01-01 00:00:00',1);
+INSERT INTO "registration_requests" (id,username,email,password,role,reason,status,requested_at,processed_at,processed_by) VALUES(4,'mburgos','','$2y$12$1kXBdGhdnJaZsrCFLDiwl.TA8X17glEZRJLql1S9kMC.adE0BcbHy','student','','approved','1970-01-01 00:00:00','1970-01-01 00:00:00',1);
 
 -- Table: users
 CREATE TABLE users (
