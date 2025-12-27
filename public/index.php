@@ -1676,6 +1676,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             }
 
             // Accept parameters from POST first, fallback to GET
+            // Debug: log incoming POST for troubleshooting
+            if (function_exists('error_log')) {
+                error_log('[download_generation_csv] POST: ' . var_export($_POST, true));
+                error_log('[download_generation_csv] GET: ' . var_export($_GET, true));
+                error_log('[download_generation_csv] session active_project_id: ' . var_export($session->get('active_project_id'), true));
+            }
             $generationNumber = (int)($_POST['generation_number'] ?? $_POST['generationNumber'] ?? $_GET['generation_number'] ?? $_GET['generationNumber'] ?? 0);
             $decimal = $_POST['decimal'] ?? $_GET['decimal'] ?? 'dot';
 
