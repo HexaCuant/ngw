@@ -173,6 +173,7 @@ $allUsers = $auth->getAllUsers();
     <h2>Gestión de Usuarios</h2>
     
     <?php if ($isAdmin) : ?>
+    <table>
         <thead>
             <tr>
                 <th>ID</th>
