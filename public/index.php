@@ -1682,6 +1682,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 error_log('[download_generation_csv] GET: ' . var_export($_GET, true));
                 error_log('[download_generation_csv] session active_project_id: ' . var_export($session->get('active_project_id'), true));
             }
+            // Also append to temp debug file for easier inspection
+            @file_put_contents('/tmp/ngw_download_debug.log', "POST: " . var_export($_POST, true) . "\nGET: " . var_export($_GET, true) . "\nactive_project_id: " . var_export($session->get('active_project_id'), true) . "\n---\n", FILE_APPEND);
             $generationNumber = (int)($_POST['generation_number'] ?? $_POST['generationNumber'] ?? $_GET['generation_number'] ?? $_GET['generationNumber'] ?? 0);
             $decimal = $_POST['decimal'] ?? $_GET['decimal'] ?? 'dot';
 
