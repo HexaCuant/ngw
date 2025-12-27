@@ -196,7 +196,9 @@ CREATE TABLE registration_requests (
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     processed_at DATETIME,
     processed_by INTEGER,
-    FOREIGN KEY (processed_by) REFERENCES users(id)
+    assigned_teacher_id INTEGER, -- teacher responsible for this registration request (for students)
+    FOREIGN KEY (processed_by) REFERENCES users(id),
+    FOREIGN KEY (assigned_teacher_id) REFERENCES users(id)
 )
 ;
 INSERT INTO "registration_requests" (id,username,email,password,role,reason,status,requested_at,processed_at,processed_by) VALUES(1,'mburgos','mburgos@go.ugr.es',NULL,'student','Nueva interfaz','approved','1970-01-01 00:00:00','1970-01-01 00:00:00',1);
@@ -211,6 +213,7 @@ CREATE TABLE users (
     password TEXT NOT NULL,
     email TEXT,
     is_admin INTEGER DEFAULT 0,
+    role TEXT DEFAULT 'student', -- admin, teacher, student
     is_approved INTEGER DEFAULT 0,
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME,
@@ -218,6 +221,6 @@ CREATE TABLE users (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )
 ;
-INSERT INTO "users" (id,username,password,email,is_admin,is_approved,requested_at,approved_at) VALUES(1,'admin','$2y$12$EBhHhO8caCDeMnWjfYyBK.6iDdxbnCKdmPGn8sfZLeTq4tGFfhSpq','admin@ngw.local',1,1,'1970-01-01 00:00:00',NULL);
-INSERT INTO "users" (id,username,password,email,is_admin,is_approved,requested_at,approved_at) VALUES(5,'mburgos','$2y$12$1kXBdGhdnJaZsrCFLDiwl.TA8X17glEZRJLql1S9kMC.adE0BcbHy','',0,1,'1970-01-01 00:00:00','1970-01-01 00:00:00');
+INSERT INTO "users" (id,username,password,email,is_admin,role,is_approved,requested_at,approved_at) VALUES(1,'admin','$2y$12$EBhHhO8caCDeMnWjfYyBK.6iDdxbnCKdmPGn8sfZLeTq4tGFfhSpq','admin@ngw.local',1,'admin',1,'1970-01-01 00:00:00',NULL);
+INSERT INTO "users" (id,username,password,email,is_admin,role,is_approved,requested_at,approved_at) VALUES(5,'mburgos','$2y$12$1kXBdGhdnJaZsrCFLDiwl.TA8X17glEZRJLql1S9kMC.adE0BcbHy','',0,'student',1,'1970-01-01 00:00:00','1970-01-01 00:00:00');
 

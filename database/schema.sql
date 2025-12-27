@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS registration_requests (
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     processed_at DATETIME,
     processed_by INTEGER,
-    FOREIGN KEY (processed_by) REFERENCES users(id)
+    assigned_teacher_id INTEGER, -- teacher responsible for this registration request (for students)
+    FOREIGN KEY (processed_by) REFERENCES users(id),
+    FOREIGN KEY (assigned_teacher_id) REFERENCES users(id)
 );
 
 -- Projects table
