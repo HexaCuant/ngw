@@ -25,6 +25,7 @@ if ($activeCharacterId) {
     $alleles = $activeGene ? $characterModel->getAlleles((int) $activeGeneId) : [];
     $connections = $characterModel->getConnections($activeCharacterId);
     $showConnections = $session->get('show_connections', false);
+    $showGenes = $session->get('show_genes', false);
 }
 ?>
 

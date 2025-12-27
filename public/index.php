@@ -218,15 +218,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                     
                     <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <button type="button" onclick="closeCharacter()" class="btn-secondary">Cerrar carácter</button>
-                        <button type="button" class="btn-primary" id="toggle-genes-btn" onclick="toggleGenesView()">Ocultar Genes</button>
-                        <button type="button" class="btn-primary" id="toggle-connections-btn" onclick="toggleConnectionsView()">Ocultar Conexiones</button>
+                        <button type="button" class="btn-primary" id="toggle-genes-btn" onclick="toggleGenesView()">Ver Genes</button>
+                        <button type="button" class="btn-primary" id="toggle-connections-btn" onclick="toggleConnectionsView()">Ver Conexiones</button>
                         <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                             <button type="button" class="btn-success" onclick="document.getElementById('create-gene-form-container').style.display = document.getElementById('create-gene-form-container').style.display === 'none' ? 'block' : 'none';">Crear nuevo gen</button>
                         <?php endif; ?>
                     </div>
                     
                     <!-- Genes view -->
-                    <div id="genes-view" style="margin-top: 1.5rem;">
+                    <div id="genes-view" style="display: none; margin-top: 1.5rem;">
                         <?php if (!empty($genes)) : ?>
                             <h4>Genes del carácter</h4>
                             <table>
@@ -262,7 +262,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                     </div>
                     
                     <!-- Connections view -->
-                    <div id="connections-view" style="margin-top: 1.5rem;">
+                    <div id="connections-view" style="display: none; margin-top: 1.5rem;">
                         <h4>Conexiones del Carácter</h4>
                         <?php if (!empty($connections)) : ?>
                             <table id="connections-table" style="width: 100%; margin-bottom: 1rem;">
