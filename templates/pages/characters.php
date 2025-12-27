@@ -930,9 +930,7 @@ function drawPetriNet() {
     const container = document.getElementById('petri-net-diagram');
     const table = document.getElementById('connections-table');
     
-    console.debug('drawPetriNet called', { containerExists: !!container, tableExists: !!table });
     if (!container && table) {
-        console.debug('drawPetriNet: container missing but table present - creating container dynamically');
         const newContainer = document.createElement('div');
         newContainer.id = 'petri-net-diagram';
         newContainer.style.width = '100%';
@@ -947,26 +945,22 @@ function drawPetriNet() {
         const tableParent = table.parentElement;
         if (tableParent) {
             tableParent.appendChild(newContainer);
-            console.debug('drawPetriNet: inserted new container as child of table parent');
         } else {
             const connectionsView = document.getElementById('connections-view');
             if (connectionsView) {
                 connectionsView.appendChild(newContainer);
-                console.debug('drawPetriNet: appended new container to connections view');
             }
         }
         // update container reference
         container = document.getElementById('petri-net-diagram');
     }
     if (!container || !table) {
-        console.debug('drawPetriNet: early return - missing container or table', { containerExists: !!container, tableExists: !!table });
         return;
     }
     
     // Extract connections from table
     const connections = [];
     const rows = table.querySelectorAll('tbody tr');
-    console.debug('drawPetriNet: found rows count', rows.length);
     rows.forEach(row => {
         const cells = row.cells;
         if (cells && cells.length >= 3) {
