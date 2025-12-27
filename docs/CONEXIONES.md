@@ -129,13 +129,7 @@ La implementación en `ngw` mantiene la misma lógica que en `gw`:
 
 ## Pruebas
 
-Se creó el script `test_connections.php` que permite verificar:
-- Existencia de caracteres
-- Genes asociados
-- Conexiones existentes
-- Métodos disponibles en el modelo
-
-**Ejecutar:** `php /srv/http/ngw/test_connections.php`
+Se incluían scripts temporales para pruebas manuales (eliminados en limpieza reciente). Si necesitas pruebas automatizadas, muévelo a `tests/` o añade un script de PHPUnit en `tests/`.
 
 ## Notas técnicas
 

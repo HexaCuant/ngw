@@ -144,11 +144,15 @@ if (addAlleleForm) {
                     
                     const allele = data.allele;
                     const row = document.createElement('tr');
+                    let displayDominance = allele.dominance !== null ? allele.dominance : '';
+                    if (allele.additive == 1 && displayDominance.toString().startsWith('1')) {
+                        displayDominance = displayDominance.toString().substring(1);
+                    }
                     row.innerHTML = `
                         <td>${allele.id}</td>
                         <td>${allele.name}</td>
                         <td>${allele.value !== null ? allele.value : ''}</td>
-                        <td>${allele.dominance !== null ? allele.dominance : ''}</td>
+                        <td>${displayDominance}</td>
                         <td>${allele.additive == 1 ? 'Sí' : 'No'}</td>
                         <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                             <td>

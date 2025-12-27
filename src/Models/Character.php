@@ -147,11 +147,22 @@ class Character
      */
     public function addAllele(int $geneId, string $name, ?float $value = null, ?float $dominance = null, bool $additive = false, ?string $epistasis = null): int
     {
+        // If allele is additive, concatenate a leading '1' to the dominance value (e.g. dominance=100, additive=1 -> stored=1100)
+        $dominanceToStore = null;
+        if ($dominance !== null) {
+            if ($additive) {
+                // Use string concatenation to preserve decimals if any, then cast to float
+                $dominanceToStore = (float) ('1' . strval($dominance));
+            } else {
+                $dominanceToStore = $dominance;
+            }
+        }
+
         $sql = "INSERT INTO alleles (name, value, dominance, additive, epistasis) VALUES (:name, :value, :dominance, :additive, :epistasis)";
         $this->db->execute($sql, [
             'name' => $name,
             'value' => $value,
-            'dominance' => $dominance,
+            'dominance' => $dominanceToStore,
             'additive' => $additive ? 1 : 0,
             'epistasis' => $epistasis
         ]);

@@ -243,15 +243,24 @@ if ($activeCharacterId) {
                             <tbody>
                                 <?php if (!empty($alleles)) : ?>
                                     <?php foreach ($alleles as $al) : ?>
-                                        <tr>
-                                            <td><?= e($al['id']) ?></td>
-                                            <td><?= e($al['name']) ?></td>
-                                            <td><?= e($al['value']) ?></td>
-                                            <td><?= e((int)$al['additive'] === 1 ? 'Sí' : 'No') ?></td>
-                                            <td><?= e($al['dominance']) ?></td>
-                                            <td><?= e($al['epistasis']) ?></td>
-                                            <td>
-                                                <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
+                                    <?php 
+                                        $displayDominance = $al['dominance'];
+                                        if ((int)$al['additive'] === 1 && $displayDominance !== null) {
+                                            $strDom = (string)$displayDominance;
+                                            if (strpos($strDom, '1') === 0) {
+                                                $displayDominance = substr($strDom, 1);
+                                            }
+                                        }
+                                    ?>
+                                    <tr>
+                                        <td><?= e($al['id']) ?></td>
+                                        <td><?= e($al['name']) ?></td>
+                                        <td><?= e($al['value']) ?></td>
+                                        <td><?= e((int)$al['additive'] === 1 ? 'Sí' : 'No') ?></td>
+                                        <td><?= e($displayDominance) ?></td>
+                                        <td><?= e($al['epistasis']) ?></td>
+                                        <td>
+                                            <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                                                     <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" class="delete-allele-form">
                                                         <input type="hidden" name="char_action" value="remove_allele">
                                                         <input type="hidden" name="allele_id" value="<?= e($al['id']) ?>">
@@ -571,10 +580,10 @@ if (addAlleleForm) {
             if (data.success) {
                 showNotification('Alelo añadido', 'success');
                 
-                // Add row to table
-                const tbody = document.querySelector('#genes-view table tbody');
+                // Add row to alleles table (inside #alleles-section)
+                const tbody = document.querySelector('#alleles-section table tbody');
                 if (tbody) {
-                    // Remove "no alleles" row if it exists
+                    // Remove "no alelos" row if it exists
                     const emptyRow = tbody.querySelector('td[colspan]');
                     if (emptyRow) {
                         emptyRow.closest('tr').remove();
@@ -582,25 +591,38 @@ if (addAlleleForm) {
                     
                     const allele = data.allele;
                     const row = document.createElement('tr');
+                    let displayDominance = allele.dominance !== null ? allele.dominance : '';
+                    if (allele.additive == 1 && displayDominance.toString().startsWith('1')) {
+                        displayDominance = displayDominance.toString().substring(1);
+                    }
                     row.innerHTML = `
                         <td>${allele.id}</td>
                         <td>${allele.name}</td>
                         <td>${allele.value !== null ? allele.value : ''}</td>
-                        <td>${allele.dominance !== null ? allele.dominance : ''}</td>
                         <td>${allele.additive == 1 ? 'Sí' : 'No'}</td>
-                        <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                            <td>
-                                <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" class="delete-allele-form">
-                                    <input type="hidden" name="char_action" value="remove_allele">
-                                    <input type="hidden" name="allele_id" value="${allele.id}">
-                                    <button type="submit" class="btn-danger btn-small">Eliminar</button>
-                                </form>
-                            </td>
-                        <?php endif; ?>
+                        <td>${displayDominance}</td>
+                        <td>${allele.epistasis ?? ''}</td>
                     `;
+
+                    // Actions cell (if permitted)
+                    <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
+                    const actionsTd = document.createElement('td');
+                    const delForm = document.createElement('form');
+                    delForm.method = 'post';
+                    delForm.style.display = 'inline';
+                    delForm.className = 'delete-allele-form';
+                    delForm.innerHTML = `
+                        <input type="hidden" name="char_action" value="remove_allele">
+                        <input type="hidden" name="allele_id" value="${allele.id}">
+                        <button type="submit" class="btn-danger btn-small">Eliminar</button>
+                    `;
+                    actionsTd.appendChild(delForm);
+                    row.appendChild(actionsTd);
+                    <?php endif; ?>
+
                     tbody.appendChild(row);
                     
-                    // Attach event listener to new delete button
+                    // Attach event listener to new delete button/form
                     const newForm = row.querySelector('.delete-allele-form');
                     if (newForm) {
                         newForm.addEventListener('submit', function(e) {
@@ -626,10 +648,10 @@ if (addAlleleForm) {
                                         showNotification('Alelo eliminado', 'success');
                                         row.remove();
                                     
-                                        const tbody = document.querySelector('#genes-view table tbody');
+                                        const tbody = document.querySelector('#alleles-section table tbody');
                                         if (tbody && tbody.children.length === 0) {
                                             const emptyRow = document.createElement('tr');
-                                            emptyRow.innerHTML = '<td colspan="5" class="text-center">No hay alelos definidos</td>';
+                                            emptyRow.innerHTML = '<td colspan="7" class="text-center">No hay alelos definidos</td>';
                                             tbody.appendChild(emptyRow);
                                         }
                                     } else {

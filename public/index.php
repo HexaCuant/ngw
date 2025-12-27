@@ -504,13 +504,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                 
                 $alleleId = $characterModel->addAllele($geneId, $name, $value, $dominance, $additive, $epistasis);
                 
+                // Return the stored dominance value (reflect additive concatenation)
+                $dominanceToSend = null;
+                if ($dominance !== null) {
+                    if ($additive) {
+                        $dominanceToSend = (float) ('1' . strval($dominance));
+                    } else {
+                        $dominanceToSend = $dominance;
+                    }
+                }
+
                 echo json_encode([
                     'success' => true,
                     'allele' => [
                         'id' => $alleleId,
                         'name' => $name,
                         'value' => $value,
-                        'dominance' => $dominance,
+                        'dominance' => $dominanceToSend,
                         'additive' => $additive ? 1 : 0,
                         'epistasis' => $epistasis
                     ]
@@ -528,7 +538,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
         try {
             $geneId = (int) ($session->get('active_gene_id') ?? 0);
             $alleleId = (int) $_POST['allele_id'];
-            if ($geneId > 0 && ($session->isTeacher() || $session->isAdmin())) {
+            $activeCharId = (int) ($session->get('active_character_id') ?? 0);
+
+            // Allow deletion if user is teacher/admin or owner of the active character
+            if ($geneId > 0 && ($session->isTeacher() || $session->isAdmin() || ($activeCharId > 0 && $characterModel->isOwner($activeCharId, $userId)))) {
                 $characterModel->removeAllele($geneId, $alleleId);
                 echo json_encode(['success' => true]);
             } else {
@@ -572,12 +585,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                         <tbody>
                             <?php if (!empty($alleles)) : ?>
                                 <?php foreach ($alleles as $al) : ?>
+                                    <?php 
+                                        $displayDominance = $al['dominance'];
+                                        if ((int)$al['additive'] === 1 && $displayDominance !== null) {
+                                            $strDom = (string)$displayDominance;
+                                            if (strpos($strDom, '1') === 0) {
+                                                $displayDominance = substr($strDom, 1);
+                                            }
+                                        }
+                                    ?>
                                     <tr>
                                         <td><?= htmlspecialchars($al['id']) ?></td>
                                         <td><?= htmlspecialchars($al['name']) ?></td>
                                         <td><?= htmlspecialchars($al['value']) ?></td>
                                         <td><?= htmlspecialchars((int)$al['additive'] === 1 ? 'Sí' : 'No') ?></td>
-                                        <td><?= htmlspecialchars($al['dominance']) ?></td>
+                                        <td><?= htmlspecialchars($displayDominance) ?></td>
                                         <td><?= htmlspecialchars($al['epistasis']) ?></td>
                                         <td>
                                             <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
