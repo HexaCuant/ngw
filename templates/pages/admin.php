@@ -59,14 +59,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$pendingRequests = $requestModel->getPending();
-$approvedRequests = $requestModel->getAll('approved');
-$rejectedRequests = $requestModel->getAll('rejected');
+// Determine if user is admin or teacher
+$isAdmin = $session->isAdmin();
+$isTeacher = $session->isTeacher() && !$isAdmin;
+
+// Get requests based on role
+if ($isAdmin) {
+    $pendingRequests = $requestModel->getPending();
+    $approvedRequests = $requestModel->getAll('approved');
+    $rejectedRequests = $requestModel->getAll('rejected');
+} else if ($isTeacher) {
+    // Teachers see only their assigned student requests
+    $userId = $session->getUserId();
+    $sql = "SELECT * FROM registration_requests WHERE status = 'pending' AND assigned_teacher_id = :teacher_id ORDER BY requested_at ASC";
+    $pendingRequests = $db->fetchAll($sql, ['teacher_id' => $userId]);
+    
+    $sql = "SELECT * FROM registration_requests WHERE status = 'approved' AND assigned_teacher_id = :teacher_id ORDER BY requested_at DESC";
+    $approvedRequests = $db->fetchAll($sql, ['teacher_id' => $userId]);
+    
+    $sql = "SELECT * FROM registration_requests WHERE status = 'rejected' AND assigned_teacher_id = :teacher_id ORDER BY requested_at DESC";
+    $rejectedRequests = $db->fetchAll($sql, ['teacher_id' => $userId]);
+} else {
+    $pendingRequests = [];
+    $approvedRequests = [];
+    $rejectedRequests = [];
+}
+
 $allUsers = $auth->getAllUsers();
 ?>
 
 <div class="card">
-    <h2>Panel de Administración</h2>
+    <h2>
+        <?php if ($isAdmin) : ?>
+            Panel de Administración
+        <?php else : ?>
+            Panel de Profesor - Solicitudes de Alumnos
+        <?php endif; ?>
+    </h2>
     
     <?php if (isset($error)) : ?>
         <div class="alert alert-error"><?= e($error) ?></div>
@@ -88,6 +117,7 @@ $allUsers = $auth->getAllUsers();
                     <th>Email</th>
                     <th>Tipo</th>
                     <th>Motivo</th>
+                    <?php if ($isAdmin) : ?><th>Profesor asignado</th><?php endif; ?>
                     <th>Fecha solicitud</th>
                     <th>Acciones</th>
                 </tr>
@@ -106,6 +136,18 @@ $allUsers = $auth->getAllUsers();
                             <span style="<?= $roleColor ?>"><?= e($roleLabel) ?></span>
                         </td>
                         <td><?= e($request['reason'] ?: '-') ?></td>
+                        <?php if ($isAdmin) : ?>
+                            <td>
+                                <?php
+                                    if (!empty($request['assigned_teacher_id'])) {
+                                        $teacher = $db->fetchOne("SELECT username FROM users WHERE id = :id", ['id' => $request['assigned_teacher_id']]);
+                                        echo $teacher ? e($teacher['username']) : '-';
+                                    } else {
+                                        echo '-';
+                                    }
+                                ?>
+                            </td>
+                        <?php endif; ?>
                         <td><?= e($request['requested_at']) ?></td>
                         <td>
                                                         <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" class="admin-approve-form">
@@ -130,7 +172,7 @@ $allUsers = $auth->getAllUsers();
 <div class="card">
     <h2>Gestión de Usuarios</h2>
     
-    <table>
+    <?php if ($isAdmin) : ?>
         <thead>
             <tr>
                 <th>ID</th>
@@ -201,6 +243,9 @@ $allUsers = $auth->getAllUsers();
     <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
         <strong>Nota:</strong> No puedes eliminar administradores ni tu propia cuenta.
     </p>
+    <?php else : ?>
+        <p style="color: var(--text-muted);">La gestión de usuarios solo está disponible para administradores.</p>
+    <?php endif; ?>
 </div>
 
 <div class="card">
