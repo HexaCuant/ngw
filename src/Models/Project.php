@@ -167,10 +167,58 @@ class Project
     }
 
     /**
+     * Validate project genes configuration
+     * Ensures all genes have at least one allele
+     */
+    public function validateProjectGenes(int $projectId): array
+    {
+        $errors = [];
+        
+        // Get project characters with their data
+        $characters = $this->getCharacters($projectId);
+        
+        foreach ($characters as $char) {
+            $characterId = $char['character_id'];
+            
+            // Get character name for error messages
+            $sqlCharName = "SELECT name FROM characters WHERE id = :id";
+            $charName = $this->db->fetchOne($sqlCharName, ['id' => $characterId])['name'] ?? 'Unknown';
+            
+            // Get genes for this character
+            $sqlGenes = "SELECT id, name FROM genes WHERE id IN (
+                SELECT gene_id FROM character_genes WHERE character_id = :character_id
+            ) ORDER BY id";
+            $genes = $this->db->fetchAll($sqlGenes, ['character_id' => $characterId]);
+
+            foreach ($genes as $gene) {
+                $geneId = $gene['id'];
+                $geneName = $gene['name'] ?? 'Unknown';
+
+                // Check if gene has alleles
+                $sqlAlleles = "SELECT COUNT(*) as count FROM gene_alleles WHERE gene_id = :gene_id";
+                $result = $this->db->fetchOne($sqlAlleles, ['gene_id' => $geneId]);
+                $alleleCount = $result['count'] ?? 0;
+
+                if ($alleleCount === 0) {
+                    $errors[] = "Gene '$geneName' in character '$charName' has no alleles defined. Please add at least one allele before generating generations.";
+                }
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
      * Generate POC file for gengine
      */
     public function generatePocFile(int $projectId, int $populationSize, int $generationNumber, string $type = 'random'): string
     {
+        // Validate project genes before generating POC file
+        $validationErrors = $this->validateProjectGenes($projectId);
+        if (!empty($validationErrors)) {
+            throw new \RuntimeException(implode("\n", $validationErrors));
+        }
+
         $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
         $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
         $projectPath = rtrim($basePath, '/') . '/' . $projectId;

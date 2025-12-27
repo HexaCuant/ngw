@@ -59,7 +59,12 @@ try {
     
     // Generate POC
     echo "Step 1: Generating POC file...\n";
-    $pocPath = $projectModel->generatePocFile($projectId, $populationSize, $generationNumber, 'random');
+    try {
+        $pocPath = $projectModel->generatePocFile($projectId, $populationSize, $generationNumber, 'random');
+    } catch (\RuntimeException $e) {
+        echo "ERROR: " . $e->getMessage() . "\n";
+        exit(1);
+    }
     echo "POC created: $pocPath\n";
     
     if (!file_exists($pocPath)) {

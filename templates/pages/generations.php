@@ -559,9 +559,48 @@ function createRandomGeneration() {
                 // Rebuild parent generation selects so the new generation is available as a source
                 refreshGenerationSelects();
             } else {
-                // Fallback: reload if we cannot update list
-                window.location.reload();
-                return;
+                // First generation: create the generations list section dynamically
+                // This prevents page reload and allows the generation to be displayed immediately
+                const leftPanel = document.querySelector('.left-panel');
+                if (leftPanel) {
+                    const listCardHtml = `
+                    <div class="card">
+                        <div class="generations-list-header">
+                            <h3>Generaciones Existentes</h3>
+                            <button onclick="toggleGenerationsList()" id="toggleListBtn">Ocultar</button>
+                        </div>
+                        <div id="generationsList">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nº</th>
+                                        <th>Tipo</th>
+                                        <th>Pob.</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr id="gen-row-${genNum}">
+                                        <td>${genNum}</td>
+                                        <td>${escapeHtml(type)}</td>
+                                        <td>${escapeHtml(pop)}</td>
+                                        <td class="actions-cell">
+                                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>
+                                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>`;
+                    leftPanel.insertAdjacentHTML('beforeend', listCardHtml);
+                    // Rebuild parent generation selects so the new generation is available as a source
+                    refreshGenerationSelects();
+                } else {
+                    // Fallback: reload if we cannot find the left panel
+                    window.location.reload();
+                    return;
+                }
             }
 
             // Open the newly created generation in the viewer using returned data
@@ -1214,8 +1253,47 @@ function createCrossGeneration() {
                 // Rebuild parent generation selects so the new generation is available as a source
                 refreshGenerationSelects();
             } else {
-                window.location.reload();
-                return;
+                // First generation: create the generations list section dynamically
+                const leftPanel = document.querySelector('.left-panel');
+                if (leftPanel) {
+                    const listCardHtml = `
+                    <div class="card">
+                        <div class="generations-list-header">
+                            <h3>Generaciones Existentes</h3>
+                            <button onclick="toggleGenerationsList()" id="toggleListBtn">Ocultar</button>
+                        </div>
+                        <div id="generationsList">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nº</th>
+                                        <th>Tipo</th>
+                                        <th>Pob.</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr id="gen-row-${genNum}">
+                                        <td>${genNum}</td>
+                                        <td>${escapeHtml(type)}</td>
+                                        <td>${escapeHtml(pop)}</td>
+                                        <td class="actions-cell">
+                                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>
+                                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>`;
+                    leftPanel.insertAdjacentHTML('beforeend', listCardHtml);
+                    // Rebuild parent generation selects so the new generation is available as a source
+                    refreshGenerationSelects();
+                } else {
+                    // Fallback: reload if we cannot find the left panel
+                    window.location.reload();
+                    return;
+                }
             }
 
             renderGenerationData({
@@ -1272,11 +1350,41 @@ function createMultipleCrosses() {
             return;
         }
         let firstCreated = null;
+        let listAlreadyCreated = false;
         for (const res of data.results || []) {
             if (res.success) {
                 const genNum = res.generation_number;
                 const pop = res.population_size || '';
-                const tbody = document.querySelector('#generationsList tbody');
+                let tbody = document.querySelector('#generationsList tbody');
+                if (!tbody && !listAlreadyCreated) {
+                    // First generation: create the generations list section dynamically
+                    const leftPanel = document.querySelector('.left-panel');
+                    if (leftPanel) {
+                        const listCardHtml = `
+                    <div class="card">
+                        <div class="generations-list-header">
+                            <h3>Generaciones Existentes</h3>
+                            <button onclick="toggleGenerationsList()" id="toggleListBtn">Ocultar</button>
+                        </div>
+                        <div id="generationsList">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nº</th>
+                                        <th>Tipo</th>
+                                        <th>Pob.</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>`;
+                        leftPanel.insertAdjacentHTML('beforeend', listCardHtml);
+                        listAlreadyCreated = true;
+                        tbody = document.querySelector('#generationsList tbody');
+                    }
+                }
                 if (tbody) {
                     const rowHtml = `\n                    <tr id="gen-row-${genNum}">\n                        <td>${genNum}</td>\n                        <td>${escapeHtml('cross')}</td>\n                        <td>${escapeHtml(pop)}</td>\n                        <td class="actions-cell">\n                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>\n                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>\n                        </td>\n                    </tr>`;
                     tbody.insertAdjacentHTML('afterbegin', rowHtml);
@@ -1288,6 +1396,11 @@ function createMultipleCrosses() {
             } else {
                 showToast('Error creating gen ' + res.generation_number + ': ' + (res.error || 'error'), 'error');
             }
+        }
+
+        // Rebuild parent generation selects if any were created
+        if (listAlreadyCreated) {
+            refreshGenerationSelects();
         }
 
         // Open first created generation in viewer

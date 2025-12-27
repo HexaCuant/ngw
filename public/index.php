@@ -1024,7 +1024,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             $generationNumber = $generationModel->getNextGenerationNumber($projectId);
             
             // Generate POC file
-            $pocPath = $projectModel->generatePocFile($projectId, $populationSize, $generationNumber, 'random');
+            try {
+                $pocPath = $projectModel->generatePocFile($projectId, $populationSize, $generationNumber, 'random');
+            } catch (\RuntimeException $e) {
+                ob_end_clean();
+                echo json_encode([
+                    'success' => false, 
+                    'error' => $e->getMessage()
+                ]);
+                exit;
+            }
             
             // Execute gengine
             $result = $generationModel->executeGengine($projectId);
@@ -1126,7 +1135,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 exit;
             }
 
-            $pocPath = $projectModel->generatePocFile($projectId, $populationSize, $generationNumber, 'cross');
+            try {
+                $pocPath = $projectModel->generatePocFile($projectId, $populationSize, $generationNumber, 'cross');
+            } catch (\RuntimeException $e) {
+                ob_end_clean();
+                echo json_encode([
+                    'success' => false, 
+                    'error' => $e->getMessage()
+                ]);
+                exit;
+            }
 
             // Execute gengine
             $result = $generationModel->executeGengine($projectId);
@@ -1303,7 +1321,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 $inserted = $generationModel->addParentals($projectId, $targetGen, $sourceGen, array_map('intval', $selected));
 
                 // Build POC and execute engine
-                $poc = $projectModel->generatePocFile($projectId, $populationSize, $targetGen, 'cross');
+                try {
+                    $poc = $projectModel->generatePocFile($projectId, $populationSize, $targetGen, 'cross');
+                } catch (\RuntimeException $e) {
+                    $results[] = ['generation_number' => $targetGen, 'success' => false, 'error' => $e->getMessage()];
+                    continue;
+                }
+                
                 $execRes = $generationModel->executeGengine($projectId);
                 if (!$execRes['success']) {
                     $results[] = ['generation_number' => $targetGen, 'success' => false, 'error' => 'Error al ejecutar gengine (código ' . $execRes['return_code'] . ')'];
