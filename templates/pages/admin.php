@@ -35,17 +35,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (\Exception $e) {
             $error = "Error al rechazar: " . $e->getMessage();
         }
-    } elseif ($adminAction === 'promote_to_teacher' && !empty($_POST['user_id'])) {
-        $userId = (int) $_POST['user_id'];
-
-        try {
-            $sql = "UPDATE users SET role = 'teacher' WHERE id = :id AND is_admin = 0";
-            $db->execute($sql, ['id' => $userId]);
-            $success = "Usuario promovido a profesor correctamente";
-            redirect('index.php?option=4');
-        } catch (\Exception $e) {
-            $error = "Error al promover usuario: " . $e->getMessage();
-        }
     } elseif ($adminAction === 'delete_user' && !empty($_POST['user_id']) && isset($_POST['confirm'])) {
         $userId = (int) $_POST['user_id'];
 
@@ -217,15 +206,7 @@ $allUsers = $auth->getAllUsers();
                     <td><?= e($user['created_at']) ?></td>
                     <td>
                         <?php if ((int)$user['is_admin'] === 0 && (int)$user['id'] !== $session->getUserId()) : ?>
-                            <?php if ($userRole === 'student') : ?>
-                                <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
-                                      class="promote-teacher-form">
-                                    <input type="hidden" name="admin_action" value="promote_to_teacher">
-                                    <input type="hidden" name="user_id" value="<?= e($user['id']) ?>">
-                                    <button type="submit" class="btn-primary btn-small" style="background-color: #3b82f6; padding: 0.25rem 0.5rem; font-size: 0.875rem;">Profesor</button>
-                                </form>
-                            <?php endif; ?>
-                            <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none; margin-left: 0.25rem;"
+                            <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
                                   class="delete-user-form" data-username="<?= e($user['username']) ?>">
                                 <input type="hidden" name="admin_action" value="delete_user">
                                 <input type="hidden" name="user_id" value="<?= e($user['id']) ?>">
@@ -322,18 +303,6 @@ document.querySelectorAll('.delete-user-form').forEach(function(form) {
         const message = '¿Estás seguro de eliminar al usuario "' + username + '"?\n\nEsta acción no se puede deshacer.';
         e.preventDefault();
         confirmAction(message, 'Eliminar', 'Cancelar')
-        .then(ok => {
-            if (!ok) return false;
-            form.submit();
-        });
-    });
-});
-
-// Handle promote to teacher confirmation
-document.querySelectorAll('.promote-teacher-form').forEach(function(form) {
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        confirmAction('¿Promover este usuario a profesor?\n\nPodrá recibir solicitudes de registro de sus alumnos.', 'Promover', 'Cancelar')
         .then(ok => {
             if (!ok) return false;
             form.submit();
