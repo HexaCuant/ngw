@@ -333,6 +333,8 @@ if (substratesInputAjax) {
         const now = Date.now();
         if (now - lastDisabledToast > 800) {
             showNotification(disabledMsg, 'warning');
+            // Visual feedback: brief highlight of the control
+            if (typeof flashInputHighlight === 'function') flashInputHighlight();
             lastDisabledToast = now;
         }
     }
@@ -366,6 +368,7 @@ if (substratesInputAjax) {
                 }, function(err) {
                     // Error: revert to previous value to make it obvious it didn't change
                     newInput.value = prevSubstratesValue;
+                    if (typeof flashInputHighlight === 'function') flashInputHighlight();
                 });
             }
         }, 800);

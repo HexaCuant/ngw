@@ -32,6 +32,17 @@ function showNotification(message, type = 'success') {
 }
 
 /**
+ * Flash a brief highlight on the substrates input to visually draw attention
+ */
+function flashInputHighlight() {
+    const input = document.getElementById('substrates-input');
+    if (!input) return;
+    input.classList.add('highlight-toast');
+    // Ensure class is removed after animation
+    setTimeout(() => input.classList.remove('highlight-toast'), 1000);
+}
+
+/**
  * Open character via AJAX
  */
 function openCharacter(characterId) {
@@ -849,6 +860,24 @@ style.textContent = `
             transform: translateX(100%);
             opacity: 0;
         }
+    }
+
+    /* Highlight pulse for substrates input when we show a toast */
+    @keyframes highlightPulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(255,193,7,0);
+        }
+        50% {
+            box-shadow: 0 0 12px 4px rgba(255,193,7,0.95);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(255,193,7,0);
+        }
+    }
+
+    .highlight-toast {
+        animation: highlightPulse 0.9s ease-out;
+        border-radius: 4px;
     }
 `;
 document.head.appendChild(style);
