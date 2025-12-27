@@ -370,7 +370,7 @@ if ($activeCharacterId) {
                                            min="0" 
                                            max="20"
                                            style="width: 80px;"
-                                           <?= $hasConnections ? 'disabled' : '' ?> >
+                                           data-has-connections="<?= $hasConnections ? '1' : '0' ?>">
                                 </label>
                                 <small style="color: var(--color-text-secondary); margin-left: 0.5rem;">
                                     (Se actualiza automáticamente)
@@ -760,6 +760,11 @@ if (substratesInputAjax) {
     // Track previous value so we can revert if server rejects the change
     newInput.addEventListener('focus', function() {
         prevSubstratesValue = parseInt(this.value || 0);
+        // If there are connections, show toast and blur
+        if (this.dataset.hasConnections === '1') {
+            showDisabledToast();
+            this.blur();
+        }
     });
 
     // Helper to show a single toast for disabled interaction (rate-limited)
@@ -773,25 +778,21 @@ if (substratesInputAjax) {
         }
     }
 
-    // If the input is initially disabled (server rendered state), show a toast when the user tries to interact
-    if (newInput.disabled) {
-        newInput.addEventListener('focus', function() {
-            showDisabledToast();
-            this.blur();
-        });
-        newInput.addEventListener('click', function(e) {
+    // Always attach click handler but only react when dataset indicates connections
+    newInput.addEventListener('click', function(e) {
+        if (this.dataset.hasConnections === '1') {
             showDisabledToast();
             e.preventDefault();
-        });
-        newInput.title = disabledMsg;
-    }
+            this.blur();
+        }
+    });
 
     newInput.addEventListener('input', function() {
         clearTimeout(substratesTimeout);
         
         substratesTimeout = setTimeout(function() {
-            // If the input became disabled meanwhile, block the update and show a single toast
-            if (newInput.disabled) {
+            // If the input is flagged as having connections, block the update and show a single toast
+            if (newInput.dataset.hasConnections === '1') {
                 showDisabledToast();
                 newInput.value = prevSubstratesValue;
                 return;
@@ -859,6 +860,10 @@ if (addConnectionForm) {
 
                 // Re-apply validation listeners
                 if (typeof setupStateValidation === 'function') setupStateValidation();
+
+                // Mark that there are connections now so substrates edits are blocked
+                const substratesInput = document.getElementById('substrates-input');
+                if (substratesInput) substratesInput.dataset.hasConnections = '1';
             });
         }
     });
@@ -1334,13 +1339,11 @@ function deleteConnectionRow(button, connectionId) {
                     diagram.innerHTML = '<p class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>';
                 }
 
-                // Re-enable substrates input and remove server-side warning
+                // Update flag to indicate there are no more connections
                 const substratesInput = document.getElementById('substrates-input');
                 if (substratesInput) {
-                    substratesInput.disabled = false;
+                    substratesInput.dataset.hasConnections = '0';
                 }
-                const substratesWarning = document.getElementById('substrates-warning');
-                if (substratesWarning) substratesWarning.remove();
 
                 // Rebuild connection form UI based on current substrates value
                 const currentSubstrates = substratesInput ? parseInt(substratesInput.value || 0) : 0;
