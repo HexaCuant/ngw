@@ -931,6 +931,33 @@ function drawPetriNet() {
     const table = document.getElementById('connections-table');
     
     console.debug('drawPetriNet called', { containerExists: !!container, tableExists: !!table });
+    if (!container && table) {
+        console.debug('drawPetriNet: container missing but table present - creating container dynamically');
+        const newContainer = document.createElement('div');
+        newContainer.id = 'petri-net-diagram';
+        newContainer.style.width = '100%';
+        newContainer.style.minHeight = '300px';
+        newContainer.style.border = '1px solid var(--color-border)';
+        newContainer.style.borderRadius = '4px';
+        newContainer.style.padding = '1rem';
+        newContainer.style.background = '#fafafa';
+        newContainer.style.overflowX = 'auto';
+        newContainer.innerHTML = '<p class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>';
+        // Insert newContainer after the connections table (if possible), otherwise append to the connections view
+        const tableParent = table.parentElement;
+        if (tableParent) {
+            tableParent.appendChild(newContainer);
+            console.debug('drawPetriNet: inserted new container as child of table parent');
+        } else {
+            const connectionsView = document.getElementById('connections-view');
+            if (connectionsView) {
+                connectionsView.appendChild(newContainer);
+                console.debug('drawPetriNet: appended new container to connections view');
+            }
+        }
+        // update container reference
+        container = document.getElementById('petri-net-diagram');
+    }
     if (!container || !table) {
         console.debug('drawPetriNet: early return - missing container or table', { containerExists: !!container, tableExists: !!table });
         return;
