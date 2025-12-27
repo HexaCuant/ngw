@@ -342,6 +342,16 @@ if ($activeCharacterId) {
                     <p class="text-center">No hay conexiones definidas para este carácter.</p>
                 <?php endif; ?>
 
+                <!-- Visualización de red de Petri (siempre visible; mostrará placeholder si no hay conexiones) -->
+                <div style="border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem;">
+                    <h5>Diagrama de Red de Petri</h5>
+                    <div id="petri-net-diagram" style="width: 100%; min-height: 300px; border: 1px solid var(--color-border); border-radius: 4px; padding: 1rem; background: #fafafa; overflow-x: auto;">
+                        <?php if (empty($connections)) : ?>
+                            <p id="petri-net-placeholder" class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <!-- Formulario para añadir conexiones -->
                 <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                     <div style="border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem;">
@@ -930,30 +940,6 @@ function drawPetriNet() {
     const container = document.getElementById('petri-net-diagram');
     const table = document.getElementById('connections-table');
     
-    if (!container && table) {
-        const newContainer = document.createElement('div');
-        newContainer.id = 'petri-net-diagram';
-        newContainer.style.width = '100%';
-        newContainer.style.minHeight = '300px';
-        newContainer.style.border = '1px solid var(--color-border)';
-        newContainer.style.borderRadius = '4px';
-        newContainer.style.padding = '1rem';
-        newContainer.style.background = '#fafafa';
-        newContainer.style.overflowX = 'auto';
-        newContainer.innerHTML = '<p class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>';
-        // Insert newContainer after the connections table (if possible), otherwise append to the connections view
-        const tableParent = table.parentElement;
-        if (tableParent) {
-            tableParent.appendChild(newContainer);
-        } else {
-            const connectionsView = document.getElementById('connections-view');
-            if (connectionsView) {
-                connectionsView.appendChild(newContainer);
-            }
-        }
-        // update container reference
-        container = document.getElementById('petri-net-diagram');
-    }
     if (!container || !table) {
         return;
     }
