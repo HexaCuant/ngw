@@ -1568,6 +1568,15 @@ function downloadGenerationCSV(decimalSeparator) {
     form.append('generation_number', genNum);
     form.append('decimal', decimalSeparator);
 
+    // Debug: log what we are sending
+    try {
+        const debugObj = { generation_number: genNum, decimal: decimalSeparator, entries: [] };
+        for (const p of form.entries()) debugObj.entries.push([p[0], String(p[1])]);
+        console.debug('downloadGenerationCSV sending', debugObj);
+    } catch (err) {
+        console.debug('downloadGenerationCSV debug failed', err);
+    }
+
     fetch('index.php?option=2', { method: 'POST', body: form })
     .then(async res => {
         if (!res.ok) {
