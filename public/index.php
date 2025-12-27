@@ -112,8 +112,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             $charId = (int)($_POST['char_id'] ?? 0);
             
             if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
+                // If deleting the active character, close it first
+                $activeCharId = $session->get('active_character_id');
+                if ($activeCharId && (int)$activeCharId === $charId) {
+                    $session->remove('active_character_id');
+                    $session->remove('active_gene_id');
+                    $session->remove('show_connections');
+                }
+                
                 $characterModel->delete($charId);
-                echo json_encode(['success' => true]);
+                echo json_encode(['success' => true, 'wasClosed' => $activeCharId && (int)$activeCharId === $charId]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
             }

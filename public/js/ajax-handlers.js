@@ -454,6 +454,35 @@ function deleteCharacter(characterId, charName) {
         .then(data => {
             if (data.success) {
                 showNotification('Carácter eliminado', 'success');
+                
+                // If the deleted character was open, close it in the UI
+                if (data.wasClosed) {
+                    // Remove character details card
+                    const allCards = document.querySelectorAll('.column-right .card');
+                    allCards.forEach(card => {
+                        const h3 = card.querySelector('h3');
+                        if (h3 && h3.textContent.includes('Detalles del Carácter:')) {
+                            card.remove();
+                        }
+                    });
+
+                    // Hide connections view if open
+                    const connectionsView = document.getElementById('connections-view');
+                    const toggleBtn = document.getElementById('toggle-connections-btn');
+                    if (connectionsView && connectionsView.style.display !== 'none') {
+                        connectionsView.style.display = 'none';
+                        if (toggleBtn) toggleBtn.textContent = 'Ver Conexiones';
+                        
+                        const diagram = document.getElementById('petri-net-diagram');
+                        if (diagram) {
+                            diagram.innerHTML = '<p class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>';
+                        }
+                        
+                        const substratesInput = document.getElementById('substrates-input');
+                        if (substratesInput) substratesInput.dataset.hasConnections = '0';
+                    }
+                }
+                
                 // Remove row from table
                 const rows = document.querySelectorAll('table tbody tr');
                 rows.forEach(row => {
