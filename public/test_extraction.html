@@ -1,0 +1,48 @@
+<html>
+<body>
+<div id="transition-container">
+    <label>
+        <input type="radio" name="transition" value="1" required> A
+    </label>
+    <label>
+        <input type="radio" name="transition" value="2" required> B
+    </label>
+    <label>
+        <input type="radio" name="transition" value="3" required> D
+    </label>
+</div>
+
+<script>
+function testExtraction() {
+    const transitionInputs = document.querySelectorAll('input[name="transition"]');
+    const availableTransitions = [];
+    
+    transitionInputs.forEach(input => {
+        // Extract the gene name from the input's next sibling text node
+        let geneName = '';
+        let nextNode = input.nextSibling;
+        console.log('Input:', input, 'nextSibling:', nextNode);
+        
+        while (nextNode) {
+            console.log('Checking node:', nextNode, 'type:', nextNode.nodeType, 'value:', nextNode.nodeValue);
+            if (nextNode.nodeType === Node.TEXT_NODE) {
+                geneName = nextNode.textContent.trim();
+                console.log('Found TEXT_NODE, content:', nextNode.textContent, 'trimmed:', geneName);
+                if (geneName) break; // Found the gene name
+            }
+            nextNode = nextNode.nextSibling;
+        }
+        console.log('Final geneName:', geneName);
+        
+        if (geneName && !availableTransitions.includes(geneName)) {
+            availableTransitions.push(geneName);
+        }
+    });
+    
+    console.log('availableTransitions:', availableTransitions);
+}
+
+testExtraction();
+</script>
+</body>
+</html>

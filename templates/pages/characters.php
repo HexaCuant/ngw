@@ -881,9 +881,11 @@ function drawEmptyDiagram(container, states, transitions) {
  * Draw Petri Net diagram based on connections
  */
 function drawPetriNet() {
+    console.log('drawPetriNet() called');
     const container = document.getElementById('petri-net-diagram');
     
     if (!container) {
+        console.log('drawPetriNet: container not found');
         return;
     }
     
@@ -907,14 +909,21 @@ function drawPetriNet() {
     const transitionInputs = document.querySelectorAll('input[name="transition"]');
     const availableTransitions = [];
     transitionInputs.forEach(input => {
-        const label = input.closest('label');
-        if (label) {
-            const text = label.textContent.trim();
-            if (text && !availableTransitions.includes(text)) {
-                availableTransitions.push(text);
+        // Extract the gene name from the input's next sibling text node
+        let geneName = '';
+        let nextNode = input.nextSibling;
+        while (nextNode) {
+            if (nextNode.nodeType === Node.TEXT_NODE) {
+                geneName = nextNode.textContent.trim();
+                if (geneName) break; // Found the gene name
             }
+            nextNode = nextNode.nextSibling;
+        }
+        if (geneName && !availableTransitions.includes(geneName)) {
+            availableTransitions.push(geneName);
         }
     });
+    console.log('drawPetriNet: availableTransitions=', availableTransitions);
     
     // Get available states from the form
     const stateInputs = document.querySelectorAll('input[name="state_a"]');
@@ -931,6 +940,8 @@ function drawPetriNet() {
     
     // If no connections but we have states and transitions, show them
     if (connections.length === 0 && (availableStates.length > 0 || availableTransitions.length > 0)) {
+        console.log('drawPetriNet: No connections, but have transitions. Showing empty diagram.');
+        console.log('drawPetriNet: availableStates=', availableStates, 'availableTransitions=', availableTransitions);
         drawEmptyDiagram(container, availableStates, availableTransitions);
         return;
     }
@@ -1048,16 +1059,19 @@ function drawPetriNet() {
             });
         }
 
-        // Calculate SVG size (ensure finite values)
-        let maxX = Math.max(...Object.values(statePositions).map(s => s.x)) + marginX;
-        let maxY = Math.max(
+        // Calculate SVG size - account for all genes at top and connections below
+        const numAllGenes = availableTransitions.length;
+        const genesTopHeight = Math.max(150, Math.ceil(numAllGenes / 4) * 100);
+        
+        let maxX = Math.max(...Object.values(statePositions).map(s => s.x), numAllGenes * horizontalSpacing) + marginX;
+        let maxY = genesTopHeight + Math.max(
             ...Object.values(statePositions).map(s => s.y),
             ...Object.values(transitionPositions).map(t => t.y)
         ) + marginY + 50;
 
         if (!isFinite(maxX) || !isFinite(maxY) || maxX <= 0 || maxY <= 0) {
-            maxX = Math.max(800, marginX + 3 * horizontalSpacing);
-            maxY = Math.max(400, marginY + 3 * verticalSpacing);
+            maxX = Math.max(900, marginX + numAllGenes * 120);
+            maxY = Math.max(600, genesTopHeight + marginY + 300);
         }
 
         // Create SVG
@@ -1065,6 +1079,26 @@ function drawPetriNet() {
 
         // Define arrowhead marker
         svg += `<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#666" /></marker></defs>`;
+        
+        // Offset connection diagram down to avoid overlap with genes
+        const connectionOffsetY = genesTopHeight + 20;
+        
+        // Get list of genes that are NOT in connections
+        const genesNotInConnections = availableTransitions.filter(geneName => {
+            return !Object.values(transitionPositions).some(pos => pos.label === geneName);
+        });
+    
+        // Draw only genes that are NOT in connections at the top
+        if (genesNotInConnections.length > 0) {
+            svg += `<text x="20" y="25" font-size="12" font-weight="bold" fill="#666">Genes sin conexiones:</text>`;
+            genesNotInConnections.forEach((geneName, index) => {
+                const x = marginX + (index % 4) * 150;
+                const y = 60 + Math.floor(index / 4) * 100;
+                
+                svg += `<rect x="${x - transitionWidth/2}" y="${y - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#e8f4f8" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" rx="4"/>`;
+                svg += `<text x="${x}" y="${y + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="#2c3e50">${geneName}</text>`;
+            });
+        }
     
         // Draw connections (arcs)
         connections.forEach(conn => {
@@ -1075,7 +1109,7 @@ function drawPetriNet() {
             
             if (isLinear) {
                 // Horizontal arrows for linear layout
-                const y = stateAPos.y;
+                const y = stateAPos.y + connectionOffsetY;
                 
                 // Arc from state A to transition
                 const x1 = stateAPos.x + placeRadius;
@@ -1089,23 +1123,23 @@ function drawPetriNet() {
             } else {
                 // Curved arrows for complex layout
                 // Arc from state A to transition
-                svg += `<line x1="${stateAPos.x}" y1="${stateAPos.y + placeRadius}" x2="${transPos.x}" y2="${transPos.y - transitionHeight/2}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                svg += `<line x1="${stateAPos.x}" y1="${stateAPos.y + connectionOffsetY + placeRadius}" x2="${transPos.x}" y2="${transPos.y + connectionOffsetY - transitionHeight/2}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
                 
                 // Arc from transition to state B
-                svg += `<line x1="${transPos.x}" y1="${transPos.y + transitionHeight/2}" x2="${stateBPos.x}" y2="${stateBPos.y - placeRadius}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                svg += `<line x1="${transPos.x}" y1="${transPos.y + connectionOffsetY + transitionHeight/2}" x2="${stateBPos.x}" y2="${stateBPos.y + connectionOffsetY - placeRadius}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
             }
         });
         
         // Draw states (places - circles)
         stateArray.forEach(state => {
             const pos = statePositions[state];
-            svg += `<circle cx="${pos.x}" cy="${pos.y}" r="${placeRadius}" fill="white" stroke="#2c3e50" stroke-width="2"/>`;
-            svg += `<text x="${pos.x}" y="${pos.y + 5}" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">S${state}</text>`;
+            svg += `<circle cx="${pos.x}" cy="${pos.y + connectionOffsetY}" r="${placeRadius}" fill="white" stroke="#2c3e50" stroke-width="2"/>`;
+            svg += `<text x="${pos.x}" y="${pos.y + connectionOffsetY + 5}" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">S${state}</text>`;
         });
         
-        // Draw transitions (rectangles)
+        // Draw transitions (rectangles) that are part of connections
         Object.entries(transitionPositions).forEach(([key, pos]) => {
-            svg += `<rect x="${pos.x - transitionWidth/2}" y="${pos.y - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#3498db" stroke="#2c3e50" stroke-width="2" rx="4"/>`;
+            svg += `<rect x="${pos.x - transitionWidth/2}" y="${pos.y + connectionOffsetY - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#3498db" stroke="#2c3e50" stroke-width="2" rx="4"/>`;
             
             // Split long labels into multiple lines
             const maxChars = 6;
@@ -1126,12 +1160,12 @@ function drawPetriNet() {
                 if (currentLine.trim()) lines.push(currentLine.trim());
                 
                 const lineHeight = 12;
-                const startY = pos.y - (lines.length - 1) * lineHeight / 2;
+                const startY = pos.y + connectionOffsetY - (lines.length - 1) * lineHeight / 2;
                 lines.forEach((line, i) => {
                     svg += `<text x="${pos.x}" y="${startY + i * lineHeight}" text-anchor="middle" font-size="10" font-weight="bold" fill="white">${line}</text>`;
                 });
             } else {
-                svg += `<text x="${pos.x}" y="${pos.y + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="white">${label}</text>`;
+                svg += `<text x="${pos.x}" y="${pos.y + connectionOffsetY + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="white">${label}</text>`;
             }
         });
         

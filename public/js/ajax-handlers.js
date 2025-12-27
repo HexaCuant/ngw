@@ -994,7 +994,7 @@ function setupCreateGeneHandler() {
                     const formContainer = document.getElementById('create-gene-form-container');
                     if (formContainer) formContainer.style.display = 'none';
 
-                    // Reload transition selectors in connection form
+                    // Reload transition selectors in connection form (which will redraw Petri net)
                     reloadTransitionSelectors();
                 } else {
                     showNotification(data.error || 'Error al crear gen', 'error');
@@ -1097,6 +1097,14 @@ function reloadTransitionSelectors() {
                     newWarning.textContent = 'Primero debes crear genes para este carácter.';
                     document.getElementById('add-connection-form').after(newWarning);
                 }
+            }
+            
+            // Redraw Petri net after updating transition selectors
+            if (typeof drawPetriNet === 'function') {
+                console.log('reloadTransitionSelectors: calling drawPetriNet()');
+                drawPetriNet();
+            } else {
+                console.warn('reloadTransitionSelectors: drawPetriNet is not a function');
             }
             } else {
                 console.error('reloadTransitionSelectors: data.success=', data.success, 'data.genes=', data.genes);

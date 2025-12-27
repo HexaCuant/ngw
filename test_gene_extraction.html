@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Gene Extraction</title>
+</head>
+<body>
+    <div id="transition-container">
+        <label>
+            <input type="radio" name="transition" value="1" required> A
+        </label>
+        <label>
+            <input type="radio" name="transition" value="2" required> B
+        </label>
+        <label>
+            <input type="radio" name="transition" value="3" required> D
+        </label>
+    </div>
+
+    <script>
+        function testExtraction() {
+            const transitionInputs = document.querySelectorAll('input[name="transition"]');
+            const availableTransitions = [];
+            
+            console.log('Number of inputs found:', transitionInputs.length);
+            
+            transitionInputs.forEach((input, index) => {
+                console.log(`Input ${index}:`, input);
+                const label = input.closest('label');
+                console.log(`Label ${index}:`, label);
+                
+                if (label) {
+                    // Method 1: textContent.trim()
+                    const text1 = label.textContent.trim();
+                    console.log(`Method 1 (textContent.trim()):`, text1);
+                    
+                    // Method 2: Extract from child nodes
+                    const nodes = label.childNodes;
+                    let geneName = '';
+                    let foundInput = false;
+                    for (let node of nodes) {
+                        console.log(`Node type ${node.nodeType}:`, node);
+                        if (node.nodeType === Node.ELEMENT_NODE && node === input) {
+                            foundInput = true;
+                        } else if (foundInput && node.nodeType === Node.TEXT_NODE) {
+                            geneName = node.textContent.trim();
+                            break;
+                        }
+                    }
+                    console.log(`Method 2 (childNodes):`, geneName);
+                    
+                    if (geneName && !availableTransitions.includes(geneName)) {
+                        availableTransitions.push(geneName);
+                    }
+                }
+            });
+            
+            console.log('Final availableTransitions:', availableTransitions);
+        }
+        
+        testExtraction();
+    </script>
+</body>
+</html>
