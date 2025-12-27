@@ -822,7 +822,7 @@ function toggleConnectionsView() {
         connectionsView.style.display = isVisible ? 'none' : 'block';
         
         if (btn) {
-            btn.textContent = isVisible ? 'Ver Conexiones' : 'Ocultar Conexiones';
+            btn.textContent = isVisible ? 'Ver Panel de Conexiones' : 'Ocultar Panel de Conexiones';
         }
         
         // Draw Petri net if connections are visible

@@ -197,11 +197,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             $charId = (int) ($_POST['char_id'] ?? 0);
             if ($charId > 0) {
                 $session->set('active_character_id', $charId);
-                $session->set('show_connections', false);
-                
-                // Get character data
+                // Show connections panel if character has genes
                 $activeCharacter = $characterModel->getById($charId);
                 $genes = $characterModel->getGenes($charId);
+                $session->set('show_connections', !empty($genes));
+                
+                // Get character data
                 $connections = $characterModel->getConnections($charId);
                 $numSubstrates = (int)$activeCharacter['substrates'];
                 
@@ -213,15 +214,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                     
                     <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <button type="button" onclick="closeCharacter()" class="btn-secondary">Cerrar carácter</button>
-                        <button type="button" class="btn-primary" id="toggle-genes-btn" onclick="toggleGenesView()">Ver Genes</button>
-                        <button type="button" class="btn-primary" id="toggle-connections-btn" onclick="toggleConnectionsView()">Ver Conexiones</button>
+                        <button type="button" class="btn-primary" id="toggle-genes-btn" onclick="toggleGenesView()">Ocultar Genes</button>
+                        <button type="button" class="btn-primary" id="toggle-connections-btn" onclick="toggleConnectionsView()">Ocultar Conexiones</button>
                         <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                             <button type="button" class="btn-success" onclick="document.getElementById('create-gene-form-container').style.display = document.getElementById('create-gene-form-container').style.display === 'none' ? 'block' : 'none';">Crear nuevo gen</button>
                         <?php endif; ?>
                     </div>
                     
                     <!-- Genes view -->
-                    <div id="genes-view" style="display: none; margin-top: 1.5rem;">
+                    <div id="genes-view" style="margin-top: 1.5rem;">
                         <?php if (!empty($genes)) : ?>
                             <h4>Genes del carácter</h4>
                             <table>
@@ -257,7 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                     </div>
                     
                     <!-- Connections view -->
-                    <div id="connections-view" style="display: none; margin-top: 1.5rem;">
+                    <div id="connections-view" style="margin-top: 1.5rem;">
                         <h4>Conexiones del Carácter</h4>
                         <?php if (!empty($connections)) : ?>
                             <table id="connections-table" style="width: 100%; margin-bottom: 1rem;">
@@ -304,72 +305,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                             </div>
                         </div>
                         
-                        <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                            <div style="border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem;">
-                                <h5>Añadir nueva conexión</h5>
-                                <?php $hasConnectionsAjax = !empty($connections); ?>
-                                <form method="post" id="substrates-form" style="margin-bottom: 1rem; display:flex; align-items:center; gap:0.5rem;">
-                                    <div class="form-group" style="margin:0;">
-                                        <label style="display:flex; align-items:center; gap:0.5rem;">Número de sustratos (estados)
-                                            <input type="number" id="substrates-input" name="substrates" min="0" value="<?= e($numSubstrates) ?>" required style="width: 80px;" data-has-connections="<?= $hasConnectionsAjax ? '1' : '0' ?>">
-                                        </label>
-                                        <small style="color: var(--color-text-secondary); margin-left: 0.5rem;">(Se actualiza automáticamente)</small>
+                        <!-- Panel for adding connections -->
+                        <div style="border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem;">
+                            <h5>Añadir nueva conexión</h5>
+                            <?php $hasConnectionsAjax = !empty($connections); ?>
+                            <form method="post" id="substrates-form" style="margin-bottom: 1rem; display:flex; align-items:center; gap:0.5rem;">
+                                <div class="form-group" style="margin:0;">
+                                    <label style="display:flex; align-items:center; gap:0.5rem;">Número de sustratos (estados)
+                                        <input type="number" id="substrates-input" name="substrates" min="0" value="<?= e($numSubstrates) ?>" required style="width: 80px;" data-has-connections="<?= $hasConnectionsAjax ? '1' : '0' ?>" <?= !($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) ? 'disabled' : '' ?>>
+                                    </label>
+                                    <small style="color: var(--color-text-secondary); margin-left: 0.5rem;">(Se actualiza automáticamente)</small>
+                                </div>
+
+                            </form>
+                            
+                            <?php 
+                            // Render the add-connection form as in the main template: radio lists for states and radio inputs for transition
+                            $numSubstratesSafe = max(0, $numSubstrates);
+                            ?>
+                            <form method="post" id="add-connection-form" style="border: 1px solid var(--color-border); padding: 1rem; border-radius: 4px; background: var(--color-bg-secondary);">
+                                <input type="hidden" name="char_action" value="add_connection">
+
+                                <div class="form-group">
+                                    <label>Estado inicial (S):</label>
+                                    <div id="state-a-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; min-height: 1.5rem;">
+                                        <?php for ($i = 0; $i < $numSubstratesSafe; $i++) : ?>
+                                            <label>
+                                                <input type="radio" name="state_a" value="<?= $i ?>" required> S<?= $i ?>
+                                            </label>
+                                        <?php endfor; ?>
+                                        <?php if ($numSubstratesSafe === 0) : ?>
+                                            <span style="color: var(--color-text-secondary); font-size: 0.9rem;">Establece el número de sustratos para ver opciones</span>
+                                        <?php endif; ?>
                                     </div>
+                                </div>
 
-                                </form>
-                                
-                                <?php 
-                                // Render the add-connection form as in the main template: radio lists for states and radio inputs for transition
-                                $numSubstratesSafe = max(0, $numSubstrates);
-                                ?>
-                                <form method="post" id="add-connection-form" style="display: <?= $numSubstratesSafe > 0 ? 'block' : 'none' ?>;">
-                                    <input type="hidden" name="char_action" value="add_connection">
-
-                                    <div class="form-group">
-                                        <label>Estado inicial (S):</label>
-                                        <div id="state-a-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                            <?php for ($i = 0; $i < $numSubstratesSafe; $i++) : ?>
-                                                <label>
-                                                    <input type="radio" name="state_a" value="<?= $i ?>" required> S<?= $i ?>
-                                                </label>
-                                            <?php endfor; ?>
-                                        </div>
+                                <div class="form-group">
+                                    <label>Gen (Transición):</label>
+                                    <div id="transition-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; min-height: 1.5rem;">
+                                        <?php foreach ($genes as $gene) : ?>
+                                            <label>
+                                                <input type="radio" name="transition" value="<?= e($gene['id']) ?>" required> <?= e($gene['name']) ?>
+                                            </label>
+                                        <?php endforeach; ?>
+                                        <?php if (empty($genes)) : ?>
+                                            <span style="color: var(--color-text-secondary); font-size: 0.9rem;">Crea genes en la sección anterior</span>
+                                        <?php endif; ?>
                                     </div>
+                                </div>
 
-                                    <div class="form-group">
-                                        <label>Gen (Transición):</label>
-                                        <div id="transition-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                            <?php foreach ($genes as $gene) : ?>
-                                                <label>
-                                                    <input type="radio" name="transition" value="<?= e($gene['id']) ?>" required> <?= e($gene['name']) ?>
-                                                </label>
-                                            <?php endforeach; ?>
-                                        </div>
+                                <div class="form-group">
+                                    <label>Estado final (S):</label>
+                                    <div id="state-b-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; min-height: 1.5rem;">
+                                        <?php for ($i = 0; $i < $numSubstratesSafe; $i++) : ?>
+                                            <label>
+                                                <input type="radio" name="state_b" value="<?= $i ?>" required> S<?= $i ?>
+                                            </label>
+                                        <?php endfor; ?>
+                                        <?php if ($numSubstratesSafe === 0) : ?>
+                                            <span style="color: var(--color-text-secondary); font-size: 0.9rem;">Establece el número de sustratos para ver opciones</span>
+                                        <?php endif; ?>
                                     </div>
+                                </div>
 
-                                    <div class="form-group">
-                                        <label>Estado final (S):</label>
-                                        <div id="state-b-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                            <?php for ($i = 0; $i < $numSubstratesSafe; $i++) : ?>
-                                                <label>
-                                                    <input type="radio" name="state_b" value="<?= $i ?>" required> S<?= $i ?>
-                                                </label>
-                                            <?php endfor; ?>
-                                        </div>
-                                    </div>
-
-                                    <button type="submit" class="btn-success">Guardar Conexión</button>
-                                </form>
-                                <?php if ($numSubstratesSafe === 0) : ?>
-                                    <p id="no-substrates-message" class="text-center" style="color: var(--color-warning);">Primero debes establecer el número de sustratos.</p>
-                                    <?php if (!empty($genes)) : ?>
-                                        <p class="text-center" style="color: var(--color-text-secondary);">Genes disponibles: <?= implode(', ', array_map(function($g){ return e($g['name']); }, $genes)) ?></p>
-                                    <?php endif; ?>
-                                <?php elseif (empty($genes)) : ?>
-                                    <p id="no-genes-warning" class="text-center" style="color: var(--color-warning);">Primero debes crear genes para este carácter.</p>
+                                <button type="submit" class="btn-success" <?= !($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) ? 'disabled' : ($numSubstratesSafe === 0 || empty($genes) ? 'disabled' : '') ?>>Guardar Conexión</button>
+                                <?php if (!($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId)) : ?>
+                                    <small style="color: var(--color-text-secondary); margin-left: 1rem;">Solo el creador del carácter puede crear conexiones</small>
                                 <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
+                            </form>
+                            <?php if ($numSubstratesSafe === 0) : ?>
+                                <p id="no-substrates-message" class="text-center" style="color: var(--color-warning);">Primero debes establecer el número de sustratos.</p>
+                                <?php if (!empty($genes)) : ?>
+                                    <p class="text-center" style="color: var(--color-text-secondary);">Genes disponibles: <?= implode(', ', array_map(function($g){ return e($g['name']); }, $genes)) ?></p>
+                                <?php endif; ?>
+                            <?php elseif (empty($genes)) : ?>
+                                <p id="no-genes-warning" class="text-center" style="color: var(--color-warning);">Primero debes crear genes para este carácter.</p>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     
                     <!-- Create gene form -->
@@ -407,7 +419,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                 <?php
                 $html = ob_get_clean();
                 
-                echo json_encode(['success' => true, 'html' => $html]);
+                echo json_encode(['success' => true, 'html' => $html], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             } else {
                 echo json_encode(['success' => false, 'error' => 'ID de carácter inválido']);
             }
@@ -430,7 +442,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             // Validate character before closing
             $validationErrors = $characterModel->validateCharacterCompletion($characterId);
             if (!empty($validationErrors)) {
-                ob_end_clean();
                 echo json_encode([
                     'success' => false, 
                     'error' => implode("\n", $validationErrors)

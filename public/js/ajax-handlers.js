@@ -55,6 +55,15 @@ function showDisabledToast() {
 }
 
 /**
+ * Escape HTML special characters to prevent XSS
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
  * Setup add-allele form handler (idempotent)
  */
 function setupAddAlleleHandler() {
@@ -246,6 +255,8 @@ function initializeCharacterUI() {
             .then(data => {
                 if (data.success) {
                     showNotification('Carácter abierto', 'success');
+                    console.log('Character HTML received, length:', data.html ? data.html.length : 0);
+                    console.log('HTML contains connections-view:', data.html ? data.html.includes('connections-view') : false);
             
                     // Remove create form if exists
                     const createFormCard = document.querySelector('.column-right .card h3');
@@ -307,7 +318,20 @@ function closeCharacter() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        // Try to parse as JSON and handle parse errors
+        return response.text().then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('JSON parse error. Response text:', text);
+                throw new Error('Invalid JSON response from server');
+            }
+        });
+    })
     .then(data => {
         if (data.success) {
             showNotification('Carácter cerrado', 'success');
@@ -378,14 +402,25 @@ function closeCharacter() {
             }
         } else {
             // Show validation errors in a more readable format
-            if (data.error && data.error.includes('\n')) {
-                // Multiple errors - show as list
+            if (data.error) {
+                // Split by newlines to check if we have multiple errors
                 const errors = data.error.split('\n').filter(e => e.trim());
-                let message = '<strong>No se puede cerrar el carácter:</strong><ul style="margin-top: 0.5rem; margin-bottom: 0; padding-left: 1.5rem;">';
-                errors.forEach(error => {
-                    message += '<li style="margin-bottom: 0.5rem;">' + escapeHtml(error) + '</li>';
-                });
-                message += '</ul>';
+                
+                let message;
+                if (errors.length > 1) {
+                    // Multiple errors - show as list
+                    message = '<strong>No se puede cerrar el carácter:</strong><ul style="margin-top: 0.5rem; margin-bottom: 0; padding-left: 1.5rem;">';
+                    errors.forEach(error => {
+                        message += '<li style="margin-bottom: 0.5rem;">' + escapeHtml(error) + '</li>';
+                    });
+                    message += '</ul>';
+                } else {
+                    // Single error - show with strong text
+                    message = '<strong>No se puede cerrar el carácter:</strong><p style="margin-top: 0.5rem; margin-bottom: 0;">' + escapeHtml(data.error) + '</p>';
+                }
+                
+                // Add suggestion to delete instead
+                message += '<p style="margin-top: 1rem; margin-bottom: 0; font-size: 0.9rem; color: #888; font-style: italic;"><small>💡 Si no necesitas este carácter, puedes borrarlo directamente sin necesidad de cerrarlo.</small></p>';
                 
                 // Create and show custom error dialog
                 const modal = document.getElementById('global-confirm-modal');
@@ -424,13 +459,13 @@ function closeCharacter() {
                     showNotification(data.error, 'error');
                 }
             } else {
-                showNotification(data.error || 'Error al cerrar carácter', 'error');
+                showNotification('Error al cerrar carácter', 'error');
             }
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        showNotification('Error de conexión', 'error');
+        console.error('Fetch error in closeCharacter:', error);
+        showNotification('Error de conexión: ' + error.message, 'error');
     });
 }
 
@@ -1110,15 +1145,12 @@ function reloadSubstrateSelectors(numSubstrates) {
         setupStateValidation();
     }
     
-    // Show/hide connection form based on substrates
-    const connectionForm = document.getElementById('add-connection-form');
+    // Show/hide no-substrates message, but always show the form
     const noSubstratesMsg = document.getElementById('no-substrates-message');
     
     if (numSubstrates > 0) {
-        if (connectionForm) connectionForm.style.display = 'block';
         if (noSubstratesMsg) noSubstratesMsg.style.display = 'none';
     } else {
-        if (connectionForm) connectionForm.style.display = 'none';
         if (noSubstratesMsg) noSubstratesMsg.style.display = 'block';
     }
 }
