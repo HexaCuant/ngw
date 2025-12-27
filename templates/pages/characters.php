@@ -345,7 +345,7 @@ if ($activeCharacterId) {
                                     $transGene = $characterModel->getGeneById((int)$conn['transition']);
                                     $geneName = $transGene ? $transGene['name'] : 'Gen #' . $conn['transition'];
                                 ?>
-                                <tr>
+                                <tr data-connection-id="<?= e($conn['id']) ?>">
                                     <td>S<?= e($conn['state_a']) ?></td>
                                     <td><?= e($geneName) ?></td>
                                     <td>S<?= e($conn['state_b']) ?></td>
@@ -378,7 +378,6 @@ if ($activeCharacterId) {
                         <h5>Añadir nueva conexión</h5>
                         
                         <!-- Update substrates form -->
-                        <?php $hasConnections = !empty($connections); ?>
                         <form method="post" id="substrates-form" style="margin-bottom: 1rem; display:flex; align-items:center; gap:0.5rem;">
                             <input type="hidden" name="char_action" value="update_substrates">
                             <div class="form-group" style="margin:0;">
@@ -389,8 +388,7 @@ if ($activeCharacterId) {
                                            value="<?= e($activeCharacter['substrates'] ?? 0) ?>" 
                                            min="0" 
                                            max="20"
-                                           style="width: 80px;"
-                                           data-has-connections="<?= $hasConnections ? '1' : '0' ?>">
+                                           style="width: 80px;">
                                 </label>
                                 <small style="color: var(--color-text-secondary); margin-left: 0.5rem;">
                                     (Se actualiza automáticamente)
@@ -587,52 +585,27 @@ if (substratesInputAjax) {
     // Track previous value so we can revert if server rejects the change
     newInput.addEventListener('focus', function() {
         prevSubstratesValue = parseInt(this.value || 0);
-        // If there are connections, show toast and blur
-        if (this.dataset.hasConnections === '1') {
-            showDisabledToast();
-            this.blur();
-        }
-    });
-
-    // Helper to show a single toast for disabled interaction (rate-limited)
-    const disabledMsg = 'No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.';
-    let lastDisabledToast = 0;
-    function showDisabledToast() {
-        const now = Date.now();
-        if (now - lastDisabledToast > 800) {
-            showNotification(disabledMsg, 'warning');
-            // Visual feedback: brief highlight of the control
-            if (typeof flashInputHighlight === 'function') flashInputHighlight();
-            lastDisabledToast = now;
-        }
-    }
-
-    // Always attach click handler but only react when dataset indicates connections
-    newInput.addEventListener('click', function(e) {
-        if (this.dataset.hasConnections === '1') {
-            showDisabledToast();
-            e.preventDefault();
-            this.blur();
-        }
     });
 
     newInput.addEventListener('input', function() {
         clearTimeout(substratesTimeout);
         
         substratesTimeout = setTimeout(function() {
-            // If the input is flagged as having connections, block the update and show a single toast
-            if (newInput.dataset.hasConnections === '1') {
-                showDisabledToast();
-                newInput.value = prevSubstratesValue;
-                return;
-            }
-
             const value = parseInt(newInput.value);
             if (!isNaN(value) && value >= 0 && characterId > 0) {
                 updateSubstrates(characterId, value, function(data) {
                     // Success: update prev value and UI
                     prevSubstratesValue = data.substrates;
                     reloadSubstrateSelectors(data.substrates);
+                    // Remove deleted connections from table
+                    if (data.deleted_connections && data.deleted_connections.length > 0) {
+                        data.deleted_connections.forEach(function(connId) {
+                            const row = document.querySelector('tr[data-connection-id="' + connId + '"]');
+                            if (row) row.remove();
+                        });
+                        // Redraw Petri net
+                        if (typeof drawPetriNet === 'function') drawPetriNet();
+                    }
                 }, function(err) {
                     // Error: revert to previous value to make it obvious it didn't change
                     newInput.value = prevSubstratesValue;
@@ -649,6 +622,15 @@ if (substratesInputAjax) {
             updateSubstrates(characterId, value, function(data) {
                 prevSubstratesValue = data.substrates;
                 reloadSubstrateSelectors(data.substrates);
+                // Remove deleted connections from table
+                if (data.deleted_connections && data.deleted_connections.length > 0) {
+                    data.deleted_connections.forEach(function(connId) {
+                        const row = document.querySelector('tr[data-connection-id="' + connId + '"]');
+                        if (row) row.remove();
+                    });
+                    // Redraw Petri net
+                    if (typeof drawPetriNet === 'function') drawPetriNet();
+                }
             }, function(err) {
                 newInput.value = prevSubstratesValue;
             });
@@ -658,7 +640,8 @@ if (substratesInputAjax) {
 
 // Handle add connection form via AJAX
 const addConnectionForm = document.getElementById('add-connection-form');
-if (addConnectionForm) {
+if (addConnectionForm && !addConnectionForm._listenerAttached) {
+    addConnectionForm._listenerAttached = true;
     addConnectionForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
@@ -690,10 +673,6 @@ if (addConnectionForm) {
 
                 // Re-apply validation listeners
                 if (typeof setupStateValidation === 'function') setupStateValidation();
-
-                // Mark that there are connections now so substrates edits are blocked
-                const substratesInput = document.getElementById('substrates-input');
-                if (substratesInput) substratesInput.dataset.hasConnections = '1';
             });
         }
     });
@@ -751,6 +730,7 @@ function addConnectionToTable(connection) {
     
     if (tbody) {
         const row = document.createElement('tr');
+        row.setAttribute('data-connection-id', connection.id);
         row.innerHTML = `
             <td>S${connection.state_a}</td>
             <td>${connection.gene_name || 'Gen #' + connection.transition}</td>
@@ -1395,14 +1375,9 @@ function deleteConnectionRow(button, connectionId) {
                 noConnMsg.className = 'text-center';
                 noConnMsg.textContent = 'No hay conexiones definidas para este carácter.';
                 table.replaceWith(noConnMsg);
-                
-                // Update flag to indicate there are no more connections
-                const substratesInput = document.getElementById('substrates-input');
-                if (substratesInput) {
-                    substratesInput.dataset.hasConnections = '0';
-                }
 
                 // Rebuild connection form UI based on current substrates value
+                const substratesInput = document.getElementById('substrates-input');
                 const currentSubstrates = substratesInput ? parseInt(substratesInput.value || 0) : 0;
                 if (typeof reloadSubstrateSelectors === 'function') {
                     reloadSubstrateSelectors(currentSubstrates);

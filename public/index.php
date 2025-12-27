@@ -278,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                                             $transGene = $characterModel->getGeneById((int)$conn['transition']);
                                             $geneName = $transGene ? $transGene['name'] : 'Gen #' . $conn['transition'];
                                         ?>
-                                        <tr>
+                                        <tr data-connection-id="<?= e($conn['id']) ?>">
                                             <td>S<?= e($conn['state_a']) ?></td>
                                             <td><?= e($geneName) ?></td>
                                             <td>S<?= e($conn['state_b']) ?></td>
@@ -308,11 +308,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                         <!-- Panel for adding connections -->
                         <div style="border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem;">
                             <h5>Añadir nueva conexión</h5>
-                            <?php $hasConnectionsAjax = !empty($connections); ?>
                             <form method="post" id="substrates-form" style="margin-bottom: 1rem; display:flex; align-items:center; gap:0.5rem;">
                                 <div class="form-group" style="margin:0;">
                                     <label style="display:flex; align-items:center; gap:0.5rem;">Número de sustratos (estados)
-                                        <input type="number" id="substrates-input" name="substrates" min="0" value="<?= e($numSubstrates) ?>" required style="width: 80px;" data-has-connections="<?= $hasConnectionsAjax ? '1' : '0' ?>" <?= !($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) ? 'disabled' : '' ?>>
+                                        <input type="number" id="substrates-input" name="substrates" min="0" value="<?= e($numSubstrates) ?>" required style="width: 80px;" <?= !($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) ? 'disabled' : '' ?>>
                                     </label>
                                     <small style="color: var(--color-text-secondary); margin-left: 0.5rem;">(Se actualiza automáticamente)</small>
                                 </div>
@@ -468,17 +467,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
         try {
             $charId = (int) ($_POST['char_id'] ?? 0);
             if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
-                // Prevent changing substrates if there are already connections defined
+                $substrates = (int) $_POST['substrates'];
+                
+                // Delete connections that use substrates >= new number
                 $existingConnections = $characterModel->getConnections($charId);
-                if (!empty($existingConnections)) {
-                    echo json_encode(['success' => false, 'error' => 'No puedes cambiar el número de sustratos mientras existan conexiones definidas. Elimina primero las conexiones.']);
-                    exit;
+                $deletedConnections = [];
+                foreach ($existingConnections as $conn) {
+                    if ($conn['state_a'] >= $substrates || $conn['state_b'] >= $substrates) {
+                        $characterModel->removeConnection($conn['id']);
+                        $deletedConnections[] = $conn['id'];
+                    }
                 }
 
-                $substrates = (int) $_POST['substrates'];
                 $characterModel->update($charId, ['substrates' => $substrates]);
                 $session->set('show_connections', true);
-                echo json_encode(['success' => true, 'substrates' => $substrates]);
+                echo json_encode([
+                    'success' => true, 
+                    'substrates' => $substrates,
+                    'deleted_connections' => $deletedConnections
+                ]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
             }

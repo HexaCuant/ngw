@@ -42,18 +42,6 @@ function flashInputHighlight() {
     setTimeout(() => input.classList.remove('highlight-toast'), 1000);
 }
 
-// Disabled interaction helper and rate limiter
-const disabledMsg = 'No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.';
-let lastDisabledToast = 0;
-function showDisabledToast() {
-    const now = Date.now();
-    if (now - lastDisabledToast > 800) {
-        showNotification(disabledMsg, 'warning');
-        if (typeof flashInputHighlight === 'function') flashInputHighlight();
-        lastDisabledToast = now;
-    }
-}
-
 /**
  * Escape HTML special characters to prevent XSS
  */
@@ -136,34 +124,26 @@ function initializeCharacterUI() {
 
         newInput.addEventListener('focus', function() {
             prevSubstratesValue = parseInt(this.value || 0);
-            if (this.dataset.hasConnections === '1') {
-                showDisabledToast();
-                this.blur();
-            }
-        });
-
-        newInput.addEventListener('click', function(e) {
-            if (this.dataset.hasConnections === '1') {
-                showDisabledToast();
-                e.preventDefault();
-                this.blur();
-            }
         });
 
         newInput.addEventListener('input', function() {
             clearTimeout(substratesTimeout);
             substratesTimeout = setTimeout(() => {
-                if (newInput.dataset.hasConnections === '1') {
-                    showDisabledToast();
-                    newInput.value = prevSubstratesValue;
-                    return;
-                }
                 const value = parseInt(newInput.value);
                 const characterId = window._activeCharacterId || 0;
                 if (!isNaN(value) && value >= 0 && characterId > 0) {
                     updateSubstrates(characterId, value, function(data) {
                         prevSubstratesValue = data.substrates;
                         reloadSubstrateSelectors(data.substrates);
+                        // Remove deleted connections from table
+                        if (data.deleted_connections && data.deleted_connections.length > 0) {
+                            data.deleted_connections.forEach(function(connId) {
+                                const row = document.querySelector(`tr[data-connection-id="${connId}"]`);
+                                if (row) row.remove();
+                            });
+                            // Redraw Petri net
+                            if (typeof drawPetriNet === 'function') drawPetriNet();
+                        }
                     }, function(err) {
                         newInput.value = prevSubstratesValue;
                         if (typeof flashInputHighlight === 'function') flashInputHighlight();
@@ -180,6 +160,15 @@ function initializeCharacterUI() {
                 updateSubstrates(characterId, value, function(data) {
                     prevSubstratesValue = data.substrates;
                     reloadSubstrateSelectors(data.substrates);
+                    // Remove deleted connections from table
+                    if (data.deleted_connections && data.deleted_connections.length > 0) {
+                        data.deleted_connections.forEach(function(connId) {
+                            const row = document.querySelector(`tr[data-connection-id="${connId}"]`);
+                            if (row) row.remove();
+                        });
+                        // Redraw Petri net
+                        if (typeof drawPetriNet === 'function') drawPetriNet();
+                    }
                 }, function(err) {
                     newInput.value = prevSubstratesValue;
                     if (typeof flashInputHighlight === 'function') flashInputHighlight();
@@ -222,10 +211,6 @@ function initializeCharacterUI() {
 
                     // Re-apply validation listeners
                     if (typeof setupStateValidation === 'function') setupStateValidation();
-
-                    // Mark that there are connections now so substrates edits are blocked
-                    const substratesInput2 = document.getElementById('substrates-input');
-                    if (substratesInput2) substratesInput2.dataset.hasConnections = '1';
                 });
             } else {
                 console.warn('Invalid connection form values', { characterId, stateA, transition, stateB });
@@ -358,10 +343,6 @@ function closeCharacter() {
                 if (diagram) {
                     diagram.innerHTML = '<p class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>';
                 }
-
-                // Reset substrates flag if present
-                const substratesInput = document.getElementById('substrates-input');
-                if (substratesInput) substratesInput.dataset.hasConnections = '0';
             }
             
             // Insert create form HTML
@@ -513,9 +494,6 @@ function deleteCharacter(characterId, charName) {
                         if (diagram) {
                             diagram.innerHTML = '<p class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>';
                         }
-                        
-                        const substratesInput = document.getElementById('substrates-input');
-                        if (substratesInput) substratesInput.dataset.hasConnections = '0';
                     }
                     
                     // Insert create form HTML if provided
