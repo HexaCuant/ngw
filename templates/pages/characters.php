@@ -930,11 +930,16 @@ function drawPetriNet() {
     const container = document.getElementById('petri-net-diagram');
     const table = document.getElementById('connections-table');
     
-    if (!container || !table) return;
+    console.debug('drawPetriNet called', { containerExists: !!container, tableExists: !!table });
+    if (!container || !table) {
+        console.debug('drawPetriNet: early return - missing container or table', { containerExists: !!container, tableExists: !!table });
+        return;
+    }
     
     // Extract connections from table
     const connections = [];
     const rows = table.querySelectorAll('tbody tr');
+    console.debug('drawPetriNet: found rows count', rows.length);
     rows.forEach(row => {
         const cells = row.cells;
         if (cells && cells.length >= 3) {
