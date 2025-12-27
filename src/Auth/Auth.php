@@ -129,7 +129,7 @@ class Auth
      */
     public function getAllUsers(): array
     {
-        $sql = "SELECT id, username, email, is_admin, is_approved, created_at, approved_at 
+        $sql = "SELECT id, username, email, is_admin, role, is_approved, created_at, approved_at 
                 FROM users 
                 ORDER BY created_at DESC";
         return $this->db->fetchAll($sql);
