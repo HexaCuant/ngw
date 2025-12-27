@@ -358,23 +358,29 @@ if ($activeCharacterId) {
                         <h5>Añadir nueva conexión</h5>
                         
                         <!-- Update substrates form -->
-                        <form method="post" id="substrates-form" style="margin-bottom: 1rem;">
+                        <?php $hasConnections = !empty($connections); ?>
+                        <form method="post" id="substrates-form" style="margin-bottom: 1rem; display:flex; align-items:center; gap:0.5rem;">
                             <input type="hidden" name="char_action" value="update_substrates">
-                            <div class="form-group">
-                                <label>Número de sustratos: 
+                            <div class="form-group" style="margin:0;">
+                                <label style="display:flex; align-items:center; gap:0.5rem;">Número de sustratos: 
                                     <input type="number" 
                                            id="substrates-input" 
                                            name="substrates" 
                                            value="<?= e($activeCharacter['substrates'] ?? 0) ?>" 
                                            min="0" 
                                            max="20"
-                                           style="width: 80px;">
+                                           style="width: 80px;"
+                                           <?= $hasConnections ? 'disabled' : '' ?> >
                                 </label>
                                 <small style="color: var(--color-text-secondary); margin-left: 0.5rem;">
                                     (Se actualiza automáticamente)
                                 </small>
                             </div>
+                            <button type="button" id="update-substrates-btn" class="btn-primary btn-small" <?= $hasConnections ? 'disabled' : '' ?>>Actualizar sustratos</button>
                         </form>
+                        <?php if ($hasConnections) : ?>
+                            <p class="text-center" style="color: var(--color-warning); margin-top: 0.5rem;">No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.</p>
+                        <?php endif; ?>
 
                         <?php 
                         $numSubstrates = (int)($activeCharacter['substrates'] ?? 0);

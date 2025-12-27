@@ -261,15 +261,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                         <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                             <div style="border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem;">
                                 <h5>Añadir nueva conexión</h5>
+                                <?php $hasConnectionsAjax = !empty($connections); ?>
                                 <form method="post" id="substrates-form" style="margin-bottom: 1rem; display:flex; align-items:center; gap:0.5rem;">
                                     <div class="form-group" style="margin:0;">
                                         <label style="display:flex; align-items:center; gap:0.5rem;">Número de sustratos (estados)
-                                            <input type="number" id="substrates-input" name="substrates" min="0" value="<?= e($numSubstrates) ?>" required style="width: 80px;">
+                                            <input type="number" id="substrates-input" name="substrates" min="0" value="<?= e($numSubstrates) ?>" required style="width: 80px;" <?= $hasConnectionsAjax ? 'disabled' : '' ?> >
                                         </label>
                                         <small style="color: var(--color-text-secondary); margin-left: 0.5rem;">(Se actualiza automáticamente)</small>
                                     </div>
-                                    <button type="button" id="update-substrates-btn" class="btn-primary btn-small">Actualizar sustratos</button>
+                                    <button type="button" id="update-substrates-btn" class="btn-primary btn-small" <?= $hasConnectionsAjax ? 'disabled' : '' ?>>Actualizar sustratos</button>
                                 </form>
+                                <?php if ($hasConnectionsAjax) : ?>
+                                    <p class="text-center" style="color: var(--color-warning); margin-top: 0.5rem;">No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.</p>
+                                <?php endif; ?>
                                 
                                 <?php // Render the add-connection form always, but hide it when substrates = 0 so JS can find and enable it dynamically ?>
                                 <form method="post" id="add-connection-form" style="display: <?= $numSubstrates > 0 ? 'block' : 'none' ?>;">
@@ -401,6 +405,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
         try {
             $charId = (int) ($_POST['char_id'] ?? 0);
             if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
+                // Prevent changing substrates if there are already connections defined
+                $existingConnections = $characterModel->getConnections($charId);
+                if (!empty($existingConnections)) {
+                    echo json_encode(['success' => false, 'error' => 'No puedes cambiar el número de sustratos mientras existan conexiones definidas. Elimina primero las conexiones.']);
+                    exit;
+                }
+
                 $substrates = (int) $_POST['substrates'];
                 $characterModel->update($charId, ['substrates' => $substrates]);
                 $session->set('show_connections', true);
