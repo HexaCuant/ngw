@@ -815,6 +815,21 @@ if (addConnectionForm) {
                 
                 // Reset form
                 addConnectionForm.reset();
+
+                // Re-enable all substrate radio inputs so they are available for the next connection
+                const stateInputs = document.querySelectorAll('input[name="state_a"], input[name="state_b"]');
+                stateInputs.forEach(function(input) {
+                    input.disabled = false;
+                    input.checked = false;
+                    const label = input.closest('label');
+                    if (label) {
+                        label.style.opacity = '1';
+                        label.style.cursor = 'pointer';
+                    }
+                });
+
+                // Re-apply validation listeners
+                if (typeof setupStateValidation === 'function') setupStateValidation();
             });
         }
     });
