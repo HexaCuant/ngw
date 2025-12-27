@@ -370,7 +370,7 @@ if ($activeCharacterId) {
                         $numSubstrates = (int)($activeCharacter['substrates'] ?? 0);
                         if ($numSubstrates > 0 && !empty($genes)) : 
                         ?>
-                            <form method="post" id="add-connection-form-actual">
+                            <form method="post" id="add-connection-form">
                                 <input type="hidden" name="char_action" value="add_connection">
                                 
                                 <div class="form-group">
@@ -767,7 +767,7 @@ if (substratesInputAjax) {
 }
 
 // Handle add connection form via AJAX
-const addConnectionForm = document.getElementById('add-connection-form-actual');
+const addConnectionForm = document.getElementById('add-connection-form');
 if (addConnectionForm) {
     addConnectionForm.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -1151,6 +1151,7 @@ function drawPetriNet() {
     if (container) {
         container.innerHTML = `<p class="text-center" style="color: var(--color-danger);">Error al generar el diagrama de la Red de Petri. Revisa la consola para más detalles.</p>`;
     }
+}
 }
 
 // Disable same state selection (prevent state_a == state_b)
