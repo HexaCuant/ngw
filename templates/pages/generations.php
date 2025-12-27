@@ -645,10 +645,16 @@ function viewGeneration(generationNumber) {
         return response.json();
     })
     .then(data => {
-        if (data.success) {
-            renderGenerationData(data);
-        } else {
-            showToast('Error: ' + (data.error || 'Error al cargar la generación'), 'error');
+        console.debug('viewGeneration response', data);
+        try {
+            if (data.success) {
+                renderGenerationData(data);
+            } else {
+                showToast('Error: ' + (data.error || 'Error al cargar la generación'), 'error');
+            }
+        } catch (err) {
+            console.error('renderGenerationData error', err);
+            showToast('Error al mostrar la generación: ' + (err && err.message ? err.message : String(err)), 'error');
         }
     })
     .catch(error => {
