@@ -1029,18 +1029,50 @@ function drawPetriNet() {
         });
     }
     
-    // Calculate SVG size
-    const maxX = Math.max(...Object.values(statePositions).map(s => s.x)) + marginX;
-    const maxY = Math.max(
-        ...Object.values(statePositions).map(s => s.y),
-        ...Object.values(transitionPositions).map(t => t.y)
-    ) + marginY + 50;
-    
-    // Create SVG
-    let svg = `<svg width="${maxX}" height="${maxY}" xmlns="http://www.w3.org/2000/svg">`;
-    
-    // Define arrowhead marker
-    svg += `<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#666" /></marker></defs>`;
+    try {
+        // Remove placeholder if present
+        const placeholder = container.querySelector('#petri-net-placeholder');
+        if (placeholder) placeholder.remove();
+
+        // Defensive fallback: ensure we have at least some state positions
+        if (Object.keys(statePositions).length === 0) {
+            // Build simple layout from unique states
+            const uniqueStates = Array.from(new Set(connections.flatMap(c => [c.stateA, c.stateB]))).sort((a,b) => a-b);
+            uniqueStates.forEach((s, i) => {
+                statePositions[s] = { x: marginX + i * horizontalSpacing, y: marginY + 50 };
+            });
+        }
+
+        if (Object.keys(transitionPositions).length === 0) {
+            // Place transitions centered between their states
+            connections.forEach((conn, index) => {
+                const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
+                const avgX = (statePositions[conn.stateA].x + statePositions[conn.stateB].x) / 2;
+                transitionPositions[key] = {
+                    x: avgX,
+                    y: marginY + 150 + Math.floor(index / Math.max(1, Math.ceil(connections.length / 3))) * verticalSpacing,
+                    label: conn.transition
+                };
+            });
+        }
+
+        // Calculate SVG size (ensure finite values)
+        let maxX = Math.max(...Object.values(statePositions).map(s => s.x)) + marginX;
+        let maxY = Math.max(
+            ...Object.values(statePositions).map(s => s.y),
+            ...Object.values(transitionPositions).map(t => t.y)
+        ) + marginY + 50;
+
+        if (!isFinite(maxX) || !isFinite(maxY) || maxX <= 0 || maxY <= 0) {
+            maxX = Math.max(800, marginX + 3 * horizontalSpacing);
+            maxY = Math.max(400, marginY + 3 * verticalSpacing);
+        }
+
+        // Create SVG
+        let svg = `<svg width="${maxX}" height="${maxY}" xmlns="http://www.w3.org/2000/svg">`;
+
+        // Define arrowhead marker
+        svg += `<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#666" /></marker></defs>`;
     
     // Draw connections (arcs)
     connections.forEach(conn => {
@@ -1112,8 +1144,13 @@ function drawPetriNet() {
     });
     
     svg += '</svg>';
-    
+
     container.innerHTML = svg;
+} catch (err) {
+    console.error('Error drawing Petri net:', err);
+    if (container) {
+        container.innerHTML = `<p class="text-center" style="color: var(--color-danger);">Error al generar el diagrama de la Red de Petri. Revisa la consola para más detalles.</p>`;
+    }
 }
 
 // Disable same state selection (prevent state_a == state_b)
