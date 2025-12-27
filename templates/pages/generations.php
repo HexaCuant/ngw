@@ -810,15 +810,19 @@ function renderGenerationData(data) {
             const linkDot = document.getElementById('linkCsvDot');
             const linkComma = document.getElementById('linkCsvComma');
             if (linkDot) {
-                linkDot.href = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(data.generation_number)}&decimal=dot`;
+                if (data.csv_dot_url) {
+                    linkDot.href = data.csv_dot_url;
+                } else {
+                    linkDot.href = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(data.generation_number)}&decimal=dot`;
+                }
                 linkDot.download = `generation_${data.generation_number}_decimal_dot.csv`;
             }
             if (linkComma) {
-                linkComma.href = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(data.generation_number)}&decimal=comma`;
-                linkComma.download = `generation_${data.generation_number}_decimal_comma.csv`;
-            }
-        } catch (err) {
-            console.error('Error updating CSV link hrefs', err);
+                if (data.csv_comma_url) {
+                    linkComma.href = data.csv_comma_url;
+                } else {
+                    linkComma.href = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(data.generation_number)}&decimal=comma`;
+                }
         }
 
     // Build individuals table
