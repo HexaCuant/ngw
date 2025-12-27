@@ -161,8 +161,8 @@ if ($activeProjectId) {
                     <p><strong>Fecha:</strong> <span id="genDate"></span></p>
                     <div id="downloadLinks" style="margin-top:10px;">
                         <strong>Descargar datos:</strong>
-                        <a id="linkCsvDot" href="#" onclick="downloadGenerationCSV('dot')" class="btn-secondary" target="_blank" rel="noopener">CSV ; (punto decimal)</a>
-                        <a id="linkCsvComma" href="#" onclick="downloadGenerationCSV('comma')" class="btn-secondary" target="_blank" rel="noopener">CSV ; (coma decimal)</a>
+                        <a id="linkCsvDot" href="#" onclick="downloadGenerationCSV('dot'); return false;" class="btn-secondary">CSV ; (punto decimal)</a>
+                        <a id="linkCsvComma" href="#" onclick="downloadGenerationCSV('comma'); return false;" class="btn-secondary">CSV ; (coma decimal)</a>
                     </div>
                         <div id="parentSelectionControls" class="parent-selection-controls" style="display:none; margin-top:10px;">
                             <div class="psc-info">
@@ -811,24 +811,30 @@ function renderGenerationData(data) {
         document.getElementById('genType').textContent = data.type || '';
         document.getElementById('genDate').textContent = data.created_at || '';
 
-        // Update CSV link hrefs so they point to the actual download URL (with generation number)
+        // Update CSV link attributes: store decimal and optional server-provided file URL
         try {
             const linkDot = document.getElementById('linkCsvDot');
             const linkComma = document.getElementById('linkCsvComma');
             if (linkDot) {
                 if (data.csv_dot_url) {
+                    linkDot.dataset.file = data.csv_dot_url;
                     linkDot.href = data.csv_dot_url;
                 } else {
+                    linkDot.dataset.file = '';
                     linkDot.href = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(data.generation_number)}&decimal=dot`;
                 }
+                linkDot.dataset.decimal = 'dot';
                 linkDot.download = `generation_${data.generation_number}_decimal_dot.csv`;
             }
             if (linkComma) {
                 if (data.csv_comma_url) {
+                    linkComma.dataset.file = data.csv_comma_url;
                     linkComma.href = data.csv_comma_url;
                 } else {
+                    linkComma.dataset.file = '';
                     linkComma.href = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(data.generation_number)}&decimal=comma`;
                 }
+                linkComma.dataset.decimal = 'comma';
                 linkComma.download = `generation_${data.generation_number}_decimal_comma.csv`;
             }
         } catch (err) {
@@ -1549,15 +1555,45 @@ function createMultipleCrosses() {
     }
 })();
 
-// Function to download generation data CSV (semicolon columns)
+// Function to download generation data CSV (semicolon columns) via POST and programmatic download
 function downloadGenerationCSV(decimalSeparator) {
     const genNum = document.getElementById('genNumber').textContent;
     if (!genNum) {
         showToast('No hay generación abierta', 'error');
         return;
     }
-    const url = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(genNum)}&decimal=${encodeURIComponent(decimalSeparator)}`;
-    window.open(url, '_blank');
+
+    const form = new FormData();
+    form.append('project_action', 'download_generation_csv');
+    form.append('generation_number', genNum);
+    form.append('decimal', decimalSeparator);
+
+    fetch('index.php?option=2', { method: 'POST', body: form })
+    .then(async res => {
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error('Error servidor: ' + (text || res.status));
+        }
+        const contentType = res.headers.get('Content-Type') || '';
+        const disposition = res.headers.get('Content-Disposition') || '';
+        const filenameMatch = disposition.match(/filename\s*=\s*"?([^";]+)"?/i);
+        const filename = filenameMatch ? filenameMatch[1] : `generation_${genNum}_data.csv`;
+        return res.blob().then(blob => ({ blob, filename, contentType }));
+    })
+    .then(({ blob, filename }) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    })
+    .catch(err => {
+        console.error('downloadGenerationCSV error', err);
+        showToast('Error al descargar CSV: ' + (err && err.message ? err.message : String(err)), 'error');
+    });
 }
 
 // Expose key functions on window to ensure inline onclick handlers can find them

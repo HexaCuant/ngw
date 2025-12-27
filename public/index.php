@@ -812,6 +812,122 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
     }
 }
 
+// Handle CSV download via GET (so links can open in new tab)
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['project_action']) && $_GET['project_action'] === 'download_generation_csv') {
+    try {
+        $projectId = $session->get('active_project_id');
+
+        if (!$projectId) {
+            http_response_code(400);
+            echo 'No hay proyecto activo';
+            exit;
+        }
+
+        $generationNumber = (int)($_GET['generation_number'] ?? $_GET['generationNumber'] ?? 0);
+        $decimal = $_GET['decimal'] ?? 'dot';
+
+        if ($generationNumber <= 0) {
+            http_response_code(400);
+            echo 'Número de generación inválido';
+            exit;
+        }
+
+        if (!in_array($decimal, ['dot', 'comma'])) {
+            http_response_code(400);
+            echo 'Separador decimal inválido';
+            exit;
+        }
+
+        // Determine projects folder and candidate filenames
+        $cfg = parse_ini_file(__DIR__ . '/../config/config.ini');
+        $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+        $projectFolder = rtrim($projectsPath, '/') . '/' . $projectId;
+
+        // Filenames observed in project output
+        $fileDot = $projectFolder . '/' . $projectId . '_' . $generationNumber . '_datos.csv';
+        $fileComma = $projectFolder . '/' . $projectId . '_' . $generationNumber . '_datos_coma.csv';
+
+        $targetFile = ($decimal === 'comma') ? $fileComma : $fileDot;
+
+        // If a specific filename was requested, validate and try to serve it
+        if (!empty($_GET['file'])) {
+            $requested = basename($_GET['file']);
+            $candidate = $projectFolder . '/' . $requested;
+            $realProjectFolder = realpath($projectFolder);
+            $realCandidate = realpath($candidate);
+            if ($realCandidate && $realProjectFolder && strpos($realCandidate, $realProjectFolder) === 0 && is_file($realCandidate)) {
+                header('Content-Type: text/csv; charset=utf-8');
+                header('Content-Disposition: attachment; filename="' . $requested . '"');
+                header('Cache-Control: no-cache, no-store, must-revalidate');
+                header('Pragma: no-cache');
+                header('Expires: 0');
+                readfile($realCandidate);
+                exit;
+            }
+            // If requested file not found, continue to other fallbacks
+        }
+
+        if (file_exists($targetFile)) {
+            // Serve existing file directly
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="generation_' . $generationNumber . '_decimal_' . $decimal . '.csv"');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('Pragma: no-cache');
+            header('Expires: 0');
+            readfile($targetFile);
+            exit;
+        }
+
+        // If not found, fall back to dynamic CSV generation (semicolon columns)
+        require_once __DIR__ . '/../src/Models/Generation.php';
+        $generationModel = new \Ngw\Models\Generation($db);
+
+        $generation = $generationModel->getByNumber($projectId, $generationNumber);
+        if (!$generation) {
+            http_response_code(404);
+            echo 'Generación no encontrada';
+            exit;
+        }
+
+        $individuals = $generationModel->parseGenerationOutput($projectId, $generationNumber);
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="generation_' . $generationNumber . '_decimal_' . $decimal . '.csv"');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $sepChar = ';';
+
+        // Output header
+        echo "Individual_ID";
+        if (!empty($individuals)) {
+            $firstPhenotypes = reset($individuals);
+            for ($i = 0; $i < count($firstPhenotypes); $i++) {
+                echo $sepChar . "Phenotype_" . ($i + 1);
+            }
+        }
+        echo "\n";
+
+        // Output data
+        foreach ($individuals as $id => $phenotypes) {
+            echo $id;
+            foreach ($phenotypes as $phenotype) {
+                $value = (string)$phenotype;
+                if ($decimal === 'comma') {
+                    $value = str_replace('.', ',', $value);
+                }
+                echo $sepChar . $value;
+            }
+            echo "\n";
+        }
+        exit;
+    } catch (\Exception $e) {
+        http_response_code(500);
+        echo 'Error: ' . $e->getMessage();
+    }
+}
+
 // Handle AJAX requests for projects
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && $session->isAuthenticated() && $projectModel) {
     $projectAction = $_POST['project_action'];
