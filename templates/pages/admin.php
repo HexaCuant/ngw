@@ -117,6 +117,68 @@ $allUsers = $auth->getAllUsers();
 </div>
 
 <div class="card">
+    <h2>Gestión de Usuarios</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Usuario</th>
+                <th>Email</th>
+                <th>Tipo</th>
+                <th>Admin</th>
+                <th>Estado</th>
+                <th>Fecha creación</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($allUsers as $user) : ?>
+                <tr>
+                    <td><?= e($user['id']) ?></td>
+                    <td><strong><?= e($user['username']) ?></strong></td>
+                    <td><?= e($user['email'] ?: '-') ?></td>
+                    <td>
+                        <?php
+                            $role = $user['role'] ?? 'student';
+                            $roleLabel = $role === 'teacher' ? 'Profesor' : ($role === 'admin' ? 'Admin' : 'Alumno');
+                            $roleColor = $role === 'teacher' ? 'color: #3b82f6;' : ($role === 'admin' ? 'color: #ef4444;' : '');
+                        ?>
+                        <span style="<?= $roleColor ?>"><?= e($roleLabel) ?></span>
+                    </td>
+                    <td><?= (int)$user['is_admin'] === 1 ? '✓ Admin' : '-' ?></td>
+                    <td>
+                        <?php if ((int)$user['is_approved'] === 1) : ?>
+                            <span style="color: var(--success-color);">✓ Aprobado</span>
+                        <?php else : ?>
+                            <span style="color: var(--warning-color);">⏳ Pendiente</span>
+                        <?php endif; ?>
+                    </td>
+                    <td><?= e($user['created_at']) ?></td>
+                    <td>
+                        <?php if ((int)$user['is_admin'] === 0 && (int)$user['id'] !== $session->getUserId()) : ?>
+                            <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
+                                  class="delete-user-form" data-username="<?= e($user['username']) ?>">
+                                <input type="hidden" name="admin_action" value="delete_user">
+                                <input type="hidden" name="user_id" value="<?= e($user['id']) ?>">
+                                <input type="hidden" name="confirm" value="1">
+                                <button type="submit" class="btn-danger btn-small">Eliminar</button>
+                            </form>
+                        <?php else : ?>
+                            <span style="color: var(--text-muted);">-</span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+    
+    <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+        <strong>Nota:</strong> No puedes eliminar administradores ni tu propia cuenta.
+    </p>
+</div>
+
+<div class="card">
     <h3>Solicitudes Aprobadas Recientes (<?= count($approvedRequests) ?>)</h3>
     <?php if (empty($approvedRequests)) : ?>
         <p class="text-center">No hay solicitudes aprobadas aún.</p>
@@ -179,68 +241,6 @@ $allUsers = $auth->getAllUsers();
             </tbody>
         </table>
     <?php endif; ?>
-</div>
-
-<div class="card">
-    <h2>Gestión de Usuarios</h2>
-    
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Usuario</th>
-                <th>Email</th>
-                <th>Tipo</th>
-                <th>Admin</th>
-                <th>Estado</th>
-                <th>Fecha creación</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php foreach ($allUsers as $user) : ?>
-                <tr>
-                    <td><?= e($user['id']) ?></td>
-                    <td><strong><?= e($user['username']) ?></strong></td>
-                    <td><?= e($user['email'] ?: '-') ?></td>
-                    <td>
-                        <?php
-                            $role = $user['role'] ?? 'student';
-                            $roleLabel = $role === 'teacher' ? 'Profesor' : ($role === 'admin' ? 'Admin' : 'Alumno');
-                            $roleColor = $role === 'teacher' ? 'color: #3b82f6;' : ($role === 'admin' ? 'color: #ef4444;' : '');
-                        ?>
-                        <span style="<?= $roleColor ?>"><?= e($roleLabel) ?></span>
-                    </td>
-                    <td><?= (int)$user['is_admin'] === 1 ? '✓ Admin' : '-' ?></td>
-                    <td>
-                        <?php if ((int)$user['is_approved'] === 1) : ?>
-                            <span style="color: var(--success-color);">✓ Aprobado</span>
-                        <?php else : ?>
-                            <span style="color: var(--warning-color);">⏳ Pendiente</span>
-                        <?php endif; ?>
-                    </td>
-                    <td><?= e($user['created_at']) ?></td>
-                    <td>
-                        <?php if ((int)$user['is_admin'] === 0 && (int)$user['id'] !== $session->getUserId()) : ?>
-                            <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
-                                  class="delete-user-form" data-username="<?= e($user['username']) ?>">
-                                <input type="hidden" name="admin_action" value="delete_user">
-                                <input type="hidden" name="user_id" value="<?= e($user['id']) ?>">
-                                <input type="hidden" name="confirm" value="1">
-                                <button type="submit" class="btn-danger btn-small">Eliminar</button>
-                            </form>
-                        <?php else : ?>
-                            <span style="color: var(--text-muted);">-</span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-    
-    <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
-        <strong>Nota:</strong> No puedes eliminar administradores ni tu propia cuenta.
-    </p>
 </div>
 
 <script>
