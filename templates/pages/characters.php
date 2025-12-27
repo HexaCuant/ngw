@@ -762,15 +762,25 @@ if (substratesInputAjax) {
         prevSubstratesValue = parseInt(this.value || 0);
     });
 
+    // Helper to show a single toast for disabled interaction (rate-limited)
+    const disabledMsg = 'No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.';
+    let lastDisabledToast = 0;
+    function showDisabledToast() {
+        const now = Date.now();
+        if (now - lastDisabledToast > 800) {
+            showNotification(disabledMsg, 'warning');
+            lastDisabledToast = now;
+        }
+    }
+
     // If the input is initially disabled (server rendered state), show a toast when the user tries to interact
     if (newInput.disabled) {
-        const disabledMsg = 'No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.';
         newInput.addEventListener('focus', function() {
-            showNotification(disabledMsg, 'warning');
+            showDisabledToast();
             this.blur();
         });
         newInput.addEventListener('click', function(e) {
-            showNotification(disabledMsg, 'warning');
+            showDisabledToast();
             e.preventDefault();
         });
         newInput.title = disabledMsg;
@@ -780,6 +790,13 @@ if (substratesInputAjax) {
         clearTimeout(substratesTimeout);
         
         substratesTimeout = setTimeout(function() {
+            // If the input became disabled meanwhile, block the update and show a single toast
+            if (newInput.disabled) {
+                showDisabledToast();
+                newInput.value = prevSubstratesValue;
+                return;
+            }
+
             const value = parseInt(newInput.value);
             if (!isNaN(value) && value >= 0 && characterId > 0) {
                 updateSubstrates(characterId, value, function(data) {
