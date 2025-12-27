@@ -970,17 +970,17 @@ function drawPetriNet() {
     const transitionWidth = 40;
     const transitionHeight = 60;
     const horizontalSpacing = 180;
-    const verticalSpacing = 120;
+    const verticalSpacing = 100;
     const marginX = 60;
-    const marginY = 60;
+    const marginY = 100;
     
     const statePositions = {};
     const transitionPositions = {};
     
     if (isLinear) {
-        // Linear layout: S0 -> T1 -> S1 -> T2 -> S2
+        // Linear layout: S0 -> T1 -> S1 -> T2 -> S2 (all in a horizontal line)
         let currentX = marginX;
-        const y = marginY + 80;
+        const y = marginY;
         
         // Sort connections by sequence
         const sortedConns = [...connections].sort((a, b) => a.stateA - b.stateA);
@@ -991,44 +991,107 @@ function drawPetriNet() {
             if (!processedStates.has(conn.stateA)) {
                 statePositions[conn.stateA] = { x: currentX, y: y };
                 processedStates.add(conn.stateA);
-                currentX += horizontalSpacing / 2;
+                currentX += horizontalSpacing;
             }
             
-            // Add transition
+            // Add transition - position it between states
             const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
             transitionPositions[key] = {
                 x: currentX,
                 y: y,
                 label: conn.transition
             };
-            currentX += horizontalSpacing / 2;
+            currentX += horizontalSpacing;
             
             // Add state B if not processed
             if (!processedStates.has(conn.stateB)) {
                 statePositions[conn.stateB] = { x: currentX, y: y };
                 processedStates.add(conn.stateB);
-                currentX += horizontalSpacing / 2;
+                currentX += horizontalSpacing;
             }
         });
     } else {
-        // Complex layout: states on top, transitions below
+        // Complex layout: all states in horizontal line, genes distributed vertically
+        const stateY = marginY;
         stateArray.forEach((state, index) => {
             statePositions[state] = {
                 x: marginX + index * horizontalSpacing,
-                y: marginY + 50
+                y: stateY
             };
         });
         
-        // Group transitions by their position
-        connections.forEach((conn, index) => {
-            const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
-            const avgX = (statePositions[conn.stateA].x + statePositions[conn.stateB].x) / 2;
-            const layer = Math.floor(index / Math.max(1, Math.ceil(connections.length / 3)));
-            transitionPositions[key] = {
-                x: avgX,
-                y: marginY + 150 + layer * verticalSpacing,
-                label: conn.transition
-            };
+        // Group connections by state pair (stateA, stateB)
+        const connectionsByPair = {};
+        connections.forEach(conn => {
+            const pairKey = `${conn.stateA}-${conn.stateB}`;
+            if (!connectionsByPair[pairKey]) {
+                connectionsByPair[pairKey] = [];
+            }
+            connectionsByPair[pairKey].push(conn);
+        });
+        
+        // Position transitions based on grouping
+        Object.entries(connectionsByPair).forEach(([pairKey, pairConns]) => {
+            const [stateA, stateB] = pairKey.split('-').map(Number);
+            const stateAX = statePositions[stateA].x;
+            const stateBX = statePositions[stateB].x;
+            const avgX = (stateAX + stateBX) / 2;
+            
+            const numGenes = pairConns.length;
+            
+            if (numGenes === 1) {
+                // Single gene: place on same horizontal line as states
+                const conn = pairConns[0];
+                const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
+                transitionPositions[key] = {
+                    x: avgX,
+                    y: stateY,
+                    label: conn.transition
+                };
+            } else {
+                // Multiple genes: distribute symmetrically
+                const isOdd = numGenes % 2 === 1;
+                
+                pairConns.forEach((conn, index) => {
+                    const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
+                    let yOffset;
+                    
+                    if (isOdd) {
+                        // Odd number: one in center, rest above and below
+                        const centerIndex = Math.floor(numGenes / 2);
+                        if (index === centerIndex) {
+                            // Center gene on horizontal line
+                            yOffset = 0;
+                        } else if (index < centerIndex) {
+                            // Genes before center go above
+                            const layer = centerIndex - index;
+                            yOffset = -layer * verticalSpacing;
+                        } else {
+                            // Genes after center go below
+                            const layer = index - centerIndex;
+                            yOffset = layer * verticalSpacing;
+                        }
+                    } else {
+                        // Even number: half above, half below
+                        const halfPoint = numGenes / 2;
+                        if (index < halfPoint) {
+                            // First half goes above
+                            const layer = halfPoint - index;
+                            yOffset = -layer * verticalSpacing;
+                        } else {
+                            // Second half goes below
+                            const layer = index - halfPoint + 1;
+                            yOffset = layer * verticalSpacing;
+                        }
+                    }
+                    
+                    transitionPositions[key] = {
+                        x: avgX,
+                        y: stateY + yOffset,
+                        label: conn.transition
+                    };
+                });
+            }
         });
     }
     
@@ -1059,46 +1122,36 @@ function drawPetriNet() {
             });
         }
 
-        // Calculate SVG size - account for all genes at top and connections below
-        const numAllGenes = availableTransitions.length;
-        const genesTopHeight = Math.max(150, Math.ceil(numAllGenes / 4) * 100);
-        
-        let maxX = Math.max(...Object.values(statePositions).map(s => s.x), numAllGenes * horizontalSpacing) + marginX;
-        let maxY = genesTopHeight + Math.max(
-            ...Object.values(statePositions).map(s => s.y),
-            ...Object.values(transitionPositions).map(t => t.y)
-        ) + marginY + 50;
-
-        if (!isFinite(maxX) || !isFinite(maxY) || maxX <= 0 || maxY <= 0) {
-            maxX = Math.max(900, marginX + numAllGenes * 120);
-            maxY = Math.max(600, genesTopHeight + marginY + 300);
-        }
-
-        // Create SVG
-        let svg = `<svg width="${maxX}" height="${maxY}" xmlns="http://www.w3.org/2000/svg">`;
-
-        // Define arrowhead marker
-        svg += `<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#666" /></marker></defs>`;
-        
-        // Offset connection diagram down to avoid overlap with genes
-        const connectionOffsetY = genesTopHeight + 20;
-        
-        // Get list of genes that are NOT in connections
+        // Calculate genes at top section
         const genesNotInConnections = availableTransitions.filter(geneName => {
             return !Object.values(transitionPositions).some(pos => pos.label === geneName);
         });
+        const numUnconnectedGenes = genesNotInConnections.length;
+        const genesTopHeight = numUnconnectedGenes > 0 ? 120 : 20;
+        
+        const connectionOffsetY = genesTopHeight;
+
+        // Build SVG content first, then calculate bounds
+        let svgContent = '';
+        
+        // Define arrowhead marker
+        svgContent += `<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#666" /></marker></defs>`;
     
         // Draw only genes that are NOT in connections at the top
         if (genesNotInConnections.length > 0) {
-            svg += `<text x="20" y="25" font-size="12" font-weight="bold" fill="#666">Genes sin conexiones:</text>`;
+            svgContent += `<text x="20" y="25" font-size="12" font-weight="bold" fill="#666">Genes sin conexiones:</text>`;
             genesNotInConnections.forEach((geneName, index) => {
                 const x = marginX + (index % 4) * 150;
                 const y = 60 + Math.floor(index / 4) * 100;
                 
-                svg += `<rect x="${x - transitionWidth/2}" y="${y - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#e8f4f8" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" rx="4"/>`;
-                svg += `<text x="${x}" y="${y + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="#2c3e50">${geneName}</text>`;
+                svgContent += `<rect x="${x - transitionWidth/2}" y="${y - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#e8f4f8" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" rx="4"/>`;
+                svgContent += `<text x="${x}" y="${y + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="#2c3e50">${geneName}</text>`;
             });
         }
+    
+        // Track all coordinates for bounds calculation
+        let allXs = [];
+        let allYs = [];
     
         // Draw connections (arcs)
         connections.forEach(conn => {
@@ -1108,38 +1161,79 @@ function drawPetriNet() {
             const transPos = transitionPositions[key];
             
             if (isLinear) {
-                // Horizontal arrows for linear layout
+                // Horizontal arrows for linear layout - all in same horizontal line
                 const y = stateAPos.y + connectionOffsetY;
                 
-                // Arc from state A to transition
+                // Arc from state A to transition (horizontal)
                 const x1 = stateAPos.x + placeRadius;
                 const x2 = transPos.x - transitionWidth/2;
-                svg += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                svgContent += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
                 
-                // Arc from transition to state B
+                // Arc from transition to state B (horizontal)
                 const x3 = transPos.x + transitionWidth/2;
                 const x4 = stateBPos.x - placeRadius;
-                svg += `<line x1="${x3}" y1="${y}" x2="${x4}" y2="${y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                svgContent += `<line x1="${x3}" y1="${y}" x2="${x4}" y2="${y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
             } else {
-                // Curved arrows for complex layout
-                // Arc from state A to transition
-                svg += `<line x1="${stateAPos.x}" y1="${stateAPos.y + connectionOffsetY + placeRadius}" x2="${transPos.x}" y2="${transPos.y + connectionOffsetY - transitionHeight/2}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                // Straight arrows for complex layout
+                const stateAYOffset = connectionOffsetY + stateAPos.y;
+                const stateBYOffset = connectionOffsetY + stateBPos.y;
+                const transYOffset = connectionOffsetY + transPos.y;
                 
-                // Arc from transition to state B
-                svg += `<line x1="${transPos.x}" y1="${transPos.y + connectionOffsetY + transitionHeight/2}" x2="${stateBPos.x}" y2="${stateBPos.y + connectionOffsetY - placeRadius}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                // Transition always uses center of vertical walls
+                // Left wall center for incoming, right wall center for outgoing
+                const trans_left_x = transPos.x - transitionWidth/2;
+                const trans_right_x = transPos.x + transitionWidth/2;
+                const trans_center_y = transYOffset;
+                
+                // From state A to transition (left wall)
+                let stateA_x, stateA_y;
+                
+                // Calculate angle to determine exit point from circle
+                const dx = trans_left_x - stateAPos.x;
+                const dy = trans_center_y - stateAYOffset;
+                const angle = Math.atan2(dy, dx);
+                
+                stateA_x = stateAPos.x + placeRadius * Math.cos(angle);
+                stateA_y = stateAYOffset + placeRadius * Math.sin(angle);
+                
+                svgContent += `<line x1="${stateA_x}" y1="${stateA_y}" x2="${trans_left_x}" y2="${trans_center_y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                
+                // From transition (right wall) to state B
+                let stateB_x, stateB_y;
+                
+                // Calculate angle to determine entry point to circle
+                const dx2 = stateBPos.x - trans_right_x;
+                const dy2 = stateBYOffset - trans_center_y;
+                const angle2 = Math.atan2(dy2, dx2);
+                
+                stateB_x = stateBPos.x - placeRadius * Math.cos(angle2);
+                stateB_y = stateBYOffset - placeRadius * Math.sin(angle2);
+                
+                svgContent += `<line x1="${trans_right_x}" y1="${trans_center_y}" x2="${stateB_x}" y2="${stateB_y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                
+                // Track coordinates
+                allXs.push(stateA_x, trans_left_x, trans_right_x, stateB_x);
+                allYs.push(stateA_y, trans_center_y, stateB_y);
             }
         });
         
         // Draw states (places - circles)
         stateArray.forEach(state => {
             const pos = statePositions[state];
-            svg += `<circle cx="${pos.x}" cy="${pos.y + connectionOffsetY}" r="${placeRadius}" fill="white" stroke="#2c3e50" stroke-width="2"/>`;
-            svg += `<text x="${pos.x}" y="${pos.y + connectionOffsetY + 5}" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">S${state}</text>`;
+            const cy = pos.y + connectionOffsetY;
+            svgContent += `<circle cx="${pos.x}" cy="${cy}" r="${placeRadius}" fill="white" stroke="#2c3e50" stroke-width="2"/>`;
+            svgContent += `<text x="${pos.x}" y="${cy + 5}" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">S${state}</text>`;
+            allXs.push(pos.x - placeRadius, pos.x + placeRadius);
+            allYs.push(cy - placeRadius, cy + placeRadius);
         });
         
         // Draw transitions (rectangles) that are part of connections
         Object.entries(transitionPositions).forEach(([key, pos]) => {
-            svg += `<rect x="${pos.x - transitionWidth/2}" y="${pos.y + connectionOffsetY - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#3498db" stroke="#2c3e50" stroke-width="2" rx="4"/>`;
+            const ty = pos.y + connectionOffsetY;
+            svgContent += `<rect x="${pos.x - transitionWidth/2}" y="${ty - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#3498db" stroke="#2c3e50" stroke-width="2" rx="4"/>`;
+            
+            allXs.push(pos.x - transitionWidth/2, pos.x + transitionWidth/2);
+            allYs.push(ty - transitionHeight/2, ty + transitionHeight/2);
             
             // Split long labels into multiple lines
             const maxChars = 6;
@@ -1160,16 +1254,26 @@ function drawPetriNet() {
                 if (currentLine.trim()) lines.push(currentLine.trim());
                 
                 const lineHeight = 12;
-                const startY = pos.y + connectionOffsetY - (lines.length - 1) * lineHeight / 2;
+                const startY = ty - (lines.length - 1) * lineHeight / 2;
                 lines.forEach((line, i) => {
-                    svg += `<text x="${pos.x}" y="${startY + i * lineHeight}" text-anchor="middle" font-size="10" font-weight="bold" fill="white">${line}</text>`;
+                    svgContent += `<text x="${pos.x}" y="${startY + i * lineHeight}" text-anchor="middle" font-size="10" font-weight="bold" fill="white">${line}</text>`;
                 });
             } else {
-                svg += `<text x="${pos.x}" y="${pos.y + connectionOffsetY + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="white">${label}</text>`;
+                svgContent += `<text x="${pos.x}" y="${ty + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="white">${label}</text>`;
             }
         });
         
-        svg += '</svg>';
+        // Calculate final SVG dimensions based on actual content
+        const minX = Math.min(...allXs, 20) - 20;
+        const maxX = Math.max(...allXs) + 20;
+        const minY = Math.min(...allYs, 0) - 20;
+        const maxY = Math.max(...allYs) + 20;
+        
+        const svgWidth = maxX - minX;
+        const svgHeight = maxY - minY;
+        
+        // Create final SVG with viewBox to show all content
+        const svg = `<svg width="${svgWidth}" height="${svgHeight}" viewBox="${minX} ${minY} ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`;
 
         container.innerHTML = svg;
 } catch (err) {
