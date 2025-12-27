@@ -37,7 +37,7 @@ if ($activeProjectId) {
                     <form id="formNewRandomGeneration" onsubmit="return false;">
                         <div class="form-group">
                             <label for="population_size">Tamaño de la población:</label>
-                            <input type="number" id="population_size" name="population_size" min="1" value="10" required>
+                            <input type="number" id="population_size" name="population_size" min="1" required>
                         </div>
                         <button type="submit" onclick="createRandomGeneration()">Crear Generación</button>
                     </form>
@@ -60,7 +60,7 @@ if ($activeProjectId) {
                         </div>
                         <div class="form-group">
                             <label for="cross_population">Tamaño población:</label>
-                            <input type="number" id="cross_population" name="cross_population" min="1" value="10" required>
+                            <input type="number" id="cross_population" name="cross_population" min="1" required>
                         </div>
                         <div class="form-row gap-1">
                             <button type="button" id="btnOpenParentSelector" onclick="openParentSelector(Number(document.getElementById('cross_parent_gen').value), Number(document.getElementById('cross_target_gen').value))" class="btn-primary">Seleccionar parentales</button>
@@ -97,7 +97,7 @@ if ($activeProjectId) {
                         <div class="form-row">
                             <div class="form-group" style="flex:1">
                                 <label for="multi_population">Tamaño población (cada cruce):</label>
-                                <input type="number" id="multi_population" value="10" min="1">
+                                <input type="number" id="multi_population" min="1">
                             </div>
                             <div class="form-group" style="flex:1">
                                 <label>Tipo de cruce:</label>
@@ -159,7 +159,13 @@ if ($activeProjectId) {
                     <p><strong>Población:</strong> <span id="genPopulation"></span> individuos</p>
                     <p><strong>Tipo:</strong> <span id="genType"></span></p>
                     <p><strong>Fecha:</strong> <span id="genDate"></span></p>
-                        <div id="generationParentals" style="margin-top:10px;"></div>
+                    <div id="downloadLinks" style="margin-top:10px;">
+                        <strong>Descargar datos:</strong>
+                        <a href="#" onclick="downloadGenerationFile('dot','tab')" class="btn-secondary">TSV (punto decimal)</a>
+                        <a href="#" onclick="downloadGenerationFile('comma','tab')" class="btn-secondary">TSV (coma decimal)</a>
+                        <a href="#" onclick="downloadGenerationFile('dot','semicolon')" class="btn-secondary">CSV ; (punto decimal)</a>
+                        <a href="#" onclick="downloadGenerationFile('comma','semicolon')" class="btn-secondary">CSV ; (coma decimal)</a>
+                    </div>
                         <div id="parentSelectionControls" class="parent-selection-controls" style="display:none; margin-top:10px;">
                             <div class="psc-info">
                                 <span id="parentSelectionInfo"></span>
@@ -1515,6 +1521,17 @@ function createMultipleCrosses() {
     }
 })();
 
+// Function to download generation data (TSV/CSV)
+function downloadGenerationFile(decimalSeparator, columnSeparator) {
+    const genNum = document.getElementById('genNumber').textContent;
+    if (!genNum) {
+        showToast('No hay generación abierta', 'error');
+        return;
+    }
+    const url = `index.php?option=2&project_action=download_generation_tsv&generation_number=${encodeURIComponent(genNum)}&decimal_separator=${encodeURIComponent(decimalSeparator)}&column_separator=${encodeURIComponent(columnSeparator)}`;
+    window.open(url, '_blank');
+}
+
 // Expose key functions on window to ensure inline onclick handlers can find them
 try {
     window.deleteGeneration = deleteGeneration;
@@ -1524,6 +1541,7 @@ try {
     window.createCrossGeneration = createCrossGeneration;
     window.createMultipleCrosses = createMultipleCrosses;
     window.addSelectedParentals = addSelectedParentals;
+    window.downloadGenerationFile = downloadGenerationFile;
     console.debug('Exposed functions on window for inline handlers');
 } catch (err) {
     console.error('Error exposing functions to window', err);
