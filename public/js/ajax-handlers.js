@@ -188,13 +188,12 @@ function initializeCharacterUI() {
         });
     }
 
-    // Set up add-connection form handler (idempotent: replace node)
+    // Set up add-connection form handler (use flag to prevent duplicate listeners)
     const addConnectionForm = document.getElementById('add-connection-form');
-    if (addConnectionForm) {
-        const newForm = addConnectionForm.cloneNode(true);
-        addConnectionForm.parentNode.replaceChild(newForm, addConnectionForm);
+    if (addConnectionForm && !addConnectionForm._listenerAttached) {
+        addConnectionForm._listenerAttached = true;
 
-        newForm.addEventListener('submit', function(e) {
+        addConnectionForm.addEventListener('submit', function(e) {
             e.preventDefault();
             const characterId = window._activeCharacterId || 0;
             const stateA = document.querySelector('input[name="state_a"]:checked')?.value;
@@ -207,7 +206,7 @@ function initializeCharacterUI() {
                 addConnection(characterId, parseInt(stateA), parseInt(transition), parseInt(stateB), function(data) {
                     console.debug('addConnection success callback data:', data);
                     addConnectionToTable(data.connection);
-                    newForm.reset();
+                    addConnectionForm.reset();
 
                     // Re-enable all substrate radio inputs so they are available for the next connection
                     const stateInputs = document.querySelectorAll('input[name="state_a"], input[name="state_b"]');
