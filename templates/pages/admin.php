@@ -194,19 +194,19 @@ $allUsers = $auth->getAllUsers();
                     <td><?= e($user['email'] ?: '-') ?></td>
                     <td>
                         <?php
-                            $isAdmin = (int)$user['is_admin'] === 1;
-                            $role = $user['role'] ?? 'student';
-                            if ($isAdmin) {
+                            $userIsAdmin = (int)$user['is_admin'] === 1;
+                            $userRole = $user['role'] ?? 'student';
+                            if ($userIsAdmin) {
                                 $roleLabel = 'Admin';
                                 $roleColor = 'color: #ef4444;';
                             } else {
-                                $roleLabel = $role === 'teacher' ? 'Profesor' : 'Alumno';
-                                $roleColor = $role === 'teacher' ? 'color: #3b82f6;' : '';
+                                $roleLabel = $userRole === 'teacher' ? 'Profesor' : 'Alumno';
+                                $roleColor = $userRole === 'teacher' ? 'color: #3b82f6;' : '';
                             }
                         ?>
                         <span style="<?= $roleColor ?>"><?= e($roleLabel) ?></span>
                     </td>
-                    <td><?= $isAdmin ? '✓ Admin' : '-' ?></td>
+                    <td><?= $userIsAdmin ? '✓ Admin' : '-' ?></td>
                     <td>
                         <?php if ((int)$user['is_approved'] === 1) : ?>
                             <span style="color: var(--success-color);">✓ Aprobado</span>
@@ -217,7 +217,7 @@ $allUsers = $auth->getAllUsers();
                     <td><?= e($user['created_at']) ?></td>
                     <td>
                         <?php if ((int)$user['is_admin'] === 0 && (int)$user['id'] !== $session->getUserId()) : ?>
-                            <?php if ($role === 'student') : ?>
+                            <?php if ($userRole === 'student') : ?>
                                 <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
                                       class="promote-teacher-form">
                                     <input type="hidden" name="admin_action" value="promote_to_teacher">
