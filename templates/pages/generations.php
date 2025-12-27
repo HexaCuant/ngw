@@ -161,10 +161,8 @@ if ($activeProjectId) {
                     <p><strong>Fecha:</strong> <span id="genDate"></span></p>
                     <div id="downloadLinks" style="margin-top:10px;">
                         <strong>Descargar datos:</strong>
-                        <a href="#" onclick="downloadGenerationFile('dot','tab')" class="btn-secondary">TSV (punto decimal)</a>
-                        <a href="#" onclick="downloadGenerationFile('comma','tab')" class="btn-secondary">TSV (coma decimal)</a>
-                        <a href="#" onclick="downloadGenerationFile('dot','semicolon')" class="btn-secondary">CSV ; (punto decimal)</a>
-                        <a href="#" onclick="downloadGenerationFile('comma','semicolon')" class="btn-secondary">CSV ; (coma decimal)</a>
+                        <a id="linkCsvDot" href="#" onclick="downloadGenerationCSV('dot')" class="btn-secondary" target="_blank" rel="noopener">CSV ; (punto decimal)</a>
+                        <a id="linkCsvComma" href="#" onclick="downloadGenerationCSV('comma')" class="btn-secondary" target="_blank" rel="noopener">CSV ; (coma decimal)</a>
                     </div>
                         <div id="parentSelectionControls" class="parent-selection-controls" style="display:none; margin-top:10px;">
                             <div class="psc-info">
@@ -806,6 +804,22 @@ function renderGenerationData(data) {
         document.getElementById('genPopulation').textContent = data.population_size || '';
         document.getElementById('genType').textContent = data.type || '';
         document.getElementById('genDate').textContent = data.created_at || '';
+
+        // Update CSV link hrefs so they point to the actual download URL (with generation number)
+        try {
+            const linkDot = document.getElementById('linkCsvDot');
+            const linkComma = document.getElementById('linkCsvComma');
+            if (linkDot) {
+                linkDot.href = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(data.generation_number)}&decimal=dot`;
+                linkDot.download = `generation_${data.generation_number}_decimal_dot.csv`;
+            }
+            if (linkComma) {
+                linkComma.href = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(data.generation_number)}&decimal=comma`;
+                linkComma.download = `generation_${data.generation_number}_decimal_comma.csv`;
+            }
+        } catch (err) {
+            console.error('Error updating CSV link hrefs', err);
+        }
 
     // Build individuals table
     let tableHtml = '<table><thead><tr>';
@@ -1521,14 +1535,14 @@ function createMultipleCrosses() {
     }
 })();
 
-// Function to download generation data (TSV/CSV)
-function downloadGenerationFile(decimalSeparator, columnSeparator) {
+// Function to download generation data CSV (semicolon columns)
+function downloadGenerationCSV(decimalSeparator) {
     const genNum = document.getElementById('genNumber').textContent;
     if (!genNum) {
         showToast('No hay generación abierta', 'error');
         return;
     }
-    const url = `index.php?option=2&project_action=download_generation_tsv&generation_number=${encodeURIComponent(genNum)}&decimal_separator=${encodeURIComponent(decimalSeparator)}&column_separator=${encodeURIComponent(columnSeparator)}`;
+    const url = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(genNum)}&decimal=${encodeURIComponent(decimalSeparator)}`;
     window.open(url, '_blank');
 }
 
@@ -1541,7 +1555,7 @@ try {
     window.createCrossGeneration = createCrossGeneration;
     window.createMultipleCrosses = createMultipleCrosses;
     window.addSelectedParentals = addSelectedParentals;
-    window.downloadGenerationFile = downloadGenerationFile;
+    window.downloadGenerationCSV = downloadGenerationCSV;
     console.debug('Exposed functions on window for inline handlers');
 } catch (err) {
     console.error('Error exposing functions to window', err);

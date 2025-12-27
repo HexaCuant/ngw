@@ -1515,66 +1515,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
         }
         exit;
     }
-    elseif ($projectAction === 'download_generation_tsv') {
+    elseif ($projectAction === 'download_generation_csv') {
         try {
             $projectId = $session->get('active_project_id');
-            
+
             if (!$projectId) {
                 http_response_code(400);
                 echo 'No hay proyecto activo';
                 exit;
             }
-            
-            $generationNumber = (int)($_GET['generation_number'] ?? 0);
-            $decimalSeparator = $_GET['decimal_separator'] ?? 'dot';
-            $columnSeparator = $_GET['column_separator'] ?? 'tab';
-            
+
+            $generationNumber = (int)($_GET['generation_number'] ?? $_GET['generationNumber'] ?? 0);
+            $decimal = $_GET['decimal'] ?? 'dot';
+
             if ($generationNumber <= 0) {
                 http_response_code(400);
                 echo 'Número de generación inválido';
                 exit;
             }
-            
-            if (!in_array($decimalSeparator, ['dot', 'comma'])) {
+
+            if (!in_array($decimal, ['dot', 'comma'])) {
                 http_response_code(400);
                 echo 'Separador decimal inválido';
                 exit;
             }
 
-            if (!in_array($columnSeparator, ['tab', 'semicolon'])) {
-                http_response_code(400);
-                echo 'Separador de columnas inválido';
+            // Determine projects folder and candidate filenames
+            $cfg = parse_ini_file(__DIR__ . '/../config/config.ini');
+            $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+            $projectFolder = rtrim($projectsPath, '/') . '/' . $projectId;
+
+            // Filenames observed in project output
+            $fileDot = $projectFolder . '/' . $projectId . '_' . $generationNumber . '_datos.csv';
+            $fileComma = $projectFolder . '/' . $projectId . '_' . $generationNumber . '_datos_coma.csv';
+
+            $targetFile = ($decimal === 'comma') ? $fileComma : $fileDot;
+
+            if (file_exists($targetFile)) {
+                // Serve existing file directly
+                header('Content-Type: text/csv; charset=utf-8');
+                header('Content-Disposition: attachment; filename="generation_' . $generationNumber . '_decimal_' . $decimal . '.csv"');
+                header('Cache-Control: no-cache, no-store, must-revalidate');
+                header('Pragma: no-cache');
+                header('Expires: 0');
+                readfile($targetFile);
                 exit;
             }
-            
-            // Create generation model
+
+            // If not found, fall back to dynamic CSV generation (semicolon columns)
             require_once __DIR__ . '/../src/Models/Generation.php';
             $generationModel = new \Ngw\Models\Generation($db);
-            
-            // Get generation details
+
             $generation = $generationModel->getByNumber($projectId, $generationNumber);
-            
             if (!$generation) {
                 http_response_code(404);
                 echo 'Generación no encontrada';
                 exit;
             }
-            
-            // Parse individuals
-            $individuals = $generationModel->parseGenerationOutput($projectId, $generationNumber);
-            
-            // Choose separator characters and headers
-            $sepChar = ($columnSeparator === 'semicolon') ? ';' : "\t";
-            $ext = ($columnSeparator === 'semicolon') ? 'csv' : 'tsv';
-            $contentType = ($columnSeparator === 'semicolon') ? 'text/csv' : 'text/tab-separated-values';
 
-            // Set headers for download
-            header('Content-Type: ' . $contentType);
-            header('Content-Disposition: attachment; filename="generation_' . $generationNumber . '_sep_' . $columnSeparator . '_decimal_' . $decimalSeparator . '.' . $ext . '"');
+            $individuals = $generationModel->parseGenerationOutput($projectId, $generationNumber);
+
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="generation_' . $generationNumber . '_decimal_' . $decimal . '.csv"');
             header('Cache-Control: no-cache, no-store, must-revalidate');
             header('Pragma: no-cache');
             header('Expires: 0');
-            
+
+            $sepChar = ';';
+
             // Output header
             echo "Individual_ID";
             if (!empty($individuals)) {
@@ -1584,13 +1592,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 }
             }
             echo "\n";
-            
+
             // Output data
             foreach ($individuals as $id => $phenotypes) {
                 echo $id;
                 foreach ($phenotypes as $phenotype) {
                     $value = (string)$phenotype;
-                    if ($decimalSeparator === 'comma') {
+                    if ($decimal === 'comma') {
                         $value = str_replace('.', ',', $value);
                     }
                     echo $sepChar . $value;
