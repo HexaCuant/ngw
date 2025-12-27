@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                 // Render HTML for character details
                 ob_start();
                 ?>
-                <div class="card">
+                <div class="card" data-active-character-id="<?= $charId ?>">
                     <h3>Detalles del Carácter: <?= e($activeCharacter['name']) ?></h3>
                     
                     <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">

@@ -138,8 +138,11 @@ function initializeCharacterUI() {
             const transition = document.querySelector('input[name="transition"]:checked')?.value;
             const stateB = document.querySelector('input[name="state_b"]:checked')?.value;
 
+            console.debug('Submitting new connection', { characterId, stateA, transition, stateB });
+
             if (stateA !== undefined && transition && stateB !== undefined && characterId > 0) {
                 addConnection(characterId, parseInt(stateA), parseInt(transition), parseInt(stateB), function(data) {
+                    console.debug('addConnection success callback data:', data);
                     addConnectionToTable(data.connection);
                     newForm.reset();
 
@@ -162,6 +165,8 @@ function initializeCharacterUI() {
                     const substratesInput2 = document.getElementById('substrates-input');
                     if (substratesInput2) substratesInput2.dataset.hasConnections = '1';
                 });
+            } else {
+                console.warn('Invalid connection form values', { characterId, stateA, transition, stateB });
             }
         });
     }
@@ -211,100 +216,64 @@ function openCharacter(characterId) {
                 const detailsCard = document.createElement('div');
                 detailsCard.innerHTML = data.html;
                 // Insert the character details at the top of the column so it appears above connections
-                columnRight.insertAdjacentElement('afterbegin', detailsCard.firstElementChild);
-                
-                // Attach event handler to create gene form
-                const createGeneForm = document.getElementById('create-gene-form');
-                if (createGeneForm) {
-                    createGeneForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
+                    const inserted = detailsCard.firstElementChild;
+                    columnRight.insertAdjacentElement('afterbegin', inserted);
 
-                        // Validate that at least one gene_type checkbox is selected
-                        const anyTypeChecked = this.querySelectorAll('input[name="gene_type[]"]:checked').length > 0;
-                        if (!anyTypeChecked) {
-                            showNotification('Selecciona al menos un tipo de cromosoma (X, Y, A o B)', 'error');
-                            return;
-                        }
-                        
-                        const formData = new FormData(this);
-                        formData.set('char_action', 'create_gene_ajax');
-                        
-                        fetch('index.php?option=1', {
-                            method: 'POST',
-                            body: formData
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                showNotification('Gen creado', 'success');
-                                
-                                // Make sure genes view is visible
-                                const genesView = document.getElementById('genes-view');
-                                if (genesView) {
-                                    genesView.style.display = 'block';
-                                }
-                                
-                                // Add row to genes table (create table if missing)
-                                const genesViewTable = document.querySelector('#genes-view table');
-                                let tbody = genesViewTable ? genesViewTable.querySelector('tbody') : null;
-                                if (!tbody) {
-                                    // Build table structure
-                                    const table = document.createElement('table');
-                                    table.innerHTML = `
-                                        <thead>
-                                            <tr>
-                                                <th>ID</th>
-                                                <th>Nombre</th>
-                                                <th>Cromosoma</th>
-                                                <th>Posición</th>
-                                                <th>Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody></tbody>
-                                    `;
-                                    genesView.appendChild(table);
-                                    tbody = table.querySelector('tbody');
-                                }
+                    // Store active character id for handlers
+                    window._activeCharacterId = characterId;
+                    inserted.setAttribute('data-active-character-id', characterId);
 
-                                // Remove any placeholder message rows
-                                const placeholder = tbody.querySelector('td[colspan]');
-                                if (placeholder) placeholder.closest('tr')?.remove();
-
-                                const gene = data.gene;
-                                const row = document.createElement('tr');
-                                row.innerHTML = `
-                                    <td>${gene.id}</td>
-                                    <td>${gene.name}</td>
-                                    <td>${gene.chromosome || ''}</td>
-                                    <td>${gene.position || ''}</td>
-                                    <td>
-                                        <button type="button" id="gene-toggle-${gene.id}" onclick="toggleGene(${gene.id}, this)" class="btn-primary btn-small">Abrir</button>
-                                        <button type="button" onclick="deleteGene(${gene.id}, '${gene.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button>
-                                    </td>
-                                `;
-                                tbody.appendChild(row);
-                                
-                                // Reset and hide form
-                                createGeneForm.reset();
-                                const formContainer = document.getElementById('create-gene-form-container');
-                                if (formContainer) {
-                                    formContainer.style.display = 'none';
-                                }
-                            } else {
-                                showNotification(data.error || 'Error al crear gen', 'error');
+                    // Attach event handler to create gene form if present
+                    const createGeneForm = document.getElementById('create-gene-form');
+                    if (createGeneForm) {
+                        createGeneForm.addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            const anyTypeChecked = this.querySelectorAll('input[name="gene_type[]"]:checked').length > 0;
+                            if (!anyTypeChecked) {
+                                showNotification('Selecciona al menos un tipo de cromosoma (X, Y, A o B)', 'error');
+                                return;
                             }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            showNotification('Error de conexión', 'error');
-                        });
-                    });
-                }
+                            const formData = new FormData(this);
+                            formData.set('char_action', 'create_gene_ajax');
+                            fetch('index.php?option=1', { method: 'POST', body: formData })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        showNotification('Gen creado', 'success');
+                                        const genesView = document.getElementById('genes-view');
+                                        if (genesView) genesView.style.display = 'block';
 
-                // Initialize character UI handlers (for AJAX-inserted HTML)
-                if (typeof initializeCharacterUI === 'function') {
-                    initializeCharacterUI();
-                }
+                                        let table = genesView.querySelector('table');
+                                        let tbody = table ? table.querySelector('tbody') : null;
+                                        if (!tbody) {
+                                            table = document.createElement('table');
+                                            table.innerHTML = `<thead><tr><th>ID</th><th>Nombre</th><th>Cromosoma</th><th>Posición</th><th>Acciones</th></tr></thead><tbody></tbody>`;
+                                            genesView.appendChild(table);
+                                            tbody = table.querySelector('tbody');
+                                        }
+
+                                        const emptyRow = tbody.querySelector('td[colspan]');
+                                        if (emptyRow) emptyRow.closest('tr')?.remove();
+
+                                        const gene = data.gene;
+                                        const row = document.createElement('tr');
+                                        row.innerHTML = `<td>${gene.id}</td><td>${gene.name}</td><td>${gene.chromosome || ''}</td><td>${gene.position || ''}</td><td><button type="button" id="gene-toggle-${gene.id}" onclick="toggleGene(${gene.id}, this)" class="btn-primary btn-small">Abrir</button><button type="button" onclick="deleteGene(${gene.id}, '${gene.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button></td>`;
+                                        tbody.appendChild(row);
+                                        createGeneForm.reset();
+                                        const formContainer = document.getElementById('create-gene-form-container');
+                                        if (formContainer) formContainer.style.display = 'none';
+                                    } else {
+                                        showNotification(data.error || 'Error al crear gen', 'error');
+                                    }
+                                })
+                                .catch(error => { console.error('Error:', error); showNotification('Error de conexión', 'error'); });
+                        });
+                    }
+
+                    // Initialize character UI handlers (for AJAX-inserted HTML)
+                    if (typeof initializeCharacterUI === 'function') {
+                        initializeCharacterUI();
+                    }
             }
         } else {
             showNotification(data.error || 'Error al abrir carácter', 'error');
@@ -803,6 +772,7 @@ function updateSubstrates(characterId, substrates, onSuccess, onError) {
  * Add connection via AJAX
  */
 function addConnection(characterId, stateA, transition, stateB, onSuccess) {
+    console.debug('addConnection called', { characterId, stateA, transition, stateB });
     const formData = new FormData();
     formData.append('char_action', 'add_connection_ajax');
     formData.append('char_id', characterId);
@@ -814,13 +784,20 @@ function addConnection(characterId, stateA, transition, stateB, onSuccess) {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('Conexión creada correctamente', 'success');
-            if (onSuccess) onSuccess(data);
-        } else {
-            showNotification(data.error || 'Error al crear conexión', 'error');
+    .then(response => response.text())
+    .then(text => {
+        console.debug('Raw response (addConnection):', text);
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                showNotification('Conexión creada correctamente', 'success');
+                if (onSuccess) onSuccess(data);
+            } else {
+                showNotification(data.error || 'Error al crear conexión', 'error');
+            }
+        } catch (e) {
+            console.error('JSON parse error (addConnection):', e, 'Response text:', text);
+            showNotification('Error de conexión', 'error');
         }
     })
     .catch(error => {

@@ -116,7 +116,7 @@ if ($activeCharacterId) {
         <?php endif; ?>
         
         <?php if ($activeCharacter) : ?>
-            <div class="card">
+            <div class="card" data-active-character-id="<?= e($activeCharacterId ?? 0) ?>">
                 <h3>Detalles del Carácter: <?= e($activeCharacter['name']) ?></h3>
                 
                 <!-- Botones principales -->
