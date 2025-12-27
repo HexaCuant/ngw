@@ -1268,6 +1268,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 }
             }
 
+            // Check for pre-generated CSV files and provide download URLs when present
+            $cfg = parse_ini_file(__DIR__ . '/../config/config.ini');
+            $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+            $projectFolder = rtrim($projectsPath, '/') . '/' . $projectId;
+            $csvDotPath = $projectFolder . '/' . $projectId . '_' . $generationNumber . '_datos.csv';
+            $csvCommaPath = $projectFolder . '/' . $projectId . '_' . $generationNumber . '_datos_coma.csv';
+
+            $csvDotExists = file_exists($csvDotPath);
+            $csvCommaExists = file_exists($csvCommaPath);
+
+            $csvDotUrl = $csvDotExists ? ('index.php?option=2&project_action=download_generation_csv&generation_number=' . $generationNumber . '&decimal=dot&file=' . rawurlencode(basename($csvDotPath))) : null;
+            $csvCommaUrl = $csvCommaExists ? ('index.php?option=2&project_action=download_generation_csv&generation_number=' . $generationNumber . '&decimal=comma&file=' . rawurlencode(basename($csvCommaPath))) : null;
+
             ob_end_clean();
             echo json_encode([
                 'success' => true,
@@ -1278,7 +1291,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 'population_size' => count($individuals),
                 'parentals' => $groupedParentals,
                 'stats' => $stats,
-                'parental_stats' => $parentalStats
+                'parental_stats' => $parentalStats,
+                'csv_dot_exists' => $csvDotExists,
+                'csv_comma_exists' => $csvCommaExists,
+                'csv_dot_url' => $csvDotUrl,
+                'csv_comma_url' => $csvCommaUrl
             ]);
         } catch (\Exception $e) {
             ob_end_clean();
@@ -1496,6 +1513,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 }
             }
 
+            // Check for pre-generated CSV files and provide download URLs when present
+            $cfg = parse_ini_file(__DIR__ . '/../config/config.ini');
+            $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+            $projectFolder = rtrim($projectsPath, '/') . '/' . $projectId;
+            $csvDotPath = $projectFolder . '/' . $projectId . '_' . $generation['generation_number'] . '_datos.csv';
+            $csvCommaPath = $projectFolder . '/' . $projectId . '_' . $generation['generation_number'] . '_datos_coma.csv';
+
+            $csvDotExists = file_exists($csvDotPath);
+            $csvCommaExists = file_exists($csvCommaPath);
+
+            $csvDotUrl = $csvDotExists ? ('index.php?option=2&project_action=download_generation_csv&generation_number=' . $generation['generation_number'] . '&decimal=dot&file=' . rawurlencode(basename($csvDotPath))) : null;
+            $csvCommaUrl = $csvCommaExists ? ('index.php?option=2&project_action=download_generation_csv&generation_number=' . $generation['generation_number'] . '&decimal=comma&file=' . rawurlencode(basename($csvCommaPath))) : null;
+
             ob_end_clean();
             
             echo json_encode([
@@ -1507,7 +1537,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 'individuals' => $individualsList,
                 'parentals' => $groupedParentals,
                 'stats' => $stats,
-                'parental_stats' => $parentalStats
+                'parental_stats' => $parentalStats,
+                'csv_dot_exists' => $csvDotExists,
+                'csv_comma_exists' => $csvCommaExists,
+                'csv_dot_url' => $csvDotUrl,
+                'csv_comma_url' => $csvCommaUrl
             ]);
         } catch (\Exception $e) {
             ob_end_clean();
@@ -1550,6 +1584,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             $fileComma = $projectFolder . '/' . $projectId . '_' . $generationNumber . '_datos_coma.csv';
 
             $targetFile = ($decimal === 'comma') ? $fileComma : $fileDot;
+
+            // If a specific filename was requested, validate and try to serve it
+            if (!empty($_GET['file'])) {
+                $requested = basename($_GET['file']);
+                $candidate = $projectFolder . '/' . $requested;
+                $realProjectFolder = realpath($projectFolder);
+                $realCandidate = realpath($candidate);
+                if ($realCandidate && $realProjectFolder && strpos($realCandidate, $realProjectFolder) === 0 && is_file($realCandidate)) {
+                    header('Content-Type: text/csv; charset=utf-8');
+                    header('Content-Disposition: attachment; filename="' . $requested . '"');
+                    header('Cache-Control: no-cache, no-store, must-revalidate');
+                    header('Pragma: no-cache');
+                    header('Expires: 0');
+                    readfile($realCandidate);
+                    exit;
+                }
+                // If requested file not found, continue to other fallbacks
+            }
 
             if (file_exists($targetFile)) {
                 // Serve existing file directly
