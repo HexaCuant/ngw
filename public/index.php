@@ -72,6 +72,36 @@ if ($session->isAuthenticated()) {
     $requestModel = new \Ngw\Models\RegistrationRequest($db);
 }
 
+/**
+ * Helper function to generate create character form HTML
+ */
+function generateCreateCharacterFormHtml($session): string
+{
+    $isTeacher = $session->isTeacher();
+    $isAdmin = $session->isAdmin();
+    $formHtml = '<div class="card">';
+    $formHtml .= '<h3>Crear Nuevo Carácter</h3>';
+    $formHtml .= '<form method="post" id="create-character-form">';
+    $formHtml .= '<input type="hidden" name="char_action" value="create">';
+    $formHtml .= '<div class="form-group">';
+    $formHtml .= '<label for="char_name">Nombre del Carácter</label>';
+    $formHtml .= '<input type="text" id="char_name" name="char_name" required>';
+    $formHtml .= '</div>';
+    
+    if ($isTeacher || $isAdmin) {
+        $formHtml .= '<div class="form-group form-inline">';
+        $formHtml .= '<label><input type="checkbox" name="visible"> Visible</label>';
+        $formHtml .= '<label style="margin-left: 1rem;"><input type="checkbox" name="public"> Público</label>';
+        $formHtml .= '</div>';
+    }
+    
+    $formHtml .= '<button type="submit" class="btn-success">Crear Carácter</button>';
+    $formHtml .= '</form>';
+    $formHtml .= '</div>';
+    
+    return $formHtml;
+}
+
 // Handle AJAX requests (before any HTML output)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $session->isAuthenticated() && $characterModel) {
     $charAction = $_POST['char_action'];
@@ -114,14 +144,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
                 // If deleting the active character, close it first
                 $activeCharId = $session->get('active_character_id');
+                $wasClosed = false;
                 if ($activeCharId && (int)$activeCharId === $charId) {
+                    $wasClosed = true;
                     $session->remove('active_character_id');
                     $session->remove('active_gene_id');
                     $session->remove('show_connections');
                 }
                 
                 $characterModel->delete($charId);
-                echo json_encode(['success' => true, 'wasClosed' => $activeCharId && (int)$activeCharId === $charId]);
+                
+                // If character was open, return the create form HTML
+                $responseData = ['success' => true, 'wasClosed' => $wasClosed];
+                if ($wasClosed) {
+                    $responseData['html'] = generateCreateCharacterFormHtml($session);
+                }
+                echo json_encode($responseData);
             } else {
                 echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
             }
@@ -405,28 +443,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             $session->remove('active_gene_id');
             $session->remove('show_connections');
             
-            // Generate create form HTML
-            $isTeacher = $session->isTeacher();
-            $isAdmin = $session->isAdmin();
-            $formHtml = '<div class="card">';
-            $formHtml .= '<h3>Crear Nuevo Carácter</h3>';
-            $formHtml .= '<form method="post" id="create-character-form">';
-            $formHtml .= '<input type="hidden" name="char_action" value="create">';
-            $formHtml .= '<div class="form-group">';
-            $formHtml .= '<label for="char_name">Nombre del Carácter</label>';
-            $formHtml .= '<input type="text" id="char_name" name="char_name" required>';
-            $formHtml .= '</div>';
-            
-            if ($isTeacher || $isAdmin) {
-                $formHtml .= '<div class="form-group form-inline">';
-                $formHtml .= '<label><input type="checkbox" name="visible"> Visible</label>';
-                $formHtml .= '<label style="margin-left: 1rem;"><input type="checkbox" name="public"> Público</label>';
-                $formHtml .= '</div>';
-            }
-            
-            $formHtml .= '<button type="submit" class="btn-success">Crear Carácter</button>';
-            $formHtml .= '</form>';
-            $formHtml .= '</div>';
+            // Generate create form HTML using helper
+            $formHtml = generateCreateCharacterFormHtml($session);
             
             echo json_encode(['success' => true, 'html' => $formHtml]);
         } catch (\Exception $e) {

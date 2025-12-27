@@ -481,6 +481,45 @@ function deleteCharacter(characterId, charName) {
                         const substratesInput = document.getElementById('substrates-input');
                         if (substratesInput) substratesInput.dataset.hasConnections = '0';
                     }
+                    
+                    // Insert create form HTML if provided
+                    if (data.html) {
+                        const columnRight = document.querySelector('.column-right');
+                        if (columnRight) {
+                            columnRight.insertAdjacentHTML('afterbegin', data.html);
+                            
+                            // Re-attach form submit handler
+                            const createCharacterForm = document.getElementById('create-character-form');
+                            if (createCharacterForm) {
+                                createCharacterForm.addEventListener('submit', function(e) {
+                                    e.preventDefault();
+                                    
+                                    const formData = new FormData(this);
+                                    formData.set('char_action', 'create_character_ajax');
+                                    
+                                    fetch('index.php?option=1', {
+                                        method: 'POST',
+                                        body: formData
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.success) {
+                                            showNotification('Carácter creado', 'success');
+                                            setTimeout(() => {
+                                                window.location.href = 'index.php?option=1';
+                                            }, 500);
+                                        } else {
+                                            showNotification(data.error || 'Error al crear carácter', 'error');
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error:', error);
+                                        showNotification('Error de conexión', 'error');
+                                    });
+                                });
+                            }
+                        }
+                    }
                 }
                 
                 // Remove row from table
