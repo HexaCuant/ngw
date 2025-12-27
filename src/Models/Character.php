@@ -17,13 +17,26 @@ class Character
     }
 
     /**
-     * Get all characters for a user (owned or public)
+     * Get all characters for a user (owned or public from their teacher)
+     * @param int $userId The user ID
+     * @param int|null $assignedTeacherId The teacher ID assigned to this user (for students)
      */
-    public function getAvailableCharacters(int $userId): array
+    public function getAvailableCharacters(int $userId, ?int $assignedTeacherId = null): array
     {
+        if ($assignedTeacherId !== null) {
+            // Student: show own characters + public characters from their assigned teacher
+            $sql = "SELECT id, name, creator_id, is_public, is_visible, sex, substrates 
+                    FROM characters 
+                    WHERE creator_id = :user_id 
+                       OR (is_public = 1 AND creator_id = :teacher_id)
+                    ORDER BY id";
+            return $this->db->fetchAll($sql, ['user_id' => $userId, 'teacher_id' => $assignedTeacherId]);
+        }
+        
+        // Teachers/admins: show own characters only (they don't see other's public characters)
         $sql = "SELECT id, name, creator_id, is_public, is_visible, sex, substrates 
                 FROM characters 
-                WHERE creator_id = :user_id OR is_public = 1 
+                WHERE creator_id = :user_id
                 ORDER BY id";
         return $this->db->fetchAll($sql, ['user_id' => $userId]);
     }

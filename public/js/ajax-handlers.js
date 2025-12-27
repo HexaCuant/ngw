@@ -52,6 +52,462 @@ function escapeHtml(text) {
 }
 
 /**
+ * Toggle genes view visibility
+ */
+function toggleGenesView() {
+    const genesView = document.getElementById('genes-view');
+    const btn = document.getElementById('toggle-genes-btn');
+    
+    if (genesView) {
+        const isVisible = genesView.style.display !== 'none';
+        genesView.style.display = isVisible ? 'none' : 'block';
+        
+        if (btn) {
+            btn.textContent = isVisible ? 'Ver Genes' : 'Ocultar Genes';
+        }
+    }
+}
+
+/**
+ * Toggle connections view visibility
+ */
+function toggleConnectionsView() {
+    const connectionsView = document.getElementById('connections-view');
+    const btn = document.getElementById('toggle-connections-btn');
+    
+    if (connectionsView) {
+        const isVisible = connectionsView.style.display !== 'none';
+        connectionsView.style.display = isVisible ? 'none' : 'block';
+        
+        if (btn) {
+            btn.textContent = isVisible ? 'Ver Panel de Conexiones' : 'Ocultar Panel de Conexiones';
+        }
+        
+        // Draw Petri net if connections are visible
+        if (!isVisible) {
+            setTimeout(drawPetriNet, 100);
+        }
+    }
+}
+
+/**
+ * Draw Petri Net diagram with only genes/transitions (no connections)
+ */
+function drawEmptyDiagram(container, states, transitions) {
+    // Remove placeholder if present
+    const placeholder = container.querySelector('#petri-net-placeholder');
+    if (placeholder) placeholder.remove();
+
+    const marginX = 40;
+    const marginY = 40;
+    const transitionWidth = 50;
+    const transitionHeight = 70;
+    const horizontalSpacing = 75;
+    const verticalSpacing = 120;
+
+    // Layout transitions horizontally at the top
+    let svg = `<svg width="${Math.max(600, transitions.length * horizontalSpacing + 2 * marginX)}" height="400" xmlns="http://www.w3.org/2000/svg">`;
+    svg += `<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#999" /></marker></defs>`;
+    
+    // Draw title
+    svg += `<text x="20" y="25" font-size="12" font-weight="bold" fill="#666">Genes/Transiciones disponibles:</text>`;
+    
+    // Draw transitions
+    transitions.forEach((transition, index) => {
+        const x = marginX + index * horizontalSpacing;
+        const y = marginY + 50;
+        
+        // Draw transition rectangle
+        svg += `<rect x="${x - transitionWidth/2}" y="${y - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#e8f4f8" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" rx="4"/>`;
+        
+        // Draw transition label
+        svg += `<text x="${x}" y="${y + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="#2c3e50">${transition}</text>`;
+    });
+    
+    // Draw info text
+    svg += `<text x="20" y="350" font-size="11" fill="#999">Crea conexiones para conectar sustratos con genes transiciones</text>`;
+    
+    if (states.length > 0) {
+        svg += `<text x="20" y="370" font-size="11" fill="#999">Sustratos disponibles: S${states.join(', S')}</text>`;
+    }
+    
+    svg += `</svg>`;
+    container.innerHTML = svg;
+}
+
+/**
+ * Draw Petri Net diagram based on connections
+ */
+function drawPetriNet() {
+    const container = document.getElementById('petri-net-diagram');
+    
+    if (!container) {
+        console.log('drawPetriNet: container not found');
+        return;
+    }
+    
+    // Extract connections from table (if it exists)
+    const connections = [];
+    const table = document.getElementById('connections-table');
+    if (table) {
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const cells = row.cells;
+            if (cells && cells.length >= 3) {
+                const stateA = cells[0].textContent.replace('S', '').trim();
+                const transition = cells[1].textContent.trim();
+                const stateB = cells[2].textContent.replace('S', '').trim();
+                connections.push({ stateA: parseInt(stateA), transition, stateB: parseInt(stateB) });
+            }
+        });
+    }
+    
+    // Get available genes/transitions from the form
+    const transitionInputs = document.querySelectorAll('input[name="transition"]');
+    const availableTransitions = [];
+    transitionInputs.forEach(input => {
+        let geneName = '';
+        let nextNode = input.nextSibling;
+        while (nextNode) {
+            if (nextNode.nodeType === Node.TEXT_NODE) {
+                geneName = nextNode.textContent.trim();
+                if (geneName) break;
+            }
+            nextNode = nextNode.nextSibling;
+        }
+        if (geneName && !availableTransitions.includes(geneName)) {
+            availableTransitions.push(geneName);
+        }
+    });
+    
+    // Get available states from the form
+    const stateInputs = document.querySelectorAll('input[name="state_a"]');
+    const availableStates = [];
+    stateInputs.forEach(input => {
+        const label = input.closest('label');
+        if (label) {
+            const text = label.textContent.replace('S', '').trim();
+            if (text && !availableStates.includes(parseInt(text))) {
+                availableStates.push(parseInt(text));
+            }
+        }
+    });
+    
+    // If no connections but we have states and transitions, show them
+    if (connections.length === 0 && (availableStates.length > 0 || availableTransitions.length > 0)) {
+        drawEmptyDiagram(container, availableStates, availableTransitions);
+        return;
+    }
+    
+    if (connections.length === 0) {
+        return;
+    }
+    
+    // Get unique states
+    const states = new Set();
+    connections.forEach(c => {
+        states.add(c.stateA);
+        states.add(c.stateB);
+    });
+    const stateArray = Array.from(states).sort((a, b) => a - b);
+    
+    // Detect if it's a linear chain
+    const isLinear = connections.length === 1 || connections.every((c, i, arr) => {
+        if (i === 0) return true;
+        return arr[i-1].stateB === c.stateA;
+    });
+    
+    // Calculate layout
+    const placeRadius = 25;
+    const transitionWidth = 40;
+    const transitionHeight = 60;
+    const horizontalSpacing = 90;
+    const verticalSpacing = 100;
+    const marginX = 60;
+    const marginY = 100;
+    
+    const statePositions = {};
+    const transitionPositions = {};
+    
+    if (isLinear) {
+        // Linear layout
+        let currentX = marginX;
+        const y = marginY;
+        
+        const sortedConns = [...connections].sort((a, b) => a.stateA - b.stateA);
+        const processedStates = new Set();
+        
+        sortedConns.forEach((conn, index) => {
+            if (!processedStates.has(conn.stateA)) {
+                statePositions[conn.stateA] = { x: currentX, y: y };
+                processedStates.add(conn.stateA);
+                currentX += horizontalSpacing;
+            }
+            
+            const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
+            transitionPositions[key] = {
+                x: currentX,
+                y: y,
+                label: conn.transition
+            };
+            currentX += horizontalSpacing;
+            
+            if (!processedStates.has(conn.stateB)) {
+                statePositions[conn.stateB] = { x: currentX, y: y };
+                processedStates.add(conn.stateB);
+                currentX += horizontalSpacing;
+            }
+        });
+    } else {
+        // Complex layout
+        const stateY = marginY;
+        const stateSpacing = horizontalSpacing * 2;
+        stateArray.forEach((state, index) => {
+            statePositions[state] = {
+                x: marginX + index * stateSpacing,
+                y: stateY
+            };
+        });
+        
+        // Group connections by state pair
+        const connectionsByPair = {};
+        connections.forEach(conn => {
+            const pairKey = `${conn.stateA}-${conn.stateB}`;
+            if (!connectionsByPair[pairKey]) {
+                connectionsByPair[pairKey] = [];
+            }
+            connectionsByPair[pairKey].push(conn);
+        });
+        
+        // Position transitions based on grouping
+        Object.entries(connectionsByPair).forEach(([pairKey, pairConns]) => {
+            const [stateA, stateB] = pairKey.split('-').map(Number);
+            const stateAX = statePositions[stateA].x;
+            const stateBX = statePositions[stateB].x;
+            const avgX = (stateAX + stateBX) / 2;
+            
+            const numGenes = pairConns.length;
+            
+            if (numGenes === 1) {
+                const conn = pairConns[0];
+                const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
+                transitionPositions[key] = {
+                    x: avgX,
+                    y: stateY,
+                    label: conn.transition
+                };
+            } else {
+                const isOdd = numGenes % 2 === 1;
+                
+                pairConns.forEach((conn, index) => {
+                    const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
+                    let yOffset;
+                    
+                    if (isOdd) {
+                        const centerIndex = Math.floor(numGenes / 2);
+                        if (index === centerIndex) {
+                            yOffset = 0;
+                        } else if (index < centerIndex) {
+                            const layer = centerIndex - index;
+                            yOffset = -layer * verticalSpacing;
+                        } else {
+                            const layer = index - centerIndex;
+                            yOffset = layer * verticalSpacing;
+                        }
+                    } else {
+                        const halfPoint = numGenes / 2;
+                        if (index < halfPoint) {
+                            const layer = halfPoint - index;
+                            yOffset = -layer * verticalSpacing;
+                        } else {
+                            const layer = index - halfPoint + 1;
+                            yOffset = layer * verticalSpacing;
+                        }
+                    }
+                    
+                    transitionPositions[key] = {
+                        x: avgX,
+                        y: stateY + yOffset,
+                        label: conn.transition
+                    };
+                });
+            }
+        });
+    }
+    
+    try {
+        // Remove placeholder if present
+        const placeholder = container.querySelector('#petri-net-placeholder');
+        if (placeholder) placeholder.remove();
+
+        // Defensive fallback
+        if (Object.keys(statePositions).length === 0) {
+            const uniqueStates = Array.from(new Set(connections.flatMap(c => [c.stateA, c.stateB]))).sort((a,b) => a-b);
+            uniqueStates.forEach((s, i) => {
+                statePositions[s] = { x: marginX + i * horizontalSpacing, y: marginY + 50 };
+            });
+        }
+
+        if (Object.keys(transitionPositions).length === 0) {
+            connections.forEach((conn, index) => {
+                const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
+                const avgX = (statePositions[conn.stateA].x + statePositions[conn.stateB].x) / 2;
+                transitionPositions[key] = {
+                    x: avgX,
+                    y: marginY + 150 + Math.floor(index / Math.max(1, Math.ceil(connections.length / 3))) * verticalSpacing,
+                    label: conn.transition
+                };
+            });
+        }
+
+        // Calculate genes at top section
+        const genesNotInConnections = availableTransitions.filter(geneName => {
+            return !Object.values(transitionPositions).some(pos => pos.label === geneName);
+        });
+        const numUnconnectedGenes = genesNotInConnections.length;
+        const genesTopHeight = numUnconnectedGenes > 0 ? 120 : 20;
+        
+        const connectionOffsetY = genesTopHeight;
+
+        // Build SVG content
+        let svgContent = '';
+        
+        svgContent += `<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#666" /></marker></defs>`;
+    
+        // Draw genes that are NOT in connections at the top
+        if (genesNotInConnections.length > 0) {
+            svgContent += `<text x="20" y="25" font-size="12" font-weight="bold" fill="#666">Genes sin conexiones:</text>`;
+            genesNotInConnections.forEach((geneName, index) => {
+                const x = marginX + (index % 4) * 150;
+                const y = 60 + Math.floor(index / 4) * 100;
+                
+                svgContent += `<rect x="${x - transitionWidth/2}" y="${y - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#e8f4f8" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" rx="4"/>`;
+                svgContent += `<text x="${x}" y="${y + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="#2c3e50">${geneName}</text>`;
+            });
+        }
+    
+        let allXs = [];
+        let allYs = [];
+    
+        // Draw connections (arcs)
+        connections.forEach(conn => {
+            const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
+            const stateAPos = statePositions[conn.stateA];
+            const stateBPos = statePositions[conn.stateB];
+            const transPos = transitionPositions[key];
+            
+            if (isLinear) {
+                const y = stateAPos.y + connectionOffsetY;
+                
+                const x1 = stateAPos.x + placeRadius;
+                const x2 = transPos.x - transitionWidth/2;
+                svgContent += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                
+                const x3 = transPos.x + transitionWidth/2;
+                const x4 = stateBPos.x - placeRadius;
+                svgContent += `<line x1="${x3}" y1="${y}" x2="${x4}" y2="${y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+            } else {
+                const stateAYOffset = connectionOffsetY + stateAPos.y;
+                const stateBYOffset = connectionOffsetY + stateBPos.y;
+                const transYOffset = connectionOffsetY + transPos.y;
+                
+                const trans_left_x = transPos.x - transitionWidth/2;
+                const trans_right_x = transPos.x + transitionWidth/2;
+                const trans_center_y = transYOffset;
+                
+                let stateA_x, stateA_y;
+                
+                const dx = trans_left_x - stateAPos.x;
+                const dy = trans_center_y - stateAYOffset;
+                const angle = Math.atan2(dy, dx);
+                
+                stateA_x = stateAPos.x + placeRadius * Math.cos(angle);
+                stateA_y = stateAYOffset + placeRadius * Math.sin(angle);
+                
+                svgContent += `<line x1="${stateA_x}" y1="${stateA_y}" x2="${trans_left_x}" y2="${trans_center_y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                
+                let stateB_x, stateB_y;
+                
+                const dx2 = stateBPos.x - trans_right_x;
+                const dy2 = stateBYOffset - trans_center_y;
+                const angle2 = Math.atan2(dy2, dx2);
+                
+                stateB_x = stateBPos.x - placeRadius * Math.cos(angle2);
+                stateB_y = stateBYOffset - placeRadius * Math.sin(angle2);
+                
+                svgContent += `<line x1="${trans_right_x}" y1="${trans_center_y}" x2="${stateB_x}" y2="${stateB_y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                
+                allXs.push(stateA_x, trans_left_x, trans_right_x, stateB_x);
+                allYs.push(stateA_y, trans_center_y, stateB_y);
+            }
+        });
+        
+        // Draw states (circles)
+        stateArray.forEach(state => {
+            const pos = statePositions[state];
+            const cy = pos.y + connectionOffsetY;
+            svgContent += `<circle cx="${pos.x}" cy="${cy}" r="${placeRadius}" fill="white" stroke="#2c3e50" stroke-width="2"/>`;
+            svgContent += `<text x="${pos.x}" y="${cy + 5}" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">S${state}</text>`;
+            allXs.push(pos.x - placeRadius, pos.x + placeRadius);
+            allYs.push(cy - placeRadius, cy + placeRadius);
+        });
+        
+        // Draw transitions (rectangles)
+        Object.entries(transitionPositions).forEach(([key, pos]) => {
+            const ty = pos.y + connectionOffsetY;
+            svgContent += `<rect x="${pos.x - transitionWidth/2}" y="${ty - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#3498db" stroke="#2c3e50" stroke-width="2" rx="4"/>`;
+            
+            allXs.push(pos.x - transitionWidth/2, pos.x + transitionWidth/2);
+            allYs.push(ty - transitionHeight/2, ty + transitionHeight/2);
+            
+            const maxChars = 6;
+            const label = pos.label;
+            if (label.length > maxChars) {
+                const words = label.split(/\s+/);
+                let lines = [];
+                let currentLine = '';
+                
+                words.forEach(word => {
+                    if ((currentLine + word).length > maxChars && currentLine.length > 0) {
+                        lines.push(currentLine.trim());
+                        currentLine = word + ' ';
+                    } else {
+                        currentLine += word + ' ';
+                    }
+                });
+                if (currentLine.trim()) lines.push(currentLine.trim());
+                
+                const lineHeight = 12;
+                const startY = ty - (lines.length - 1) * lineHeight / 2;
+                lines.forEach((line, i) => {
+                    svgContent += `<text x="${pos.x}" y="${startY + i * lineHeight}" text-anchor="middle" font-size="10" font-weight="bold" fill="white">${line}</text>`;
+                });
+            } else {
+                svgContent += `<text x="${pos.x}" y="${ty + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="white">${label}</text>`;
+            }
+        });
+        
+        // Calculate final SVG dimensions
+        const minX = Math.min(...allXs, 20) - 20;
+        const maxX = Math.max(...allXs) + 20;
+        const minY = Math.min(...allYs, 0) - 20;
+        const maxY = Math.max(...allYs) + 20;
+        
+        const svgWidth = maxX - minX;
+        const svgHeight = maxY - minY;
+        
+        const svg = `<svg width="${svgWidth}" height="${svgHeight}" viewBox="${minX} ${minY} ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`;
+
+        container.innerHTML = svg;
+    } catch (err) {
+        console.error('Error drawing Petri net:', err);
+        if (container) {
+            container.innerHTML = `<p class="text-center" style="color: var(--color-danger);">Error al generar el diagrama de la Red de Petri. Revisa la consola para más detalles.</p>`;
+        }
+    }
+}
+
+/**
  * Setup add-allele form handler (idempotent)
  */
 function setupAddAlleleHandler() {

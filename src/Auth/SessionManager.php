@@ -125,6 +125,7 @@ class SessionManager
         $this->set('username', $userData['username']);
         $this->set('is_admin', $userData['is_admin'] ?? 0);
         $this->set('role', $userData['role'] ?? 'student'); // student, teacher, admin
+        $this->set('assigned_teacher_id', $userData['assigned_teacher_id'] ?? null);
     }
 
     /**
@@ -173,6 +174,15 @@ class SessionManager
     public function isStudent(): bool
     {
         return $this->isAuthenticated() && $this->get('role') === 'student';
+    }
+
+    /**
+     * Get assigned teacher ID for students
+     */
+    public function getAssignedTeacherId(): ?int
+    {
+        $teacherId = $this->get('assigned_teacher_id');
+        return $teacherId !== null ? (int) $teacherId : null;
     }
 
     /**

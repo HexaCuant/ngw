@@ -6,7 +6,7 @@
  * @var \Ngw\Auth\Auth $auth
  */
 
-if (!$session->isAdmin()) {
+if (!$session->isAdmin() && !$session->isTeacher()) {
     echo '<div class="alert alert-error">Acceso denegado</div>';
     return;
 }

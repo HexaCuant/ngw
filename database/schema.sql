@@ -9,11 +9,13 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT,
     is_admin INTEGER DEFAULT 0,
     role TEXT DEFAULT 'student', -- admin, teacher, student
+    assigned_teacher_id INTEGER, -- teacher responsible for this student
     is_approved INTEGER DEFAULT 0,
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (assigned_teacher_id) REFERENCES users(id)
 );
 
 -- Registration requests (for pending approvals)

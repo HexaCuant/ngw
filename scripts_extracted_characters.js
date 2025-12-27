@@ -611,7 +611,7 @@ function drawPetriNet() {
     const placeRadius = 25;
     const transitionWidth = 40;
     const transitionHeight = 60;
-    const horizontalSpacing = 180;
+    const horizontalSpacing = 90;  // Reduced from 180 to make diagram more compact
     const verticalSpacing = 120;
     const marginX = 60;
     const marginY = 60;
@@ -654,9 +654,11 @@ function drawPetriNet() {
         });
     } else {
         // Complex layout: states on top, transitions below
+        // Use double spacing between states to match linear layout (state -> transition -> state)
+        const stateSpacing = horizontalSpacing * 2;
         stateArray.forEach((state, index) => {
             statePositions[state] = {
-                x: marginX + index * horizontalSpacing,
+                x: marginX + index * stateSpacing,
                 y: marginY + 50
             };
         });

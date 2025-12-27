@@ -10,7 +10,7 @@ $session = $app['session'];
 $auth = $app['auth'];
 
 // Get request parameters
-$option = (int) ($_GET['option'] ?? 0);
+$option = (int) ($_GET['option'] ?? 3); // Default to generations panel
 $action = $_POST['action'] ?? '';
 
 // Handle login/logout/registration
@@ -50,9 +50,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new \RuntimeException("La contraseña debe tener al menos 6 caracteres");
             }
             
+            // Students must select a teacher
+            if ($role === 'student' && empty($assignedTeacher)) {
+                throw new \RuntimeException("Los alumnos deben seleccionar un profesor");
+            }
+            
             $requestModel = new \Ngw\Models\RegistrationRequest($db);
             $requestModel->create($username, $email, $reason, $password, $role, $assignedTeacher);
-            $success = "Solicitud enviada correctamente. Recibirás notificación cuando sea aprobada.";
+            $success = "Solicitud enviada correctamente. Podrás entrar con tu usuario y contraseña cuando sea aprobada.";
         } catch (\Exception $e) {
             $error = $e->getMessage();
         }
@@ -67,13 +72,13 @@ $projectModel = null;
 $characterModel = null;
 $requestModel = null;
 
+// Get teachers for registration form (available for non-authenticated users)
+$teachers = $auth->getTeachers();
+
 if ($session->isAuthenticated()) {
     $projectModel = new \Ngw\Models\Project($db);
     $characterModel = new \Ngw\Models\Character($db);
     $requestModel = new \Ngw\Models\RegistrationRequest($db);
-    
-    // Get teachers for registration form
-    $teachers = $auth->getTeachers();
 }
 
 /**
@@ -104,6 +109,21 @@ function generateCreateCharacterFormHtml($session): string
     $formHtml .= '</div>';
     
     return $formHtml;
+}
+
+/**
+ * Generate character details HTML (used by both page load and AJAX)
+ */
+function generateCharacterDetailsHtml($characterModel, $session, $charId, $userId): string
+{
+    $activeCharacter = $characterModel->getById($charId);
+    $genes = $characterModel->getGenes($charId);
+    $connections = $characterModel->getConnections($charId);
+    $numSubstrates = (int)$activeCharacter['substrates'];
+    
+    ob_start();
+    include __DIR__ . '/../templates/partials/character_details.php';
+    return ob_get_clean();
 }
 
 // Handle AJAX requests (before any HTML output)
@@ -201,226 +221,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             $charId = (int) ($_POST['char_id'] ?? 0);
             if ($charId > 0) {
                 $session->set('active_character_id', $charId);
-                // Show connections panel if character has genes
-                $activeCharacter = $characterModel->getById($charId);
                 $genes = $characterModel->getGenes($charId);
                 $session->set('show_connections', !empty($genes));
                 
-                // Get character data
-                $connections = $characterModel->getConnections($charId);
-                $numSubstrates = (int)$activeCharacter['substrates'];
-                
-                // Render HTML for character details
-                ob_start();
-                ?>
-                <div class="card" data-active-character-id="<?= $charId ?>">
-                    <h3>Detalles del Carácter: <?= e($activeCharacter['name']) ?></h3>
-                    
-                    <div style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <button type="button" onclick="closeCharacter()" class="btn-secondary">Cerrar carácter</button>
-                        <button type="button" class="btn-primary" id="toggle-genes-btn" onclick="toggleGenesView()">Ver Genes</button>
-                        <button type="button" class="btn-primary" id="toggle-connections-btn" onclick="toggleConnectionsView()">Ver Conexiones</button>
-                        <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                            <button type="button" class="btn-success" onclick="document.getElementById('create-gene-form-container').style.display = document.getElementById('create-gene-form-container').style.display === 'none' ? 'block' : 'none';">Crear nuevo gen</button>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <!-- Genes view -->
-                    <div id="genes-view" style="display: none; margin-top: 1.5rem;">
-                        <?php if (!empty($genes)) : ?>
-                            <h4>Genes del carácter</h4>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Nombre</th>
-                                        <th>Cromosoma</th>
-                                        <th>Posición</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($genes as $gene) : ?>
-                                        <tr>
-                                            <td><?= e($gene['id']) ?></td>
-                                            <td><?= e($gene['name']) ?></td>
-                                            <td><?= e($gene['chromosome']) ?></td>
-                                            <td><?= e($gene['position']) ?></td>
-                                            <td>
-                                                <button type="button" id="gene-toggle-<?= e($gene['id']) ?>" onclick="toggleGene(<?= e($gene['id']) ?>, this)" class="btn-primary btn-small">Abrir</button>
-                                                <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                                                    <button type="button" onclick="deleteGene(<?= e($gene['id']) ?>, '<?= e(addslashes($gene['name'])) ?>')" class="btn-danger btn-small">Borrar</button>
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        <?php else : ?>
-                            <p class="text-center">No hay genes definidos para este carácter.</p>
-                        <?php endif; ?>
-                    </div>
-                    
-                    <!-- Connections view -->
-                    <div id="connections-view" style="display: none; margin-top: 1.5rem;">
-                        <h4>Conexiones del Carácter</h4>
-                        <?php if (!empty($connections)) : ?>
-                            <table id="connections-table" style="width: 100%; margin-bottom: 1rem;">
-                                <thead>
-                                    <tr>
-                                        <th>Estado A</th>
-                                        <th>Gen (Transición)</th>
-                                        <th>Estado B</th>
-                                        <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                                            <th>Acciones</th>
-                                        <?php endif; ?>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($connections as $conn) : ?>
-                                        <?php
-                                            $transGene = $characterModel->getGeneById((int)$conn['transition']);
-                                            $geneName = $transGene ? $transGene['name'] : 'Gen #' . $conn['transition'];
-                                        ?>
-                                        <tr data-connection-id="<?= e($conn['id']) ?>">
-                                            <td>S<?= e($conn['state_a']) ?></td>
-                                            <td><?= e($geneName) ?></td>
-                                            <td>S<?= e($conn['state_b']) ?></td>
-                                            <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                                                <td>
-                                                    <button onclick="deleteConnectionRow(this, <?= e($conn['id']) ?>)" class="btn-danger btn-small">Borrar</button>
-                                                </td>
-                                            <?php endif; ?>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        <?php else : ?>
-                            <p class="text-center">No hay conexiones definidas para este carácter.</p>
-                        <?php endif; ?>
-                        
-                        <!-- Visualización de red de Petri (siempre visible; mostrará placeholder si no hay conexiones) -->
-                        <div style="border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem;">
-                            <h5>Diagrama de Red de Petri</h5>
-                            <div id="petri-net-diagram" style="width: 100%; min-height: 300px; border: 1px solid var(--color-border); border-radius: 4px; padding: 1rem; background: #fafafa; overflow-x: auto;">
-                                <?php if (empty($connections)) : ?>
-                                    <p id="petri-net-placeholder" class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        
-                        <!-- Panel for adding connections -->
-                        <div style="border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem;">
-                            <h5>Añadir nueva conexión</h5>
-                            <form method="post" id="substrates-form" style="margin-bottom: 1rem; display:flex; align-items:center; gap:0.5rem;">
-                                <div class="form-group" style="margin:0;">
-                                    <label style="display:flex; align-items:center; gap:0.5rem;">Número de sustratos (estados)
-                                        <input type="number" id="substrates-input" name="substrates" min="0" value="<?= e($numSubstrates) ?>" required style="width: 80px;" <?= !($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) ? 'disabled' : '' ?>>
-                                    </label>
-                                    <small style="color: var(--color-text-secondary); margin-left: 0.5rem;">(Se actualiza automáticamente)</small>
-                                </div>
-
-                            </form>
-                            
-                            <?php 
-                            // Render the add-connection form as in the main template: radio lists for states and radio inputs for transition
-                            $numSubstratesSafe = max(0, $numSubstrates);
-                            ?>
-                            <form method="post" id="add-connection-form" style="border: 1px solid var(--color-border); padding: 1rem; border-radius: 4px; background: var(--color-bg-secondary);">
-                                <input type="hidden" name="char_action" value="add_connection">
-
-                                <div class="form-group">
-                                    <label>Estado inicial (S):</label>
-                                    <div id="state-a-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; min-height: 1.5rem;">
-                                        <?php for ($i = 0; $i < $numSubstratesSafe; $i++) : ?>
-                                            <label>
-                                                <input type="radio" name="state_a" value="<?= $i ?>" required> S<?= $i ?>
-                                            </label>
-                                        <?php endfor; ?>
-                                        <?php if ($numSubstratesSafe === 0) : ?>
-                                            <span style="color: var(--color-text-secondary); font-size: 0.9rem;">Establece el número de sustratos para ver opciones</span>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Gen (Transición):</label>
-                                    <div id="transition-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; min-height: 1.5rem;">
-                                        <?php foreach ($genes as $gene) : ?>
-                                            <label>
-                                                <input type="radio" name="transition" value="<?= e($gene['id']) ?>" required> <?= e($gene['name']) ?>
-                                            </label>
-                                        <?php endforeach; ?>
-                                        <?php if (empty($genes)) : ?>
-                                            <span style="color: var(--color-text-secondary); font-size: 0.9rem;">Crea genes en la sección anterior</span>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Estado final (S):</label>
-                                    <div id="state-b-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; min-height: 1.5rem;">
-                                        <?php for ($i = 0; $i < $numSubstratesSafe; $i++) : ?>
-                                            <label>
-                                                <input type="radio" name="state_b" value="<?= $i ?>" required> S<?= $i ?>
-                                            </label>
-                                        <?php endfor; ?>
-                                        <?php if ($numSubstratesSafe === 0) : ?>
-                                            <span style="color: var(--color-text-secondary); font-size: 0.9rem;">Establece el número de sustratos para ver opciones</span>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-
-                                <button type="submit" class="btn-success" <?= !($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) ? 'disabled' : ($numSubstratesSafe === 0 || empty($genes) ? 'disabled' : '') ?>>Guardar Conexión</button>
-                                <?php if (!($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId)) : ?>
-                                    <small style="color: var(--color-text-secondary); margin-left: 1rem;">Solo el creador del carácter puede crear conexiones</small>
-                                <?php endif; ?>
-                            </form>
-                            <?php if ($numSubstratesSafe === 0) : ?>
-                                <p id="no-substrates-message" class="text-center" style="color: var(--color-warning);">Primero debes establecer el número de sustratos.</p>
-                                <?php if (!empty($genes)) : ?>
-                                    <p class="text-center" style="color: var(--color-text-secondary);">Genes disponibles: <?= implode(', ', array_map(function($g){ return e($g['name']); }, $genes)) ?></p>
-                                <?php endif; ?>
-                            <?php elseif (empty($genes)) : ?>
-                                <p id="no-genes-warning" class="text-center" style="color: var(--color-warning);">Primero debes crear genes para este carácter.</p>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    
-                    <!-- Create gene form -->
-                    <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                        <div id="create-gene-form-container" style="display: none; margin-top: 1.5rem;">
-                            <h4>Crear nuevo gen</h4>
-                            <form method="post" id="create-gene-form">
-                                <input type="hidden" name="char_action" value="create_gene">
-                                <div class="form-group">
-                                    <label>Nombre</label>
-                                    <input type="text" name="gene_name" required>
-                                </div>
-                                <div class="form-group">
-                                    <label>Cromosoma nº</label>
-                                    <input type="text" name="gene_chr" placeholder="Ej: 1, 2, 3...">
-                                </div>
-                                <div class="form-group">
-                                    <label>Tipo de cromosoma</label>
-                                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                                        <label><input type="checkbox" name="gene_type[]" value="X"> X</label>
-                                        <label><input type="checkbox" name="gene_type[]" value="Y"> Y</label>
-                                        <label><input type="checkbox" name="gene_type[]" value="A" checked> A</label>
-                                        <label><input type="checkbox" name="gene_type[]" value="B" checked> B</label>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Posición</label>
-                                    <input type="text" name="gene_pos">
-                                </div>
-                                <button type="submit" class="btn-success btn-small">Crear Gen</button>
-                            </form>
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <?php
-                $html = ob_get_clean();
+                // Use the helper function to generate HTML
+                $html = generateCharacterDetailsHtml($characterModel, $session, $charId, $userId);
                 
                 echo json_encode(['success' => true, 'html' => $html], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             } else {
@@ -434,7 +239,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
     elseif ($charAction === 'close_character_ajax') {
         header('Content-Type: application/json');
         try {
-            // Get active character ID for validation
+            // Get active character ID
             $characterId = $session->get('active_character_id');
             
             if (!$characterId) {
@@ -442,20 +247,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                 exit;
             }
             
-            // Validate character before closing
-            $validationErrors = $characterModel->validateCharacterCompletion($characterId);
-            if (!empty($validationErrors)) {
-                echo json_encode([
-                    'success' => false, 
-                    'error' => implode("\n", $validationErrors)
-                ]);
-                exit;
-            }
-            
-            // Character is valid, proceed with closing
+            // Close the character without validation - user should be able to close anytime
             $session->remove('active_character_id');
             $session->remove('active_gene_id');
             $session->remove('show_connections');
+            $session->remove('show_genes');
             
             // Generate create form HTML using helper
             $formHtml = generateCreateCharacterFormHtml($session);
@@ -498,7 +294,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
         }
         exit;
     }
-    elseif ($charAction === 'add_connection_ajax') {
+    elseif ($charAction === 'add_connection') {
+        try {
+            $charId = (int) ($_POST['character_id'] ?? $activeCharacterId ?? 0);
+            if ($charId > 0 && ($session->isTeacher() || $session->isAdmin() || $characterModel->isOwner($charId, $userId))) {
+                $stateA = (int) ($_POST['state_a'] ?? 0);
+                $transition = (int) ($_POST['transition'] ?? 0);
+                $stateB = (int) ($_POST['state_b'] ?? 0);
+                
+                if ($transition > 0) {
+                    $characterModel->addConnection($charId, $stateA, $transition, $stateB);
+                    $success = "Conexión creada correctamente";
+                    redirect('index.php?option=1');
+                } else {
+                    $error = "Debes seleccionar un gen válido";
+                }
+            } else {
+                $error = "No tienes permiso para crear conexiones";
+            }
+        } catch (\Exception $e) {
+            $error = "Error al crear conexión: " . $e->getMessage();
+        }
+    } elseif ($charAction === 'add_connection_ajax') {
         header('Content-Type: application/json');
         try {
             $charId = (int) ($_POST['char_id'] ?? 0);
@@ -2099,12 +1916,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                             Generaciones
                         </a>
                     </li>
-                    <?php if ($session->isAdmin()): ?>
+                    <?php if ($session->isAdmin() || $session->isTeacher()): ?>
                         <li class="nav-item">
                             <a href="index.php?option=4" class="nav-link <?= $option === 4 ? 'active' : '' ?>">
-                                Admin
+                                <?= $session->isAdmin() ? 'Admin' : 'Mis Alumnos' ?>
                                 <?php 
-                                $pendingCount = $requestModel->getPendingCount();
+                                if ($session->isAdmin()) {
+                                    $pendingCount = $requestModel->getPendingCount();
+                                } else {
+                                    // Count only requests assigned to this teacher
+                                    $pendingCount = $db->fetchOne("SELECT COUNT(*) as count FROM registration_requests WHERE status = 'pending' AND assigned_teacher_id = :teacher_id", ['teacher_id' => $session->getUserId()])['count'] ?? 0;
+                                }
                                 if ($pendingCount > 0): 
                                 ?>
                                     <span style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 0.5rem; margin-left: 0.25rem; font-size: 0.75rem;"><?= $pendingCount ?></span>
@@ -2137,8 +1959,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                         include __DIR__ . '/../templates/pages/generations.php';
                         break;
                     case 4:
-                        // Admin page (only for admins)
-                        if ($session->isAdmin()) {
+                        // Admin page (for admins and teachers)
+                        if ($session->isAdmin() || $session->isTeacher()) {
                             include __DIR__ . '/../templates/pages/admin.php';
                         } else {
                             echo '<div class="alert alert-error">Acceso denegado</div>';
@@ -2243,7 +2065,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                         </select>
                     </div>
 
-                    <div class="form-group" id="teacher-selector" style="display: none;">
+                    <div class="form-group" id="teacher-selector">
                         <label for="assigned_teacher">Mi profesor</label>
                         <?php if (!empty($teachers)) : ?>
                             <select id="assigned_teacher" name="assigned_teacher">
@@ -2319,6 +2141,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                     if (password.length < 6) {
                         e.preventDefault();
                         showToast('La contraseña debe tener al menos 6 caracteres.', 'error');
+                        return false;
+                    }
+                    
+                    // Check if student has selected a teacher
+                    const roleSelect = document.getElementById('role');
+                    const teacherSelect = document.getElementById('assigned_teacher');
+                    if (roleSelect.value === 'student' && teacherSelect && !teacherSelect.value) {
+                        e.preventDefault();
+                        showToast('Los alumnos deben seleccionar un profesor.', 'error');
                         return false;
                     }
                     

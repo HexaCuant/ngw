@@ -121,14 +121,15 @@ class RegistrationRequest
 
         try {
             // Create user with password from request and role
-            $sql = "INSERT INTO users (username, password, email, role, is_admin, is_approved, approved_at) 
-                    VALUES (:username, :password, :email, :role, 0, 1, datetime('now'))";
+            $sql = "INSERT INTO users (username, password, email, role, is_admin, is_approved, approved_at, assigned_teacher_id) 
+                    VALUES (:username, :password, :email, :role, 0, 1, datetime('now'), :assigned_teacher_id)";
 
             $this->db->execute($sql, [
                 'username' => $request['username'],
                 'password' => $request['password'], // Already hashed
                 'email' => $request['email'],
-                'role' => $request['role'] ?? 'student'
+                'role' => $request['role'] ?? 'student',
+                'assigned_teacher_id' => $request['assigned_teacher_id'] ?? null
             ]);
 
             $userId = (int) $this->db->lastInsertId();
