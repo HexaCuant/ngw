@@ -120,7 +120,9 @@ function setupAddAlleleHandler() {
  */
 function initializeCharacterUI() {
     // Setup state validation (safe to call multiple times)
-    if (typeof setupStateValidation === 'function') setupStateValidation();
+    if (typeof setupStateValidation === 'function') {
+        setupStateValidation();
+    }
 
     // Set up substrates input handlers
     const substratesInput = document.getElementById('substrates-input');
@@ -1009,9 +1011,7 @@ function setupCreateGeneHandler() {
  */
 function reloadTransitionSelectors() {
     const characterId = window._activeCharacterId || 0;
-    console.debug('reloadTransitionSelectors: characterId=', characterId);
     if (!characterId) {
-        console.warn('reloadTransitionSelectors: no characterId available');
         return;
     }
 
@@ -1022,52 +1022,39 @@ function reloadTransitionSelectors() {
     const tryFetch = () => {
         const container = document.getElementById('transition-container');
         if (!container && attemptCount < maxAttempts) {
-            console.debug('reloadTransitionSelectors: container not found, retrying... attempt', attemptCount + 1);
             attemptCount++;
             setTimeout(tryFetch, 100);
             return;
         }
         
         if (!container) {
-            console.error('reloadTransitionSelectors: transition-container not found in DOM after', maxAttempts, 'attempts');
             return;
         }
 
         const formData = new FormData();
         formData.append('char_action', 'get_genes_ajax');
         formData.append('char_id', characterId);
-
-        console.debug('reloadTransitionSelectors: fetching genes for char', characterId);
         
         fetch('index.php?option=1', {
             method: 'POST',
             body: formData
         })
-        .then(response => {
-            console.debug('reloadTransitionSelectors: fetch response status', response.status);
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            console.debug('reloadTransitionSelectors: received data', data);
             if (data.success && data.genes) {
-                console.debug('reloadTransitionSelectors: genes count=', data.genes.length);
                 const container = document.getElementById('transition-container');
-                console.debug('reloadTransitionSelectors: container found?', !!container);
                 if (!container) {
-                    console.error('reloadTransitionSelectors: transition-container not found in DOM');
                     return;
                 }
 
                 let html = '';
                 data.genes.forEach(gene => {
-                    console.debug('reloadTransitionSelectors: adding gene', gene.id, gene.name);
                     html += `
                         <label>
                             <input type="radio" name="transition" value="${gene.id}" required> ${gene.name}
                         </label>
                     `;
                 });
-                console.debug('reloadTransitionSelectors: updating container HTML');
                 container.innerHTML = html;
 
             // Update the "no genes" warning if necessary
@@ -1101,17 +1088,12 @@ function reloadTransitionSelectors() {
             
             // Redraw Petri net after updating transition selectors
             if (typeof drawPetriNet === 'function') {
-                console.log('reloadTransitionSelectors: calling drawPetriNet()');
                 drawPetriNet();
-            } else {
-                console.warn('reloadTransitionSelectors: drawPetriNet is not a function');
             }
-            } else {
-                console.error('reloadTransitionSelectors: data.success=', data.success, 'data.genes=', data.genes);
             }
         })
         .catch(error => {
-            console.error('reloadTransitionSelectors: fetch error', error);
+            console.error('Error loading genes:', error);
         });
     };
     
@@ -1148,9 +1130,16 @@ function reloadSubstrateSelectors(numSubstrates) {
     }
     stateBContainer.innerHTML = html;
     
-    // Re-apply state validation after reload
+    // Reset validation configuration flag before reconfiguring
+    if (typeof _stateValidationConfigured !== 'undefined') {
+        window._stateValidationConfigured = false;
+    }
+    
+    // Re-apply state validation after reload (use setTimeout to ensure DOM is ready)
     if (typeof setupStateValidation === 'function') {
-        setupStateValidation();
+        setTimeout(function() {
+            setupStateValidation();
+        }, 0);
     }
     
     // Show/hide no-substrates message, but always show the form

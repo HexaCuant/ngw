@@ -881,7 +881,6 @@ function drawEmptyDiagram(container, states, transitions) {
  * Draw Petri Net diagram based on connections
  */
 function drawPetriNet() {
-    console.log('drawPetriNet() called');
     const container = document.getElementById('petri-net-diagram');
     
     if (!container) {
@@ -923,7 +922,6 @@ function drawPetriNet() {
             availableTransitions.push(geneName);
         }
     });
-    console.log('drawPetriNet: availableTransitions=', availableTransitions);
     
     // Get available states from the form
     const stateInputs = document.querySelectorAll('input[name="state_a"]');
@@ -940,8 +938,6 @@ function drawPetriNet() {
     
     // If no connections but we have states and transitions, show them
     if (connections.length === 0 && (availableStates.length > 0 || availableTransitions.length > 0)) {
-        console.log('drawPetriNet: No connections, but have transitions. Showing empty diagram.');
-        console.log('drawPetriNet: availableStates=', availableStates, 'availableTransitions=', availableTransitions);
         drawEmptyDiagram(container, availableStates, availableTransitions);
         return;
     }
@@ -1285,14 +1281,13 @@ function drawPetriNet() {
 }
 
 // Disable same state selection (prevent state_a == state_b)
-function setupStateValidation() {
-    const stateAInputs = document.querySelectorAll('input[name="state_a"]');
-    const stateBInputs = document.querySelectorAll('input[name="state_b"]');
+// Use document-level event delegation (survives any DOM replacement)
+if (!window._stateValidationConfigured) {
+    window._stateValidationConfigured = true;
     
-    if (stateAInputs.length === 0 || stateBInputs.length === 0) return;
-    
-    // Helper function to apply the validation logic
     function applyStateValidation() {
+        const stateAInputs = document.querySelectorAll('input[name="state_a"]');
+        const stateBInputs = document.querySelectorAll('input[name="state_b"]');
         const selectedA = document.querySelector('input[name="state_a"]:checked');
         const selectedB = document.querySelector('input[name="state_b"]:checked');
         
@@ -1348,21 +1343,35 @@ function setupStateValidation() {
         }
     }
     
-    // When state_a is selected (change or click)
-    stateAInputs.forEach(function(radioA) {
-        radioA.addEventListener('change', applyStateValidation);
-        radioA.addEventListener('click', applyStateValidation);
+    // Event delegation on document level - survives any DOM replacement
+    document.addEventListener('change', function(e) {
+        if (e.target.name === 'state_a' || e.target.name === 'state_b') {
+            applyStateValidation();
+        }
     });
     
-    // When state_b is selected (change or click)
-    stateBInputs.forEach(function(radioB) {
-        radioB.addEventListener('change', applyStateValidation);
-        radioB.addEventListener('click', applyStateValidation);
+    document.addEventListener('click', function(e) {
+        if (e.target.name === 'state_a' || e.target.name === 'state_b') {
+            applyStateValidation();
+        }
     });
 }
 
-// Initialize state validation on page load
-setupStateValidation();
+// Function kept for compatibility but now just applies validation (listeners already on document)
+function setupStateValidation() {
+    // Just apply validation for currently selected states
+    const selectedA = document.querySelector('input[name="state_a"]:checked');
+    const selectedB = document.querySelector('input[name="state_b"]:checked');
+    if (selectedA || selectedB) {
+        // Trigger the validation logic
+        const event = new Event('change', { bubbles: true });
+        if (selectedA) selectedA.dispatchEvent(event);
+        else if (selectedB) selectedB.dispatchEvent(event);
+    }
+}
+
+// Initialize state validation on page load (called from ajax-handlers.js after DOM ready)
+// setupStateValidation();
 
 // Delete connection and remove row from table
 function deleteConnectionRow(button, connectionId) {
