@@ -882,24 +882,26 @@ function drawEmptyDiagram(container, states, transitions) {
  */
 function drawPetriNet() {
     const container = document.getElementById('petri-net-diagram');
-    const table = document.getElementById('connections-table');
     
-    if (!container || !table) {
+    if (!container) {
         return;
     }
     
-    // Extract connections from table
+    // Extract connections from table (if it exists)
     const connections = [];
-    const rows = table.querySelectorAll('tbody tr');
-    rows.forEach(row => {
-        const cells = row.cells;
-        if (cells && cells.length >= 3) {
-            const stateA = cells[0].textContent.replace('S', '').trim();
-            const transition = cells[1].textContent.trim();
-            const stateB = cells[2].textContent.replace('S', '').trim();
-            connections.push({ stateA: parseInt(stateA), transition, stateB: parseInt(stateB) });
-        }
-    });
+    const table = document.getElementById('connections-table');
+    if (table) {
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const cells = row.cells;
+            if (cells && cells.length >= 3) {
+                const stateA = cells[0].textContent.replace('S', '').trim();
+                const transition = cells[1].textContent.trim();
+                const stateB = cells[2].textContent.replace('S', '').trim();
+                connections.push({ stateA: parseInt(stateA), transition, stateB: parseInt(stateB) });
+            }
+        });
+    }
     
     // Get available genes/transitions from the form
     const transitionInputs = document.querySelectorAll('input[name="transition"]');
