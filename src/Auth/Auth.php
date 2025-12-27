@@ -168,3 +168,4 @@ class Auth
         $sql = "SELECT id, username FROM users WHERE role = 'teacher' AND is_approved = 1 ORDER BY username ASC";
         return $this->db->fetchAll($sql);
     }
+}
