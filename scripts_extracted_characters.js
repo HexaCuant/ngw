@@ -321,6 +321,20 @@ if (substratesInputAjax) {
         prevSubstratesValue = parseInt(this.value || 0);
     });
 
+    // If the input is initially disabled (server rendered state), show a toast when the user tries to interact
+    if (newInput.disabled) {
+        const disabledMsg = 'No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.';
+        newInput.addEventListener('focus', function() {
+            showNotification(disabledMsg, 'warning');
+            this.blur();
+        });
+        newInput.addEventListener('click', function(e) {
+            showNotification(disabledMsg, 'warning');
+            e.preventDefault();
+        });
+        newInput.title = disabledMsg;
+    }
+
     newInput.addEventListener('input', function() {
         clearTimeout(substratesTimeout);
         

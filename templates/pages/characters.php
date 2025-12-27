@@ -378,9 +378,7 @@ if ($activeCharacterId) {
                             </div>
 
                         </form>
-                        <?php if ($hasConnections) : ?>
-                            <p id="substrates-warning" class="text-center" style="color: var(--color-warning); margin-top: 0.5rem;">No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.</p>
-                        <?php endif; ?>
+
 
                         <?php 
                         $numSubstrates = (int)($activeCharacter['substrates'] ?? 0);
@@ -763,6 +761,20 @@ if (substratesInputAjax) {
     newInput.addEventListener('focus', function() {
         prevSubstratesValue = parseInt(this.value || 0);
     });
+
+    // If the input is initially disabled (server rendered state), show a toast when the user tries to interact
+    if (newInput.disabled) {
+        const disabledMsg = 'No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.';
+        newInput.addEventListener('focus', function() {
+            showNotification(disabledMsg, 'warning');
+            this.blur();
+        });
+        newInput.addEventListener('click', function(e) {
+            showNotification(disabledMsg, 'warning');
+            e.preventDefault();
+        });
+        newInput.title = disabledMsg;
+    }
 
     newInput.addEventListener('input', function() {
         clearTimeout(substratesTimeout);
