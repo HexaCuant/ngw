@@ -265,50 +265,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                                 <form method="post" id="substrates-form" style="margin-bottom: 1rem; display:flex; align-items:center; gap:0.5rem;">
                                     <div class="form-group" style="margin:0;">
                                         <label style="display:flex; align-items:center; gap:0.5rem;">Número de sustratos (estados)
-                                            <input type="number" id="substrates-input" name="substrates" min="0" value="<?= e($numSubstrates) ?>" required style="width: 80px;" <?= $hasConnectionsAjax ? 'disabled' : '' ?> >
+                                            <input type="number" id="substrates-input" name="substrates" min="0" value="<?= e($numSubstrates) ?>" required style="width: 80px;" data-has-connections="<?= $hasConnectionsAjax ? '1' : '0' ?>">
                                         </label>
                                         <small style="color: var(--color-text-secondary); margin-left: 0.5rem;">(Se actualiza automáticamente)</small>
                                     </div>
-                                    <button type="button" id="update-substrates-btn" class="btn-primary btn-small" <?= $hasConnectionsAjax ? 'disabled' : '' ?>>Actualizar sustratos</button>
+
                                 </form>
-                                <?php if ($hasConnectionsAjax) : ?>
-                                    <p class="text-center" style="color: var(--color-warning); margin-top: 0.5rem;">No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.</p>
-                                <?php endif; ?>
                                 
-                                <?php // Render the add-connection form always, but hide it when substrates = 0 so JS can find and enable it dynamically ?>
-                                <form method="post" id="add-connection-form" style="display: <?= $numSubstrates > 0 ? 'block' : 'none' ?>;">
+                                <?php 
+                                // Render the add-connection form as in the main template: radio lists for states and radio inputs for transition
+                                $numSubstratesSafe = max(0, $numSubstrates);
+                                ?>
+                                <form method="post" id="add-connection-form" style="display: <?= $numSubstratesSafe > 0 ? 'block' : 'none' ?>;">
                                     <input type="hidden" name="char_action" value="add_connection">
+
                                     <div class="form-group">
-                                        <label>Estado inicial</label>
-                                        <div id="state-a-container">
-                                            <?php for ($i = 0; $i < max(0, $numSubstrates); $i++) : ?>
-                                                <label><input type="radio" name="state_a" value="<?= $i ?>" <?= $numSubstrates > 0 ? 'required' : '' ?>> S<?= $i ?></label>
+                                        <label>Estado inicial (S):</label>
+                                        <div id="state-a-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                            <?php for ($i = 0; $i < $numSubstratesSafe; $i++) : ?>
+                                                <label>
+                                                    <input type="radio" name="state_a" value="<?= $i ?>" required> S<?= $i ?>
+                                                </label>
                                             <?php endfor; ?>
                                         </div>
                                     </div>
+
                                     <div class="form-group">
-                                        <label>Gen (transición)</label>
-                                        <select name="transition" <?= (!empty($genes) && $numSubstrates > 0) ? 'required' : '' ?>>
-                                            <?php if (!empty($genes)) : ?>
-                                                <?php foreach ($genes as $g) : ?>
-                                                    <option value="<?= e($g['id']) ?>"><?= e($g['name']) ?></option>
-                                                <?php endforeach; ?>
-                                            <?php else: ?>
-                                                <option disabled>No hay genes</option>
-                                            <?php endif; ?>
-                                        </select>
+                                        <label>Gen (Transición):</label>
+                                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                            <?php foreach ($genes as $gene) : ?>
+                                                <label>
+                                                    <input type="radio" name="transition" value="<?= e($gene['id']) ?>" required> <?= e($gene['name']) ?>
+                                                </label>
+                                            <?php endforeach; ?>
+                                        </div>
                                     </div>
+
                                     <div class="form-group">
-                                        <label>Estado final</label>
-                                        <div id="state-b-container">
-                                            <?php for ($i = 0; $i < max(0, $numSubstrates); $i++) : ?>
-                                                <label><input type="radio" name="state_b" value="<?= $i ?>" <?= $numSubstrates > 0 ? 'required' : '' ?>> S<?= $i ?></label>
+                                        <label>Estado final (S):</label>
+                                        <div id="state-b-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                            <?php for ($i = 0; $i < $numSubstratesSafe; $i++) : ?>
+                                                <label>
+                                                    <input type="radio" name="state_b" value="<?= $i ?>" required> S<?= $i ?>
+                                                </label>
                                             <?php endfor; ?>
                                         </div>
                                     </div>
-                                    <button type="submit" class="btn-success" <?= $numSubstrates === 0 ? 'disabled' : '' ?>>Guardar Conexión</button>
+
+                                    <button type="submit" class="btn-success">Guardar Conexión</button>
                                 </form>
-                                <?php if ($numSubstrates === 0) : ?>
+                                <?php if ($numSubstratesSafe === 0) : ?>
                                     <p id="no-substrates-message" class="text-center" style="color: var(--color-warning);">Primero debes establecer el número de sustratos.</p>
                                     <?php if (!empty($genes)) : ?>
                                         <p class="text-center" style="color: var(--color-text-secondary);">Genes disponibles: <?= implode(', ', array_map(function($g){ return e($g['name']); }, $genes)) ?></p>

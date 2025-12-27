@@ -42,6 +42,137 @@ function flashInputHighlight() {
     setTimeout(() => input.classList.remove('highlight-toast'), 1000);
 }
 
+// Disabled interaction helper and rate limiter
+const disabledMsg = 'No se puede modificar el número de sustratos porque ya existen conexiones definidas para este carácter.';
+let lastDisabledToast = 0;
+function showDisabledToast() {
+    const now = Date.now();
+    if (now - lastDisabledToast > 800) {
+        showNotification(disabledMsg, 'warning');
+        if (typeof flashInputHighlight === 'function') flashInputHighlight();
+        lastDisabledToast = now;
+    }
+}
+
+/**
+ * Initialize character UI dynamic behaviors (idempotent)
+ */
+function initializeCharacterUI() {
+    // Setup state validation (safe to call multiple times)
+    if (typeof setupStateValidation === 'function') setupStateValidation();
+
+    // Set up substrates input handlers
+    const substratesInput = document.getElementById('substrates-input');
+    if (substratesInput) {
+        // Clone to remove any old listeners
+        const newInput = substratesInput.cloneNode(true);
+        substratesInput.parentNode.replaceChild(newInput, substratesInput);
+
+        let substratesTimeout;
+        let prevSubstratesValue = parseInt(newInput.value || 0);
+
+        newInput.addEventListener('focus', function() {
+            prevSubstratesValue = parseInt(this.value || 0);
+            if (this.dataset.hasConnections === '1') {
+                showDisabledToast();
+                this.blur();
+            }
+        });
+
+        newInput.addEventListener('click', function(e) {
+            if (this.dataset.hasConnections === '1') {
+                showDisabledToast();
+                e.preventDefault();
+                this.blur();
+            }
+        });
+
+        newInput.addEventListener('input', function() {
+            clearTimeout(substratesTimeout);
+            substratesTimeout = setTimeout(() => {
+                if (newInput.dataset.hasConnections === '1') {
+                    showDisabledToast();
+                    newInput.value = prevSubstratesValue;
+                    return;
+                }
+                const value = parseInt(newInput.value);
+                const characterId = window._activeCharacterId || 0;
+                if (!isNaN(value) && value >= 0 && characterId > 0) {
+                    updateSubstrates(characterId, value, function(data) {
+                        prevSubstratesValue = data.substrates;
+                        reloadSubstrateSelectors(data.substrates);
+                    }, function(err) {
+                        newInput.value = prevSubstratesValue;
+                        if (typeof flashInputHighlight === 'function') flashInputHighlight();
+                    });
+                }
+            }, 800);
+        });
+
+        newInput.addEventListener('blur', function() {
+            clearTimeout(substratesTimeout);
+            const value = parseInt(newInput.value);
+            const characterId = window._activeCharacterId || 0;
+            if (!isNaN(value) && value >= 0 && characterId > 0) {
+                updateSubstrates(characterId, value, function(data) {
+                    prevSubstratesValue = data.substrates;
+                    reloadSubstrateSelectors(data.substrates);
+                }, function(err) {
+                    newInput.value = prevSubstratesValue;
+                    if (typeof flashInputHighlight === 'function') flashInputHighlight();
+                });
+            }
+        });
+    }
+
+    // Set up add-connection form handler (idempotent: replace node)
+    const addConnectionForm = document.getElementById('add-connection-form');
+    if (addConnectionForm) {
+        const newForm = addConnectionForm.cloneNode(true);
+        addConnectionForm.parentNode.replaceChild(newForm, addConnectionForm);
+
+        newForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const characterId = window._activeCharacterId || 0;
+            const stateA = document.querySelector('input[name="state_a"]:checked')?.value;
+            const transition = document.querySelector('input[name="transition"]:checked')?.value;
+            const stateB = document.querySelector('input[name="state_b"]:checked')?.value;
+
+            if (stateA !== undefined && transition && stateB !== undefined && characterId > 0) {
+                addConnection(characterId, parseInt(stateA), parseInt(transition), parseInt(stateB), function(data) {
+                    addConnectionToTable(data.connection);
+                    newForm.reset();
+
+                    // Re-enable all substrate radio inputs so they are available for the next connection
+                    const stateInputs = document.querySelectorAll('input[name="state_a"], input[name="state_b"]');
+                    stateInputs.forEach(function(input) {
+                        input.disabled = false;
+                        input.checked = false;
+                        const label = input.closest('label');
+                        if (label) {
+                            label.style.opacity = '1';
+                            label.style.cursor = 'pointer';
+                        }
+                    });
+
+                    // Re-apply validation listeners
+                    if (typeof setupStateValidation === 'function') setupStateValidation();
+
+                    // Mark that there are connections now so substrates edits are blocked
+                    const substratesInput2 = document.getElementById('substrates-input');
+                    if (substratesInput2) substratesInput2.dataset.hasConnections = '1';
+                });
+            }
+        });
+    }
+
+    // Store active character id for use in handlers
+    const activeCharIdElem = document.querySelector('[data-active-character-id]');
+    if (activeCharIdElem) {
+        window._activeCharacterId = parseInt(activeCharIdElem.dataset.activeCharacterId || 0);
+    }
+}
+
 /**
  * Open character via AJAX
  */
@@ -168,6 +299,11 @@ function openCharacter(characterId) {
                             showNotification('Error de conexión', 'error');
                         });
                     });
+                }
+
+                // Initialize character UI handlers (for AJAX-inserted HTML)
+                if (typeof initializeCharacterUI === 'function') {
+                    initializeCharacterUI();
                 }
             }
         } else {
@@ -901,3 +1037,8 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Ensure initialization runs on DOMContentLoaded for full-page loads
+window.addEventListener('DOMContentLoaded', function() {
+    if (typeof initializeCharacterUI === 'function') initializeCharacterUI();
+});
