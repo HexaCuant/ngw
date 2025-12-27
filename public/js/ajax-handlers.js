@@ -80,7 +80,7 @@ function toggleConnectionsView() {
         connectionsView.style.display = isVisible ? 'none' : 'block';
         
         if (btn) {
-            btn.textContent = isVisible ? 'Ver Panel de Conexiones' : 'Ocultar Panel de Conexiones';
+            btn.textContent = isVisible ? 'Ver Conexiones' : 'Ocultar Conexiones';
         }
         
         // Draw Petri net if connections are visible
@@ -720,9 +720,14 @@ function initializeCharacterUI() {
                     if (columnRight && data.html) {
                         const detailsCard = document.createElement('div');
                         detailsCard.innerHTML = data.html;
-                        // Insert the character details at the top of the column so it appears above connections
-                        const inserted = detailsCard.firstElementChild;
-                        columnRight.insertAdjacentElement('afterbegin', inserted);
+                        // Insert ALL elements from the response (main card + connections card)
+                        // We need to collect all children first since inserting modifies the collection
+                        const childrenToInsert = Array.from(detailsCard.children);
+                        // Insert in reverse order so first element ends up first
+                        for (let i = childrenToInsert.length - 1; i >= 0; i--) {
+                            columnRight.insertAdjacentElement('afterbegin', childrenToInsert[i]);
+                        }
+                        const inserted = columnRight.firstElementChild;
 
                         // Store active character id for handlers
                         window._activeCharacterId = characterId;
