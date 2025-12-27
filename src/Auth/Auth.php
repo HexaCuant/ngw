@@ -27,7 +27,7 @@ class Auth
             return null;
         }
 
-        $sql = "SELECT id, username, password, email, is_admin, is_approved FROM users WHERE username = :username";
+        $sql = "SELECT id, username, password, email, is_admin, role, is_approved FROM users WHERE username = :username";
         $user = $this->db->fetchOne($sql, ['username' => $username]);
 
         if (!$user) {
