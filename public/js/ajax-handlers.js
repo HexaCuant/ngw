@@ -79,7 +79,8 @@ function openCharacter(characterId) {
             if (columnRight && data.html) {
                 const detailsCard = document.createElement('div');
                 detailsCard.innerHTML = data.html;
-                columnRight.appendChild(detailsCard.firstElementChild);
+                // Insert the character details at the top of the column so it appears above connections
+                columnRight.insertAdjacentElement('afterbegin', detailsCard.firstElementChild);
                 
                 // Attach event handler to create gene form
                 const createGeneForm = document.getElementById('create-gene-form');
@@ -225,7 +226,8 @@ function closeCharacter() {
             // Insert create form HTML
             const columnRight = document.querySelector('.column-right');
             if (columnRight && data.html) {
-                columnRight.insertAdjacentHTML('beforeend', data.html);
+                // Insert the create form at the top so it appears above connections
+                columnRight.insertAdjacentHTML('afterbegin', data.html);
                 
                 // Re-attach form submit handler
                 const createCharacterForm = document.getElementById('create-character-form');
