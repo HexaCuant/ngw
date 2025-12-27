@@ -2061,7 +2061,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             <!-- Authenticated user interface -->
             <div class="user-info">
                 <div>
-                    <strong>Usuario: <?= e($session->getUsername()) ?></strong>
+                    <?php
+                        $userRole = $session->getRole() ?? 'student';
+                        $roleLabel = $userRole === 'teacher' ? 'Profesor' : ($userRole === 'admin' ? 'Admin' : 'Alumno');
+                    ?>
+                    <strong>Usuario: <?= e($session->getUsername()) ?> (<?= e($roleLabel) ?>)</strong>
                     <?php if ($session->isAdmin()): ?>
                         <span style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin-left: 0.5rem; font-size: 0.875rem;">ADMIN</span>
                     <?php endif; ?>
