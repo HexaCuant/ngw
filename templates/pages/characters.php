@@ -833,6 +833,51 @@ function toggleConnectionsView() {
 }
 
 /**
+ * Draw Petri Net diagram with only genes/transitions (no connections)
+ */
+function drawEmptyDiagram(container, states, transitions) {
+    // Remove placeholder if present
+    const placeholder = container.querySelector('#petri-net-placeholder');
+    if (placeholder) placeholder.remove();
+
+    const marginX = 40;
+    const marginY = 40;
+    const transitionWidth = 50;
+    const transitionHeight = 70;
+    const horizontalSpacing = 150;
+    const verticalSpacing = 120;
+
+    // Layout transitions horizontally at the top
+    let svg = `<svg width="${Math.max(600, transitions.length * horizontalSpacing + 2 * marginX)}" height="400" xmlns="http://www.w3.org/2000/svg">`;
+    svg += `<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#999" /></marker></defs>`;
+    
+    // Draw title
+    svg += `<text x="20" y="25" font-size="12" font-weight="bold" fill="#666">Genes/Transiciones disponibles:</text>`;
+    
+    // Draw transitions
+    transitions.forEach((transition, index) => {
+        const x = marginX + index * horizontalSpacing;
+        const y = marginY + 50;
+        
+        // Draw transition rectangle
+        svg += `<rect x="${x - transitionWidth/2}" y="${y - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#e8f4f8" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" rx="4"/>`;
+        
+        // Draw transition label
+        svg += `<text x="${x}" y="${y + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="#2c3e50">${transition}</text>`;
+    });
+    
+    // Draw info text
+    svg += `<text x="20" y="350" font-size="11" fill="#999">Crea conexiones para conectar sustratos con genes transiciones</text>`;
+    
+    if (states.length > 0) {
+        svg += `<text x="20" y="370" font-size="11" fill="#999">Sustratos disponibles: S${states.join(', S')}</text>`;
+    }
+    
+    svg += `</svg>`;
+    container.innerHTML = svg;
+}
+
+/**
  * Draw Petri Net diagram based on connections
  */
 function drawPetriNet() {
@@ -856,7 +901,41 @@ function drawPetriNet() {
         }
     });
     
-    if (connections.length === 0) return;
+    // Get available genes/transitions from the form
+    const transitionInputs = document.querySelectorAll('input[name="transition"]');
+    const availableTransitions = [];
+    transitionInputs.forEach(input => {
+        const label = input.closest('label');
+        if (label) {
+            const text = label.textContent.trim();
+            if (text && !availableTransitions.includes(text)) {
+                availableTransitions.push(text);
+            }
+        }
+    });
+    
+    // Get available states from the form
+    const stateInputs = document.querySelectorAll('input[name="state_a"]');
+    const availableStates = [];
+    stateInputs.forEach(input => {
+        const label = input.closest('label');
+        if (label) {
+            const text = label.textContent.replace('S', '').trim();
+            if (text && !availableStates.includes(parseInt(text))) {
+                availableStates.push(parseInt(text));
+            }
+        }
+    });
+    
+    // If no connections but we have states and transitions, show them
+    if (connections.length === 0 && (availableStates.length > 0 || availableTransitions.length > 0)) {
+        drawEmptyDiagram(container, availableStates, availableTransitions);
+        return;
+    }
+    
+    if (connections.length === 0) {
+        return;
+    }
     
     // Get unique states
     const states = new Set();
@@ -1168,12 +1247,6 @@ function deleteConnectionRow(button, connectionId) {
                 noConnMsg.textContent = 'No hay conexiones definidas para este carácter.';
                 table.replaceWith(noConnMsg);
                 
-                // Clear diagram and show placeholder message (do not hide container)
-                const diagram = document.getElementById('petri-net-diagram');
-                if (diagram) {
-                    diagram.innerHTML = '<p class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>';
-                }
-
                 // Update flag to indicate there are no more connections
                 const substratesInput = document.getElementById('substrates-input');
                 if (substratesInput) {
@@ -1185,6 +1258,9 @@ function deleteConnectionRow(button, connectionId) {
                 if (typeof reloadSubstrateSelectors === 'function') {
                     reloadSubstrateSelectors(currentSubstrates);
                 }
+                
+                // Redraw diagram with available genes/transitions
+                drawPetriNet();
             }
         } else {
             // Redraw Petri net
