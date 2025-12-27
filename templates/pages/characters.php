@@ -1214,10 +1214,10 @@ function deleteConnectionRow(button, connectionId) {
                 noConnMsg.textContent = 'No hay conexiones definidas para este carácter.';
                 table.replaceWith(noConnMsg);
                 
-                // Hide diagram
+                // Clear diagram and show placeholder message (do not hide container)
                 const diagram = document.getElementById('petri-net-diagram');
-                if (diagram && diagram.parentElement) {
-                    diagram.parentElement.style.display = 'none';
+                if (diagram) {
+                    diagram.innerHTML = '<p class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>';
                 }
             }
         } else {
