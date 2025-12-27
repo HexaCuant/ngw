@@ -382,6 +382,21 @@ tr:last-child td {
     background-color: rgba(16, 185, 129, 0.06);
 }
 
+/* Download links in generation viewer: make them plain text links (no background) for readability */
+#downloadLinks a.btn-secondary {
+    background-color: transparent !important;
+    color: var(--color-primary) !important;
+    border-color: transparent !important;
+    padding: 0 !important;
+    margin-left: 0.6rem;
+    text-decoration: underline;
+}
+#downloadLinks a.btn-secondary:hover {
+    background-color: transparent !important;
+    color: var(--color-primary-dark) !important;
+    text-decoration: underline;
+}
+
 .card-header {
     margin-bottom: var(--spacing-lg);
     padding-bottom: var(--spacing-md);
