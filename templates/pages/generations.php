@@ -829,6 +829,10 @@ function renderGenerationData(data) {
                 } else {
                     linkComma.href = `index.php?option=2&project_action=download_generation_csv&generation_number=${encodeURIComponent(data.generation_number)}&decimal=comma`;
                 }
+                linkComma.download = `generation_${data.generation_number}_decimal_comma.csv`;
+            }
+        } catch (err) {
+            console.error('Error updating CSV link hrefs', err);
         }
 
     // Build individuals table
