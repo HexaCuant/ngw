@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test closeCharacter - Real Scenario</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .step { background: white; padding: 20px; margin: 20px 0; border-radius: 5px; border: 1px solid #ddd; }
+        .step h2 { margin-top: 0; color: #333; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #0056b3; }
+        .output { background: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 4px; max-height: 400px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; }
+        .success { background: #d4edda; color: #155724; padding: 15px; border-radius: 4px; margin: 10px 0; }
+        .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; margin: 10px 0; }
+        .info { background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test: Close Character with Validation Errors</h1>
+        
+        <div class="step">
+            <h2>Scenario</h2>
+            <p>This test simulates closing a character that has a gene with no alelos defined.</p>
+            <div class="info">
+                <strong>Character:</strong> prueba (ID 7)<br>
+                <strong>Gene:</strong> A (no alelos)<br>
+                <strong>Expected:</strong> Modal showing validation errors
+            </div>
+        </div>
+
+        <div class="step">
+            <h2>Step 1: Open Character (Establish Session)</h2>
+            <p>First, we open the character to set active_character_id in session.</p>
+            <button onclick="stepOpenCharacter()">Open Character #7</button>
+            <div id="step1-output" class="output" style="display:none;"></div>
+        </div>
+
+        <div class="step">
+            <h2>Step 2: Close Character</h2>
+            <p>Now try to close the character - should get validation error.</p>
+            <button onclick="stepCloseCharacter()" id="close-btn" disabled>Close Character</button>
+            <div id="step2-output" class="output" style="display:none;"></div>
+        </div>
+
+        <div class="step">
+            <h2>Browser Console</h2>
+            <p>Open browser console (F12) to see detailed logs of the requests and responses.</p>
+        </div>
+    </div>
+
+    <script>
+        let characterOpened = false;
+
+        async function stepOpenCharacter() {
+            const outputDiv = document.getElementById('step1-output');
+            outputDiv.style.display = 'block';
+            outputDiv.textContent = 'Opening character #7...\n\n';
+
+            try {
+                const formData = new FormData();
+                formData.append('char_action', 'open_character_ajax');
+                formData.append('char_id', '7');
+                
+                console.log('Sending open_character_ajax request');
+                const response = await fetch('index.php?option=1', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('Open response:', response);
+                const data = await response.json();
+                console.log('Open response data:', data);
+                
+                outputDiv.textContent += 'Response Status: ' + response.status + ' ' + response.statusText + '\n';
+                outputDiv.textContent += 'Response:\n' + JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    outputDiv.textContent += '\n\n✓ Character opened, session active_character_id set';
+                    characterOpened = true;
+                    document.getElementById('close-btn').disabled = false;
+                } else {
+                    outputDiv.textContent += '\n\n✗ Failed to open character: ' + data.error;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                outputDiv.textContent += 'Error: ' + error.message + '\n' + error.stack;
+            }
+        }
+
+        async function stepCloseCharacter() {
+            if (!characterOpened) {
+                alert('Please open character first');
+                return;
+            }
+
+            const outputDiv = document.getElementById('step2-output');
+            outputDiv.style.display = 'block';
+            outputDiv.textContent = 'Closing character...\n\n';
+
+            try {
+                const formData = new FormData();
+                formData.append('char_action', 'close_character_ajax');
+                
+                console.log('Sending close_character_ajax request');
+                const response = await fetch('index.php?option=1', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('Close response:', response);
+                console.log('Response ok:', response.ok);
+                console.log('Response status:', response.status);
+                
+                const data = await response.json();
+                console.log('Close response data:', data);
+                
+                outputDiv.textContent += 'Response Status: ' + response.status + ' ' + response.statusText + '\n';
+                outputDiv.textContent += 'Response:\n' + JSON.stringify(data, null, 2);
+                
+                if (data.success) {
+                    outputDiv.textContent += '\n\n✓ Character closed successfully';
+                } else {
+                    outputDiv.textContent += '\n\n✗ Validation errors:\n' + data.error;
+                    // This is what should be displayed in a modal
+                    alert('Validation errors:\n\n' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                outputDiv.textContent += '\n\nError: ' + error.message + '\n' + error.stack;
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

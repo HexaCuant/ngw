@@ -894,9 +894,9 @@ function drawPetriNet() {
     rows.forEach(row => {
         const cells = row.cells;
         if (cells && cells.length >= 3) {
-            const stateA = cells[0].textContent.replace('S', '');
-            const transition = cells[1].textContent;
-            const stateB = cells[2].textContent.replace('S', '');
+            const stateA = cells[0].textContent.replace('S', '').trim();
+            const transition = cells[1].textContent.trim();
+            const stateB = cells[2].textContent.replace('S', '').trim();
             connections.push({ stateA: parseInt(stateA), transition, stateB: parseInt(stateB) });
         }
     });
@@ -1064,78 +1064,78 @@ function drawPetriNet() {
         // Define arrowhead marker
         svg += `<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#666" /></marker></defs>`;
     
-    // Draw connections (arcs)
-    connections.forEach(conn => {
-        const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
-        const stateAPos = statePositions[conn.stateA];
-        const stateBPos = statePositions[conn.stateB];
-        const transPos = transitionPositions[key];
+        // Draw connections (arcs)
+        connections.forEach(conn => {
+            const key = `${conn.stateA}-${conn.transition}-${conn.stateB}`;
+            const stateAPos = statePositions[conn.stateA];
+            const stateBPos = statePositions[conn.stateB];
+            const transPos = transitionPositions[key];
+            
+            if (isLinear) {
+                // Horizontal arrows for linear layout
+                const y = stateAPos.y;
+                
+                // Arc from state A to transition
+                const x1 = stateAPos.x + placeRadius;
+                const x2 = transPos.x - transitionWidth/2;
+                svg += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                
+                // Arc from transition to state B
+                const x3 = transPos.x + transitionWidth/2;
+                const x4 = stateBPos.x - placeRadius;
+                svg += `<line x1="${x3}" y1="${y}" x2="${x4}" y2="${y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+            } else {
+                // Curved arrows for complex layout
+                // Arc from state A to transition
+                svg += `<line x1="${stateAPos.x}" y1="${stateAPos.y + placeRadius}" x2="${transPos.x}" y2="${transPos.y - transitionHeight/2}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+                
+                // Arc from transition to state B
+                svg += `<line x1="${transPos.x}" y1="${transPos.y + transitionHeight/2}" x2="${stateBPos.x}" y2="${stateBPos.y - placeRadius}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
+            }
+        });
         
-        if (isLinear) {
-            // Horizontal arrows for linear layout
-            const y = stateAPos.y;
-            
-            // Arc from state A to transition
-            const x1 = stateAPos.x + placeRadius;
-            const x2 = transPos.x - transitionWidth/2;
-            svg += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
-            
-            // Arc from transition to state B
-            const x3 = transPos.x + transitionWidth/2;
-            const x4 = stateBPos.x - placeRadius;
-            svg += `<line x1="${x3}" y1="${y}" x2="${x4}" y2="${y}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
-        } else {
-            // Curved arrows for complex layout
-            // Arc from state A to transition
-            svg += `<line x1="${stateAPos.x}" y1="${stateAPos.y + placeRadius}" x2="${transPos.x}" y2="${transPos.y - transitionHeight/2}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
-            
-            // Arc from transition to state B
-            svg += `<line x1="${transPos.x}" y1="${transPos.y + transitionHeight/2}" x2="${stateBPos.x}" y2="${stateBPos.y - placeRadius}" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>`;
-        }
-    });
-    
-    // Draw states (places - circles)
-    stateArray.forEach(state => {
-        const pos = statePositions[state];
-        svg += `<circle cx="${pos.x}" cy="${pos.y}" r="${placeRadius}" fill="white" stroke="#2c3e50" stroke-width="2"/>`;
-        svg += `<text x="${pos.x}" y="${pos.y + 5}" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">S${state}</text>`;
-    });
-    
-    // Draw transitions (rectangles)
-    Object.entries(transitionPositions).forEach(([key, pos]) => {
-        svg += `<rect x="${pos.x - transitionWidth/2}" y="${pos.y - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#3498db" stroke="#2c3e50" stroke-width="2" rx="4"/>`;
+        // Draw states (places - circles)
+        stateArray.forEach(state => {
+            const pos = statePositions[state];
+            svg += `<circle cx="${pos.x}" cy="${pos.y}" r="${placeRadius}" fill="white" stroke="#2c3e50" stroke-width="2"/>`;
+            svg += `<text x="${pos.x}" y="${pos.y + 5}" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">S${state}</text>`;
+        });
         
-        // Split long labels into multiple lines
-        const maxChars = 6;
-        const label = pos.label;
-        if (label.length > maxChars) {
-            const words = label.split(/\s+/);
-            let lines = [];
-            let currentLine = '';
+        // Draw transitions (rectangles)
+        Object.entries(transitionPositions).forEach(([key, pos]) => {
+            svg += `<rect x="${pos.x - transitionWidth/2}" y="${pos.y - transitionHeight/2}" width="${transitionWidth}" height="${transitionHeight}" fill="#3498db" stroke="#2c3e50" stroke-width="2" rx="4"/>`;
             
-            words.forEach(word => {
-                if ((currentLine + word).length > maxChars && currentLine.length > 0) {
-                    lines.push(currentLine.trim());
-                    currentLine = word + ' ';
-                } else {
-                    currentLine += word + ' ';
-                }
-            });
-            if (currentLine.trim()) lines.push(currentLine.trim());
-            
-            const lineHeight = 12;
-            const startY = pos.y - (lines.length - 1) * lineHeight / 2;
-            lines.forEach((line, i) => {
-                svg += `<text x="${pos.x}" y="${startY + i * lineHeight}" text-anchor="middle" font-size="10" font-weight="bold" fill="white">${line}</text>`;
-            });
-        } else {
-            svg += `<text x="${pos.x}" y="${pos.y + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="white">${label}</text>`;
-        }
-    });
-    
-    svg += '</svg>';
+            // Split long labels into multiple lines
+            const maxChars = 6;
+            const label = pos.label;
+            if (label.length > maxChars) {
+                const words = label.split(/\s+/);
+                let lines = [];
+                let currentLine = '';
+                
+                words.forEach(word => {
+                    if ((currentLine + word).length > maxChars && currentLine.length > 0) {
+                        lines.push(currentLine.trim());
+                        currentLine = word + ' ';
+                    } else {
+                        currentLine += word + ' ';
+                    }
+                });
+                if (currentLine.trim()) lines.push(currentLine.trim());
+                
+                const lineHeight = 12;
+                const startY = pos.y - (lines.length - 1) * lineHeight / 2;
+                lines.forEach((line, i) => {
+                    svg += `<text x="${pos.x}" y="${startY + i * lineHeight}" text-anchor="middle" font-size="10" font-weight="bold" fill="white">${line}</text>`;
+                });
+            } else {
+                svg += `<text x="${pos.x}" y="${pos.y + 5}" text-anchor="middle" font-size="11" font-weight="bold" fill="white">${label}</text>`;
+            }
+        });
+        
+        svg += '</svg>';
 
-    container.innerHTML = svg;
+        container.innerHTML = svg;
 } catch (err) {
     console.error('Error drawing Petri net:', err);
     if (container) {
