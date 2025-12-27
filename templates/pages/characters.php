@@ -28,6 +28,10 @@ if ($activeCharacterId) {
 }
 ?>
 
+<script>
+    window._activeCharacterId = <?= (int)$activeCharacterId ?>;
+</script>
+
 <h2>Gestión de Caracteres</h2>
 
 <?php if ($activeProject) : ?>
@@ -161,7 +165,18 @@ if ($activeCharacterId) {
                                     <tr>
                                         <td><?= e($gene['id']) ?></td>
                                         <td><?= e($gene['name']) ?></td>
-                                        <td><?= e($gene['chromosome']) ?></td>
+                                        <td><?php 
+                                            $chrDisplay = '';
+                                            if ($gene['chromosome']) {
+                                                $chrDisplay = $gene['chromosome'];
+                                                if ($gene['code']) {
+                                                    $chrDisplay .= ' (' . $gene['code'] . ')';
+                                                }
+                                            } elseif ($gene['code']) {
+                                                $chrDisplay = $gene['code'];
+                                            }
+                                            echo e($chrDisplay);
+                                        ?></td>
                                         <td><?= e($gene['position']) ?></td>
                                         <td>
                                             <button type="button" onclick="openGene(<?= e($gene['id']) ?>)" class="btn-primary btn-small">Abrir</button>
@@ -261,18 +276,14 @@ if ($activeCharacterId) {
                                         <td><?= e($al['epistasis']) ?></td>
                                         <td>
                                             <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                                                    <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;" class="delete-allele-form">
-                                                        <input type="hidden" name="char_action" value="remove_allele">
-                                                        <input type="hidden" name="allele_id" value="<?= e($al['id']) ?>">
-                                                        <button type="submit" class="btn-danger btn-small">Eliminar</button>
-                                                    </form>
-                                                <?php endif; ?>
-                                            </td>
+                                                <button onclick="deleteAllele(<?= $al['id'] ?>, () => openGene(<?= (int)$activeGene['id'] ?>, true))" class="btn-danger btn-small">Eliminar</button>
+                                            <?php endif; ?>
+                                        </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else : ?>
                                     <tr>
-                                        <td colspan="5" class="text-center">No hay alelos definidos</td>
+                                        <td colspan="7" class="text-center">No hay alelos definidos</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -409,7 +420,7 @@ if ($activeCharacterId) {
 
                                 <div class="form-group">
                                     <label>Gen (Transición):</label>
-                                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <div id="transition-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                         <?php foreach ($genes as $gene) : ?>
                                             <label>
                                                 <input type="radio" name="transition" value="<?= e($gene['id']) ?>" required> <?= e($gene['name']) ?>
@@ -434,7 +445,7 @@ if ($activeCharacterId) {
                         <?php elseif ($numSubstrates === 0) : ?>
                             <p id="no-substrates-message" class="text-center" style="color: var(--color-warning);">Primero debes establecer el número de sustratos.</p>
                         <?php elseif (empty($genes)) : ?>
-                            <p class="text-center" style="color: var(--color-warning);">Primero debes crear genes para este carácter.</p>
+                            <p id="no-genes-warning" class="text-center" style="color: var(--color-warning);">Primero debes crear genes para este carácter.</p>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
@@ -562,212 +573,6 @@ document.querySelectorAll('.delete-connection-form').forEach(function(form) {
     });
 });
 
-// Handle add allele form via AJAX
-const addAlleleForm = document.getElementById('add-allele-form');
-if (addAlleleForm) {
-    addAlleleForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        formData.set('char_action', 'add_allele_ajax');
-        
-        fetch('index.php?option=1', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('Alelo añadido', 'success');
-                
-                // Add row to alleles table (inside #alleles-section)
-                const tbody = document.querySelector('#alleles-section table tbody');
-                if (tbody) {
-                    // Remove "no alelos" row if it exists
-                    const emptyRow = tbody.querySelector('td[colspan]');
-                    if (emptyRow) {
-                        emptyRow.closest('tr').remove();
-                    }
-                    
-                    const allele = data.allele;
-                    const row = document.createElement('tr');
-                    let displayDominance = allele.dominance !== null ? allele.dominance : '';
-                    if (allele.additive == 1 && displayDominance.toString().startsWith('1')) {
-                        displayDominance = displayDominance.toString().substring(1);
-                    }
-                    row.innerHTML = `
-                        <td>${allele.id}</td>
-                        <td>${allele.name}</td>
-                        <td>${allele.value !== null ? allele.value : ''}</td>
-                        <td>${allele.additive == 1 ? 'Sí' : 'No'}</td>
-                        <td>${displayDominance}</td>
-                        <td>${allele.epistasis ?? ''}</td>
-                    `;
-
-                    // Actions cell (if permitted)
-                    <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                    const actionsTd = document.createElement('td');
-                    const delForm = document.createElement('form');
-                    delForm.method = 'post';
-                    delForm.style.display = 'inline';
-                    delForm.className = 'delete-allele-form';
-                    delForm.innerHTML = `
-                        <input type="hidden" name="char_action" value="remove_allele">
-                        <input type="hidden" name="allele_id" value="${allele.id}">
-                        <button type="submit" class="btn-danger btn-small">Eliminar</button>
-                    `;
-                    actionsTd.appendChild(delForm);
-                    row.appendChild(actionsTd);
-                    <?php endif; ?>
-
-                    tbody.appendChild(row);
-                    
-                    // Attach event listener to new delete button/form
-                    const newForm = row.querySelector('.delete-allele-form');
-                    if (newForm) {
-                        newForm.addEventListener('submit', function(e) {
-                            e.preventDefault();
-                            const alleleId = this.querySelector('[name="allele_id"]').value;
-                            const row = this.closest('tr');
-
-                            confirmAction('¿Eliminar alelo? Esta acción no se puede deshacer.', 'Eliminar', 'Cancelar')
-                            .then(ok => {
-                                if (!ok) return false;
-
-                                const formData = new FormData();
-                                formData.append('char_action', 'remove_allele_ajax');
-                                formData.append('allele_id', alleleId);
-
-                                fetch('index.php?option=1', {
-                                    method: 'POST',
-                                    body: formData
-                                })
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        showNotification('Alelo eliminado', 'success');
-                                        row.remove();
-                                    
-                                        const tbody = document.querySelector('#alleles-section table tbody');
-                                        if (tbody && tbody.children.length === 0) {
-                                            const emptyRow = document.createElement('tr');
-                                            emptyRow.innerHTML = '<td colspan="7" class="text-center">No hay alelos definidos</td>';
-                                            tbody.appendChild(emptyRow);
-                                        }
-                                    } else {
-                                        showNotification(data.error || 'Error al eliminar alelo', 'error');
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('Error:', error);
-                                    showNotification('Error de conexión', 'error');
-                                });
-                            });
-                        });
-                    }
-                }
-                
-                // Reset form
-                addAlleleForm.reset();
-            } else {
-                showNotification(data.error || 'Error al añadir alelo', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Error de conexión', 'error');
-        });
-    });
-}
-
-// Handle create gene form via AJAX
-const createGeneForm = document.getElementById('create-gene-form');
-if (createGeneForm) {
-    createGeneForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Validate that at least one gene_type checkbox is selected
-        const anyTypeChecked = this.querySelectorAll('input[name="gene_type[]"]:checked').length > 0;
-        if (!anyTypeChecked) {
-            showNotification('Selecciona al menos un tipo de cromosoma (X, Y, A o B)', 'error');
-            return;
-        }
-
-        const formData = new FormData(this);
-        formData.set('char_action', 'create_gene_ajax');
-        
-        fetch('index.php?option=1', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('Gen creado', 'success');
-                
-                // Add row to genes table (create table if missing)
-                const genesView = document.getElementById('genes-view');
-                if (genesView) {
-                    genesView.style.display = 'block';
-
-                    let table = genesView.querySelector('table');
-                    let tbody = table ? table.querySelector('tbody') : null;
-                    if (!tbody) {
-                        table = document.createElement('table');
-                        table.innerHTML = `
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Nombre</th>
-                                    <th>Cromosoma</th>
-                                    <th>Posición</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        `;
-                        genesView.appendChild(table);
-                        tbody = table.querySelector('tbody');
-                    }
-
-                    // Remove placeholder row if exists
-                    const emptyRow = tbody.querySelector('td[colspan]');
-                    if (emptyRow) emptyRow.closest('tr').remove();
-
-                    const gene = data.gene;
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${gene.id}</td>
-                        <td>${gene.name}</td>
-                        <td>${gene.chromosome}</td>
-                        <td>${gene.position}</td>
-                        <td>
-                            <button type="button" id="gene-toggle-${gene.id}" onclick="toggleGene(${gene.id}, this)" class="btn-primary btn-small">Abrir</button>
-                            <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                                <button type="button" onclick="deleteGene(${gene.id}, '${gene.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button>
-                            <?php endif; ?>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                }
-
-                    // Reset and hide form
-                    createGeneForm.reset();
-                    const formContainer = document.getElementById('create-gene-form-container');
-                    if (formContainer) formContainer.style.display = 'none';
-            } else {
-                showNotification(data.error || 'Error al crear gen', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Error de conexión', 'error');
-        });
-    });
-}
-</script>
-
-<script>
 // Auto-update substrates via AJAX
 const substratesInputAjax = document.getElementById('substrates-input');
 if (substratesInputAjax) {
@@ -1267,68 +1072,73 @@ function setupStateValidation() {
     
     if (stateAInputs.length === 0 || stateBInputs.length === 0) return;
     
-    // When state_a is selected, disable the same value in state_b
-    stateAInputs.forEach(function(radioA) {
-        radioA.addEventListener('change', function() {
-            if (this.checked) {
-                const selectedValue = this.value;
-                
-                // Re-enable all state_b inputs first
-                stateBInputs.forEach(function(radioB) {
-                    const label = radioB.closest('label');
-                    radioB.disabled = false;
-                    if (label) {
-                        label.style.opacity = '1';
-                        label.style.cursor = 'pointer';
-                    }
-                });
-                
-                // Disable the matching state_b
-                stateBInputs.forEach(function(radioB) {
-                    if (radioB.value === selectedValue) {
-                        radioB.disabled = true;
-                        radioB.checked = false; // Uncheck if it was selected
-                        const label = radioB.closest('label');
-                        if (label) {
-                            label.style.opacity = '0.4';
-                            label.style.cursor = 'not-allowed';
-                        }
-                    }
-                });
+    // Helper function to apply the validation logic
+    function applyStateValidation() {
+        const selectedA = document.querySelector('input[name="state_a"]:checked');
+        const selectedB = document.querySelector('input[name="state_b"]:checked');
+        
+        // Re-enable all first
+        stateBInputs.forEach(function(radioB) {
+            const label = radioB.closest('label');
+            radioB.disabled = false;
+            if (label) {
+                label.style.opacity = '1';
+                label.style.cursor = 'pointer';
             }
         });
+        
+        stateAInputs.forEach(function(radioA) {
+            const label = radioA.closest('label');
+            radioA.disabled = false;
+            if (label) {
+                label.style.opacity = '1';
+                label.style.cursor = 'pointer';
+            }
+        });
+        
+        // If state_a is selected, disable matching state_b
+        if (selectedA) {
+            const valueA = selectedA.value;
+            stateBInputs.forEach(function(radioB) {
+                if (radioB.value === valueA) {
+                    radioB.disabled = true;
+                    radioB.checked = false;
+                    const label = radioB.closest('label');
+                    if (label) {
+                        label.style.opacity = '0.4';
+                        label.style.cursor = 'not-allowed';
+                    }
+                }
+            });
+        }
+        
+        // If state_b is selected, disable matching state_a
+        if (selectedB) {
+            const valueB = selectedB.value;
+            stateAInputs.forEach(function(radioA) {
+                if (radioA.value === valueB) {
+                    radioA.disabled = true;
+                    radioA.checked = false;
+                    const label = radioA.closest('label');
+                    if (label) {
+                        label.style.opacity = '0.4';
+                        label.style.cursor = 'not-allowed';
+                    }
+                }
+            });
+        }
+    }
+    
+    // When state_a is selected (change or click)
+    stateAInputs.forEach(function(radioA) {
+        radioA.addEventListener('change', applyStateValidation);
+        radioA.addEventListener('click', applyStateValidation);
     });
     
-    // When state_b is selected, disable the same value in state_a
+    // When state_b is selected (change or click)
     stateBInputs.forEach(function(radioB) {
-        radioB.addEventListener('change', function() {
-            if (this.checked) {
-                const selectedValue = this.value;
-                
-                // Re-enable all state_a inputs first
-                stateAInputs.forEach(function(radioA) {
-                    const label = radioA.closest('label');
-                    radioA.disabled = false;
-                    if (label) {
-                        label.style.opacity = '1';
-                        label.style.cursor = 'pointer';
-                    }
-                });
-                
-                // Disable the matching state_a
-                stateAInputs.forEach(function(radioA) {
-                    if (radioA.value === selectedValue) {
-                        radioA.disabled = true;
-                        radioA.checked = false; // Uncheck if it was selected
-                        const label = radioA.closest('label');
-                        if (label) {
-                            label.style.opacity = '0.4';
-                            label.style.cursor = 'not-allowed';
-                        }
-                    }
-                });
-            }
-        });
+        radioB.addEventListener('change', applyStateValidation);
+        radioB.addEventListener('click', applyStateValidation);
     });
 }
 

@@ -292,7 +292,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
 
                                     <div class="form-group">
                                         <label>Gen (Transición):</label>
-                                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                        <div id="transition-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                             <?php foreach ($genes as $gene) : ?>
                                                 <label>
                                                     <input type="radio" name="transition" value="<?= e($gene['id']) ?>" required> <?= e($gene['name']) ?>
@@ -320,7 +320,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                                         <p class="text-center" style="color: var(--color-text-secondary);">Genes disponibles: <?= implode(', ', array_map(function($g){ return e($g['name']); }, $genes)) ?></p>
                                     <?php endif; ?>
                                 <?php elseif (empty($genes)) : ?>
-                                    <p class="text-center" style="color: var(--color-warning);">Primero debes crear genes para este carácter.</p>
+                                    <p id="no-genes-warning" class="text-center" style="color: var(--color-warning);">Primero debes crear genes para este carácter.</p>
                                 <?php endif; ?>
                             </div>
                         <?php endif; ?>
@@ -603,7 +603,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                                         <td><?= htmlspecialchars($al['epistasis']) ?></td>
                                         <td>
                                             <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
-                                                <button onclick="deleteAllele(<?= $al['id'] ?>, () => location.reload())" class="btn-danger btn-small">Eliminar</button>
+                                                <button onclick="deleteAllele(<?= $al['id'] ?>, () => openGene(<?= (int)$activeGene['id'] ?>, true))" class="btn-danger btn-small">Eliminar</button>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -666,6 +666,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
         }
         exit;
     }
+    elseif ($charAction === 'get_genes_ajax') {
+        header('Content-Type: application/json');
+        try {
+            $charId = (int)($_POST['char_id'] ?? 0);
+            if ($charId > 0) {
+                $genes = $characterModel->getGenes($charId);
+                echo json_encode(['success' => true, 'genes' => $genes]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'ID de carácter inválido']);
+            }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
     elseif ($charAction === 'create_gene_ajax') {
         header('Content-Type: application/json');
         try {
@@ -685,15 +700,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                 // Note: addGene signature is (characterId, name, chromosome, position, code)
                 $geneId = $characterModel->addGene($charId, $name, $chr, $pos, $type);
                 
-                // Build chromosome display
+                // Fetch the created gene to get the formatted chromosome display
+                $newGene = $characterModel->getGeneById($geneId);
                 $chrDisplay = '';
-                if ($chr) {
-                    $chrDisplay = $chr;
-                    if ($type) {
-                        $chrDisplay .= ' (' . $type . ')';
+                if ($newGene['chromosome']) {
+                    $chrDisplay = $newGene['chromosome'];
+                    if ($newGene['code']) {
+                        $chrDisplay .= ' (' . $newGene['code'] . ')';
                     }
-                } elseif ($type) {
-                    $chrDisplay = $type;
+                } elseif ($newGene['code']) {
+                    $chrDisplay = $newGene['code'];
                 }
                 
                 echo json_encode([
