@@ -203,6 +203,24 @@ function closeCharacter() {
                     card.remove();
                 }
             });
+
+            // If the connections view is open, hide it and reset the toggle button and petri diagram
+            const connectionsView = document.getElementById('connections-view');
+            const toggleBtn = document.getElementById('toggle-connections-btn');
+            if (connectionsView && connectionsView.style.display !== 'none') {
+                connectionsView.style.display = 'none';
+                if (toggleBtn) toggleBtn.textContent = 'Ver Conexiones';
+
+                // Clear petri net diagram to avoid stale visual
+                const diagram = document.getElementById('petri-net-diagram');
+                if (diagram) {
+                    diagram.innerHTML = '<p class="text-center" style="color: var(--color-text-secondary);">No hay conexiones definidas para este carácter.</p>';
+                }
+
+                // Reset substrates flag if present
+                const substratesInput = document.getElementById('substrates-input');
+                if (substratesInput) substratesInput.dataset.hasConnections = '0';
+            }
             
             // Insert create form HTML
             const columnRight = document.querySelector('.column-right');
