@@ -285,4 +285,57 @@ class Character
         $sql = "DELETE FROM connections WHERE id = :id";
         return $this->db->execute($sql, ['id' => $connectionId]) > 0;
     }
+
+    /**
+     * Validate character is ready to close
+     * Returns array of validation errors (empty if valid)
+     */
+    public function validateCharacterCompletion(int $characterId): array
+    {
+        $errors = [];
+
+        // Get character name for error messages
+        $charData = $this->getById($characterId);
+        if (!$charData) {
+            return ['El carácter no existe'];
+        }
+        $charName = $charData['name'] ?? 'Unknown';
+
+        // 1. Check if character has genes
+        $genes = $this->getGenes($characterId);
+        if (empty($genes)) {
+            $errors[] = "El carácter '$charName' no tiene genes. Añade al menos un gen antes de cerrarlo.";
+            return $errors; // No point checking further if no genes
+        }
+
+        // 2. Check if all genes have at least one allele
+        foreach ($genes as $gene) {
+            $geneId = $gene['id'];
+            $geneName = $gene['name'] ?? 'Unknown';
+            
+            $alleles = $this->getAlleles($geneId);
+            if (empty($alleles)) {
+                $errors[] = "El gen '$geneName' en el carácter '$charName' no tiene alelos definidos.";
+            }
+        }
+
+        // 3. Check if all genes are involved in connections
+        $connections = $this->getConnections($characterId);
+        $genesInConnections = [];
+        foreach ($connections as $conn) {
+            $transition = (int) $conn['transition'];
+            $genesInConnections[$transition] = true;
+        }
+
+        foreach ($genes as $gene) {
+            $geneId = $gene['id'];
+            $geneName = $gene['name'] ?? 'Unknown';
+            
+            if (!isset($genesInConnections[$geneId])) {
+                $errors[] = "El gen '$geneName' en el carácter '$charName' no está implicado en ninguna conexión.";
+            }
+        }
+
+        return $errors;
+    }
 }

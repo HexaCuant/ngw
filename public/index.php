@@ -373,6 +373,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
     elseif ($charAction === 'close_character_ajax') {
         header('Content-Type: application/json');
         try {
+            // Get active character ID for validation
+            $characterId = $session->get('active_character_id');
+            
+            if (!$characterId) {
+                echo json_encode(['success' => false, 'error' => 'No hay carácter activo']);
+                exit;
+            }
+            
+            // Validate character before closing
+            $validationErrors = $characterModel->validateCharacterCompletion($characterId);
+            if (!empty($validationErrors)) {
+                ob_end_clean();
+                echo json_encode([
+                    'success' => false, 
+                    'error' => implode("\n", $validationErrors)
+                ]);
+                exit;
+            }
+            
+            // Character is valid, proceed with closing
             $session->remove('active_character_id');
             $session->remove('active_gene_id');
             $session->remove('show_connections');

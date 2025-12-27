@@ -377,7 +377,55 @@ function closeCharacter() {
                 }
             }
         } else {
-            showNotification(data.error || 'Error al cerrar carácter', 'error');
+            // Show validation errors in a more readable format
+            if (data.error && data.error.includes('\n')) {
+                // Multiple errors - show as list
+                const errors = data.error.split('\n').filter(e => e.trim());
+                let message = '<strong>No se puede cerrar el carácter:</strong><ul style="margin-top: 0.5rem; margin-bottom: 0; padding-left: 1.5rem;">';
+                errors.forEach(error => {
+                    message += '<li style="margin-bottom: 0.5rem;">' + escapeHtml(error) + '</li>';
+                });
+                message += '</ul>';
+                
+                // Create and show custom error dialog
+                const modal = document.getElementById('global-confirm-modal');
+                if (modal) {
+                    const msgEl = document.getElementById('global-confirm-message');
+                    const acceptBtn = document.getElementById('global-confirm-accept');
+                    const cancelBtn = document.getElementById('global-confirm-cancel');
+                    const backdrop = document.getElementById('global-confirm-backdrop');
+                    
+                    if (msgEl && acceptBtn && cancelBtn && backdrop) {
+                        msgEl.innerHTML = message;
+                        acceptBtn.style.display = 'none';
+                        cancelBtn.textContent = 'Entendido';
+                        
+                        modal.style.display = 'flex';
+                        
+                        function cleanup() {
+                            cancelBtn.removeEventListener('click', onClose);
+                            backdrop.removeEventListener('click', onClose);
+                            document.removeEventListener('keydown', onKey);
+                            modal.style.display = 'none';
+                            acceptBtn.style.display = 'block';
+                            cancelBtn.textContent = 'Cancelar';
+                        }
+                        
+                        function onClose() { cleanup(); }
+                        function onKey(e) { if (e.key === 'Escape') onClose(); }
+                        
+                        cancelBtn.addEventListener('click', onClose);
+                        backdrop.addEventListener('click', onClose);
+                        document.addEventListener('keydown', onKey);
+                    } else {
+                        showNotification(data.error, 'error');
+                    }
+                } else {
+                    showNotification(data.error, 'error');
+                }
+            } else {
+                showNotification(data.error || 'Error al cerrar carácter', 'error');
+            }
         }
     })
     .catch(error => {
