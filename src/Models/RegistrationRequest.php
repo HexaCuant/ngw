@@ -19,7 +19,7 @@ class RegistrationRequest
     /**
      * Create new registration request
      */
-    public function create(string $username, string $email = '', string $reason = '', string $password = '', string $role = 'student'): int
+    public function create(string $username, string $email = '', string $reason = '', string $password = '', string $role = 'student', ?int $assignedTeacherId = null): int
     {
         // Validate role
         if (!in_array($role, ['student', 'teacher'])) {
@@ -45,18 +45,30 @@ class RegistrationRequest
             throw new \RuntimeException("Ya existe una solicitud pendiente para este nombre de usuario");
         }
 
+        // Validate assigned teacher if provided
+        if ($assignedTeacherId !== null) {
+            $teacher = $this->db->fetchOne(
+                "SELECT id FROM users WHERE id = :id AND role = 'teacher'",
+                ['id' => $assignedTeacherId]
+            );
+            if (!$teacher) {
+                throw new \RuntimeException("El profesor especificado no existe o no es válido");
+            }
+        }
+
         // Hash the password
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $sql = "INSERT INTO registration_requests (username, email, password, role, reason, status) 
-                VALUES (:username, :email, :password, :role, :reason, 'pending')";
+        $sql = "INSERT INTO registration_requests (username, email, password, role, reason, status, assigned_teacher_id) 
+                VALUES (:username, :email, :password, :role, :reason, 'pending', :assigned_teacher_id)";
 
         $this->db->execute($sql, [
             'username' => $username,
             'email' => $email,
             'password' => $hashedPassword,
             'role' => $role,
-            'reason' => $reason
+            'reason' => $reason,
+            'assigned_teacher_id' => $assignedTeacherId
         ]);
 
         return (int) $this->db->lastInsertId();

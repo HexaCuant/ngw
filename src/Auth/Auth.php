@@ -159,4 +159,12 @@ class Auth
         $sql = "DELETE FROM users WHERE id = :id";
         return $this->db->execute($sql, ['id' => $userId]) > 0;
     }
-}
+
+    /**
+     * Get all teachers
+     */
+    public function getTeachers(): array
+    {
+        $sql = "SELECT id, username FROM users WHERE role = 'teacher' AND is_approved = 1 ORDER BY username ASC";
+        return $this->db->fetchAll($sql);
+    }

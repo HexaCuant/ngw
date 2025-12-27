@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $password = $_POST['password'] ?? '';
         $passwordConfirm = $_POST['password_confirm'] ?? '';
         $role = $_POST['role'] ?? 'student'; // student or teacher
+        $assignedTeacher = !empty($_POST['assigned_teacher']) ? (int)$_POST['assigned_teacher'] : null;
         
         try {
             if (empty($password)) {
@@ -50,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $requestModel = new \Ngw\Models\RegistrationRequest($db);
-            $requestModel->create($username, $email, $reason, $password, $role);
+            $requestModel->create($username, $email, $reason, $password, $role, $assignedTeacher);
             $success = "Solicitud enviada correctamente. Recibirás notificación cuando sea aprobada.";
         } catch (\Exception $e) {
             $error = $e->getMessage();
@@ -70,6 +71,9 @@ if ($session->isAuthenticated()) {
     $projectModel = new \Ngw\Models\Project($db);
     $characterModel = new \Ngw\Models\Character($db);
     $requestModel = new \Ngw\Models\RegistrationRequest($db);
+    
+    // Get teachers for registration form
+    $teachers = $auth->getTeachers();
 }
 
 /**
@@ -2234,6 +2238,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                             <option value="teacher">Profesor</option>
                         </select>
                     </div>
+
+                    <div class="form-group" id="teacher-selector" style="display: none;">
+                        <label for="assigned_teacher">Mi profesor</label>
+                        <?php if (!empty($teachers)) : ?>
+                            <select id="assigned_teacher" name="assigned_teacher">
+                                <option value="">-- Selecciona tu profesor --</option>
+                                <?php foreach ($teachers as $teacher) : ?>
+                                    <option value="<?= $teacher['id'] ?>"><?= e($teacher['username']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small style="color: var(--text-muted); font-size: 0.875rem;">Selecciona al profesor responsable de tu solicitud</small>
+                        <?php else : ?>
+                            <p style="color: var(--warning-color);">No hay profesores disponibles en este momento. Contacta con administración.</p>
+                        <?php endif; ?>
+                    </div>
                     
                     <button type="submit" name="action" value="request_account" class="btn-success" id="submit-btn">
                         Solicitar Cuenta
@@ -2241,6 +2260,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 </form>
                 
                 <script>
+                // Show teacher selector only for students
+                document.getElementById('role').addEventListener('change', function() {
+                    const selector = document.getElementById('teacher-selector');
+                    if (this.value === 'student') {
+                        selector.style.display = 'block';
+                    } else {
+                        selector.style.display = 'none';
+                    }
+                });
+                
                 const registrationForm = document.getElementById('registration-form');
                 const passwordInput = document.getElementById('new_password');
                 const confirmInput = document.getElementById('password_confirm');
