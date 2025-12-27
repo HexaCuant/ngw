@@ -591,7 +591,7 @@ function deleteGene(geneId, geneName) {
 /**
  * Update substrates via AJAX
  */
-function updateSubstrates(characterId, substrates, onSuccess) {
+function updateSubstrates(characterId, substrates, onSuccess, onError) {
     const formData = new FormData();
     formData.append('char_action', 'update_substrates_ajax');
     formData.append('char_id', characterId);
@@ -615,16 +615,20 @@ function updateSubstrates(characterId, substrates, onSuccess) {
                 showNotification('Número de sustratos actualizado', 'success');
                 if (onSuccess) onSuccess(data);
             } else {
+                // Server returned a failure (e.g., cannot change because there are connections)
                 showNotification(data.error || 'Error al actualizar sustratos', 'error');
+                if (onError) onError(data);
             }
         } catch (e) {
             console.error('JSON parse error:', e, 'Response:', text);
             showNotification('Error: respuesta inválida del servidor', 'error');
+            if (onError) onError({ error: 'Error: respuesta inválida del servidor' });
         }
     })
     .catch(error => {
         console.error('Fetch error:', error);
         showNotification('Error de conexión', 'error');
+        if (onError) onError({ error: 'Error de conexión' });
     });
 }
 
