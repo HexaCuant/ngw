@@ -1675,8 +1675,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 exit;
             }
 
-            $generationNumber = (int)($_GET['generation_number'] ?? $_GET['generationNumber'] ?? 0);
-            $decimal = $_GET['decimal'] ?? 'dot';
+            // Accept parameters from POST first, fallback to GET
+            $generationNumber = (int)($_POST['generation_number'] ?? $_POST['generationNumber'] ?? $_GET['generation_number'] ?? $_GET['generationNumber'] ?? 0);
+            $decimal = $_POST['decimal'] ?? $_GET['decimal'] ?? 'dot';
 
             if ($generationNumber <= 0) {
                 http_response_code(400);
