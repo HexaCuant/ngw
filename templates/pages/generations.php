@@ -34,12 +34,12 @@ if ($activeProjectId) {
             <div class="left-panel">
                 <div class="card">
                     <h3>Crear Generación Aleatoria</h3>
-                    <form id="formNewRandomGeneration" onsubmit="return false;">
+                    <form id="formNewRandomGeneration">
                         <div class="form-group">
                             <label for="population_size">Tamaño de la población:</label>
-                            <input type="number" id="population_size" name="population_size" min="1" required>
+                            <input type="number" id="population_size" name="population_size" min="1" value="100">
                         </div>
-                        <button type="submit" onclick="createRandomGeneration()">Crear Generación</button>
+                        <button type="button" onclick="createRandomGeneration()">Crear Generación</button>
                     </form>
                 </div>
 
@@ -535,7 +535,18 @@ if (crossTargetInput) {
 // Note: source-change auto-update removed — parent source select changes do not auto-refresh the table
 
 function createRandomGeneration() {
+    console.log('createRandomGeneration called');
     const form = document.getElementById('formNewRandomGeneration');
+    if (!form) {
+        console.error('Form not found');
+        showToast('Error: formulario no encontrado', 'error');
+        return;
+    }
+    const populationInput = form.querySelector('[name="population_size"]');
+    if (!populationInput || !populationInput.value || parseInt(populationInput.value) <= 0) {
+        showToast('Por favor ingresa un tamaño de población válido', 'error');
+        return;
+    }
     const formData = new FormData(form);
     formData.append('project_action', 'create_random_generation');
     

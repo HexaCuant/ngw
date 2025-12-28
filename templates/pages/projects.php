@@ -57,6 +57,9 @@ if ($activeProjectId) {
                                             onclick="updateEnvironment(<?= e($char['character_id']) ?>)" 
                                             class="btn-primary btn-small">Actualizar</button>
                                     <button type="button" 
+                                            onclick="openAlleleFrequencies(<?= e($char['character_id']) ?>, '<?= e(addslashes($char['name'])) ?>')" 
+                                            class="btn-secondary btn-small">Frecuencias</button>
+                                    <button type="button" 
                                             onclick="removeCharacterFromProject(<?= e($char['character_id']) ?>, '<?= e(addslashes($char['name'])) ?>')" 
                                             class="btn-danger btn-small">Borrar</button>
                                 </td>

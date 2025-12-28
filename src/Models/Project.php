@@ -340,6 +340,19 @@ class Project
 
         // Type of generation
         if ($type == 'random') {
+            // Add allele frequencies if configured
+            $frequencies = $this->getAllAlleleFrequenciesForProject($projectId);
+            if (!empty($frequencies)) {
+                fwrite($fh, "*frequencies\n");
+                // Format: allele_id:frequency:allele_id:frequency:...
+                $freqParts = [];
+                foreach ($frequencies as $alleleId => $freq) {
+                    $freqParts[] = $alleleId . ":" . $freq;
+                }
+                fwrite($fh, implode(":", $freqParts) . ":\n");
+                fwrite($fh, "\$\n");
+            }
+            
             fwrite($fh, "*create\n");
         } elseif ($type == 'cross') {
             // For cross, read parent generations and parentals from DB
@@ -366,5 +379,78 @@ class Project
         fclose($fh);
 
         return $pocPath;
+    }
+
+    /**
+     * Get allele frequencies for a project and character
+     * Returns array with allele_id => frequency
+     */
+    public function getAlleleFrequencies(int $projectId, int $characterId): array
+    {
+        // Get all allele IDs for this character's genes via character_genes and gene_alleles
+        $sql = "SELECT a.id as allele_id, paf.frequency 
+                FROM alleles a
+                JOIN gene_alleles ga ON a.id = ga.allele_id
+                JOIN character_genes cg ON ga.gene_id = cg.gene_id
+                LEFT JOIN project_allele_frequencies paf ON paf.allele_id = a.id AND paf.project_id = :project_id
+                WHERE cg.character_id = :character_id";
+        
+        $results = $this->db->fetchAll($sql, [
+            'project_id' => $projectId,
+            'character_id' => $characterId
+        ]);
+        
+        $frequencies = [];
+        foreach ($results as $row) {
+            $frequencies[$row['allele_id']] = $row['frequency'];
+        }
+        
+        return $frequencies;
+    }
+
+    /**
+     * Save allele frequencies for a project
+     * @param int $projectId
+     * @param array $frequencies Array of ['allele_id' => int, 'frequency' => float]
+     */
+    public function saveAlleleFrequencies(int $projectId, array $frequencies): void
+    {
+        // Delete existing frequencies for this project
+        $deleteIds = array_column($frequencies, 'allele_id');
+        if (!empty($deleteIds)) {
+            // Delete only the alleles we're updating
+            $placeholders = implode(',', array_fill(0, count($deleteIds), '?'));
+            $sql = "DELETE FROM project_allele_frequencies WHERE project_id = ? AND allele_id IN ($placeholders)";
+            $params = array_merge([$projectId], $deleteIds);
+            $this->db->execute($sql, $params);
+        }
+        
+        // Insert new frequencies
+        foreach ($frequencies as $freq) {
+            $sql = "INSERT INTO project_allele_frequencies (project_id, allele_id, frequency) 
+                    VALUES (:project_id, :allele_id, :frequency)";
+            $this->db->execute($sql, [
+                'project_id' => $projectId,
+                'allele_id' => (int) $freq['allele_id'],
+                'frequency' => (float) $freq['frequency']
+            ]);
+        }
+    }
+
+    /**
+     * Get all allele frequencies for a project (for POC file generation)
+     * Returns array with allele_id => frequency for all configured frequencies
+     */
+    public function getAllAlleleFrequenciesForProject(int $projectId): array
+    {
+        $sql = "SELECT allele_id, frequency FROM project_allele_frequencies WHERE project_id = :project_id";
+        $results = $this->db->fetchAll($sql, ['project_id' => $projectId]);
+        
+        $frequencies = [];
+        foreach ($results as $row) {
+            $frequencies[(int)$row['allele_id']] = (float)$row['frequency'];
+        }
+        
+        return $frequencies;
     }
 }

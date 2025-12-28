@@ -878,6 +878,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                                                 onclick="updateEnvironment(<?= htmlspecialchars($char['character_id']) ?>)" 
                                                 class="btn-primary btn-small">Actualizar</button>
                                         <button type="button" 
+                                                onclick="openAlleleFrequencies(<?= htmlspecialchars($char['character_id']) ?>, '<?= htmlspecialchars(addslashes($char['name'])) ?>')" 
+                                                class="btn-secondary btn-small">Frecuencias</button>
+                                        <button type="button" 
                                                 onclick="removeCharacterFromProject(<?= htmlspecialchars($char['character_id']) ?>, '<?= htmlspecialchars(addslashes($char['name'])) ?>')" 
                                                 class="btn-danger btn-small">Borrar</button>
                                     </td>
@@ -1031,6 +1034,118 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             } else {
                 echo json_encode(['success' => false, 'error' => 'ID de carácter inválido']);
             }
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'get_allele_frequencies') {
+        header('Content-Type: application/json');
+        try {
+            $characterId = (int)($_POST['character_id'] ?? 0);
+            $projectId = $session->get('active_project_id');
+            
+            if (!$projectId) {
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+            
+            if ($characterId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'ID de carácter inválido']);
+                exit;
+            }
+            
+            // Get genes and alleles for this character
+            $characterModel = new \Ngw\Models\Character($db);
+            $genes = $characterModel->getGenes($characterId);
+            
+            // Get current frequencies for this project
+            $frequencies = $projectModel->getAlleleFrequencies($projectId, $characterId);
+            
+            // Build response with genes and alleles
+            $genesData = [];
+            foreach ($genes as $gene) {
+                $alleles = $characterModel->getAlleles($gene['id']);
+                $allelesData = [];
+                
+                foreach ($alleles as $allele) {
+                    $freq = $frequencies[$allele['id']] ?? null;
+                    $allelesData[] = [
+                        'id' => $allele['id'],
+                        'name' => $allele['name'],
+                        'value' => $allele['value'],
+                        'dominance' => $allele['dominance'],
+                        'frequency' => $freq
+                    ];
+                }
+                
+                $genesData[] = [
+                    'id' => $gene['id'],
+                    'name' => $gene['name'],
+                    'chromosome' => $gene['chromosome'],
+                    'position' => $gene['position'],
+                    'alleles' => $allelesData
+                ];
+            }
+            
+            echo json_encode(['success' => true, 'genes' => $genesData]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'save_allele_frequencies') {
+        header('Content-Type: application/json');
+        try {
+            $characterId = (int)($_POST['character_id'] ?? 0);
+            $projectId = $session->get('active_project_id');
+            
+            if (!$projectId) {
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+            
+            if ($characterId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'ID de carácter inválido']);
+                exit;
+            }
+            
+            $frequenciesJson = $_POST['frequencies'] ?? '[]';
+            $frequencies = json_decode($frequenciesJson, true);
+            
+            if (!is_array($frequencies)) {
+                echo json_encode(['success' => false, 'error' => 'Datos de frecuencias inválidos']);
+                exit;
+            }
+            
+            // Validate frequencies by gene
+            $characterModel = new \Ngw\Models\Character($db);
+            $genes = $characterModel->getGenes($characterId);
+            
+            foreach ($genes as $gene) {
+                $alleles = $characterModel->getAlleles($gene['id']);
+                $alleleIds = array_column($alleles, 'id');
+                $sum = 0;
+                
+                foreach ($frequencies as $freq) {
+                    if (in_array($freq['allele_id'], $alleleIds)) {
+                        $sum += $freq['frequency'];
+                    }
+                }
+                
+                if (abs($sum - 1.0) > 0.01) {
+                    echo json_encode([
+                        'success' => false, 
+                        'error' => "La suma de frecuencias del gen '{$gene['name']}' es {$sum}, debe ser 1"
+                    ]);
+                    exit;
+                }
+            }
+            
+            // Save frequencies
+            $projectModel->saveAlleleFrequencies($projectId, $frequencies);
+            
+            echo json_encode(['success' => true]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }

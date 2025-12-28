@@ -149,6 +149,20 @@ CREATE TABLE IF NOT EXISTS parentals (
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
+-- Allele frequencies table (project-specific)
+-- Stores allele frequencies for random generation in a specific project
+CREATE TABLE IF NOT EXISTS project_allele_frequencies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    allele_id INTEGER NOT NULL,
+    frequency REAL NOT NULL DEFAULT 0.5,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, allele_id),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (allele_id) REFERENCES alleles(id) ON DELETE CASCADE
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_approved ON users(is_approved);
@@ -161,6 +175,7 @@ CREATE INDEX IF NOT EXISTS idx_project_characters_character ON project_character
 CREATE INDEX IF NOT EXISTS idx_character_genes_character ON character_genes(character_id);
 CREATE INDEX IF NOT EXISTS idx_generations_project ON generations(project_id);
 CREATE INDEX IF NOT EXISTS idx_parentals_project_gen ON parentals(project_id, generation_number);
+CREATE INDEX IF NOT EXISTS idx_project_allele_freq ON project_allele_frequencies(project_id, allele_id);
 
 -- Create default admin user (password: admin123 - CHANGE THIS!)
 -- Password hash for 'admin123'
