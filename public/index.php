@@ -289,7 +289,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                 exit;
             }
             
-            // Close the character without validation - user should be able to close anytime
+            // Validate character completion before closing
+            $validationErrors = $characterModel->validateCharacterCompletion($characterId);
+            
+            if (!empty($validationErrors)) {
+                // Return validation errors
+                echo json_encode(['success' => false, 'error' => implode("\n", $validationErrors)]);
+                exit;
+            }
+            
+            // Close the character (validation passed)
             $session->remove('active_character_id');
             $session->remove('active_gene_id');
             $session->remove('show_connections');
@@ -299,6 +308,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             $formHtml = generateCreateCharacterFormHtml($session);
             
             echo json_encode(['success' => true, 'html' => $formHtml]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($charAction === 'force_close_character_ajax') {
+        header('Content-Type: application/json');
+        try {
+            // Get active character ID
+            $characterId = $session->get('active_character_id');
+            
+            if (!$characterId) {
+                echo json_encode(['success' => false, 'error' => 'No hay carácter activo']);
+                exit;
+            }
+            
+            // Force close the character without validation
+            $session->remove('active_character_id');
+            $session->remove('active_gene_id');
+            $session->remove('show_connections');
+            $session->remove('show_genes');
+            
+            // Generate create form HTML using helper
+            $formHtml = generateCreateCharacterFormHtml($session);
+            
+            echo json_encode(['success' => true, 'html' => $formHtml, 'characterId' => $characterId]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
@@ -985,6 +1020,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             }
             
             if ($characterId > 0) {
+                // Check if character is complete before adding to project
+                if (!$characterModel->isComplete($characterId)) {
+                    echo json_encode(['success' => false, 'error' => 'No se puede añadir un carácter incompleto al proyecto. Completa el carácter primero.']);
+                    exit;
+                }
+                
                 $projectModel->addCharacter($projectId, $characterId);
                 echo json_encode(['success' => true]);
             } else {

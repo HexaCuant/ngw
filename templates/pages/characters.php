@@ -78,9 +78,19 @@ if ($activeCharacterId) {
                         </tr>
                     <?php else : ?>
                         <?php foreach ($characters as $char) : ?>
-                            <tr <?= $activeCharacterId === (int)$char['id'] ? 'style="background-color: var(--color-surface-light);"' : '' ?>>
+                            <?php 
+                                $isComplete = $characterModel->isComplete((int)$char['id']);
+                                $rowClass = !$isComplete ? 'character-incomplete' : '';
+                                $rowStyle = $activeCharacterId === (int)$char['id'] ? 'background-color: var(--color-surface-light);' : '';
+                            ?>
+                            <tr data-character-id="<?= e($char['id']) ?>" class="<?= $rowClass ?>" <?= $rowStyle ? "style=\"$rowStyle\"" : '' ?>>
                                 <td><?= e($char['id']) ?></td>
-                                <td><?= e($char['name']) ?></td>
+                                <td>
+                                    <?= e($char['name']) ?>
+                                    <?php if (!$isComplete) : ?>
+                                        <span class="incomplete-badge" title="Carácter incompleto - no puede usarse en proyectos">⚠️</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= $char['is_public'] == 1 ? 'Sí' : 'No' ?></td>
                                 <td>
                                     <button type="button" onclick="openCharacter(<?= e($char['id']) ?>)" class="btn-primary btn-small">Abrir</button>
@@ -91,7 +101,11 @@ if ($activeCharacterId) {
                                 </td>
                                 <?php if ($activeProject) : ?>
                                     <td>
-                                        <button type="button" onclick="addCharacterToProject(<?= e($char['id']) ?>, '<?= e(addslashes($char['name'])) ?>')" class="btn-success btn-small">Añadir</button>
+                                        <?php if ($isComplete) : ?>
+                                            <button type="button" onclick="addCharacterToProject(<?= e($char['id']) ?>, '<?= e(addslashes($char['name'])) ?>')" class="btn-success btn-small">Añadir</button>
+                                        <?php else : ?>
+                                            <span class="text-muted" title="Completa el carácter para poder añadirlo">No disponible</span>
+                                        <?php endif; ?>
                                     </td>
                                 <?php endif; ?>
                             </tr>

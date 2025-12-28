@@ -86,7 +86,18 @@ function toggleConnectionsView() {
         
         // Draw Petri net if connections are visible
         if (!isVisible) {
-            setTimeout(drawPetriNet, 100);
+            // Use longer timeout to ensure DOM is fully ready after AJAX load
+            setTimeout(function() {
+                if (typeof drawPetriNet === 'function') {
+                    drawPetriNet();
+                }
+                // Also reload substrate selectors to ensure they're visible
+                const substratesInput = document.getElementById('substrates-input');
+                if (substratesInput) {
+                    const numSubstrates = parseInt(substratesInput.value) || 0;
+                    reloadSubstrateSelectors(numSubstrates);
+                }
+            }, 150);
         }
     }
 }
@@ -698,8 +709,6 @@ function initializeCharacterUI() {
             .then(data => {
                 if (data.success) {
                     showNotification('Carácter abierto', 'success');
-                    console.log('Character HTML received, length:', data.html ? data.html.length : 0);
-                    console.log('HTML contains connections-view:', data.html ? data.html.includes('connections-view') : false);
             
                     // Remove create form if exists
                     const createFormCard = document.querySelector('.column-right .card h3');
@@ -741,9 +750,18 @@ function initializeCharacterUI() {
                         reloadTransitionSelectors();
                         
                         // Initialize character UI handlers (for AJAX-inserted HTML)
-                        if (typeof initializeCharacterUI === 'function') {
-                            initializeCharacterUI();
-                        }
+                        // Use setTimeout to ensure DOM is fully ready
+                        setTimeout(function() {
+                            if (typeof initializeCharacterUI === 'function') {
+                                initializeCharacterUI();
+                            }
+                            // Also reload substrate selectors
+                            const substratesInput = document.getElementById('substrates-input');
+                            if (substratesInput) {
+                                const numSubstrates = parseInt(substratesInput.value) || 0;
+                                reloadSubstrateSelectors(numSubstrates);
+                            }
+                        }, 50);
                     }
                 } else {
                     showNotification(data.error || 'Error al abrir carácter', 'error');
@@ -863,10 +881,10 @@ function closeCharacter() {
                     message = '<strong>No se puede cerrar el carácter:</strong><p style="margin-top: 0.5rem; margin-bottom: 0;">' + escapeHtml(data.error) + '</p>';
                 }
                 
-                // Add suggestion to delete instead
-                message += '<p style="margin-top: 1rem; margin-bottom: 0; font-size: 0.9rem; color: #888; font-style: italic;"><small>💡 Si no necesitas este carácter, puedes borrarlo directamente sin necesidad de cerrarlo.</small></p>';
+                // Add warning about incomplete characters
+                message += '<p style="margin-top: 1rem; margin-bottom: 0; font-size: 0.9rem; color: #888; font-style: italic;"><small>⚠️ Los caracteres incompletos no podrán ser utilizados en proyectos.</small></p>';
                 
-                // Create and show custom error dialog
+                // Create and show custom dialog with two options
                 const modal = document.getElementById('global-confirm-modal');
                 if (modal) {
                     const msgEl = document.getElementById('global-confirm-message');
@@ -876,25 +894,35 @@ function closeCharacter() {
                     
                     if (msgEl && acceptBtn && cancelBtn && backdrop) {
                         msgEl.innerHTML = message;
-                        acceptBtn.style.display = 'none';
-                        cancelBtn.textContent = 'Entendido';
+                        acceptBtn.textContent = 'Cerrar de todas formas';
+                        acceptBtn.className = 'btn-warning';
+                        cancelBtn.textContent = 'Seguir editando';
                         
                         modal.style.display = 'flex';
                         
                         function cleanup() {
-                            cancelBtn.removeEventListener('click', onClose);
-                            backdrop.removeEventListener('click', onClose);
+                            acceptBtn.removeEventListener('click', onForceClose);
+                            cancelBtn.removeEventListener('click', onCancel);
+                            backdrop.removeEventListener('click', onCancel);
                             document.removeEventListener('keydown', onKey);
                             modal.style.display = 'none';
-                            acceptBtn.style.display = 'block';
+                            acceptBtn.className = 'btn-primary';
+                            acceptBtn.textContent = 'Aceptar';
                             cancelBtn.textContent = 'Cancelar';
                         }
                         
-                        function onClose() { cleanup(); }
-                        function onKey(e) { if (e.key === 'Escape') onClose(); }
+                        function onForceClose() {
+                            cleanup();
+                            // Force close the character
+                            forceCloseCharacter();
+                        }
                         
-                        cancelBtn.addEventListener('click', onClose);
-                        backdrop.addEventListener('click', onClose);
+                        function onCancel() { cleanup(); }
+                        function onKey(e) { if (e.key === 'Escape') onCancel(); }
+                        
+                        acceptBtn.addEventListener('click', onForceClose);
+                        cancelBtn.addEventListener('click', onCancel);
+                        backdrop.addEventListener('click', onCancel);
                         document.addEventListener('keydown', onKey);
                     } else {
                         showNotification(data.error, 'error');
@@ -910,6 +938,64 @@ function closeCharacter() {
     .catch(error => {
         console.error('Fetch error in closeCharacter:', error);
         showNotification('Error de conexión: ' + error.message, 'error');
+    });
+}
+
+/**
+ * Force close character without validation (character will be marked as incomplete)
+ */
+function forceCloseCharacter() {
+    const formData = new FormData();
+    formData.append('char_action', 'force_close_character_ajax');
+    
+    fetch('index.php?option=1', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Carácter cerrado (marcado como incompleto)', 'warning');
+            
+            // Remove character details card
+            const allCards = document.querySelectorAll('.column-right .card');
+            allCards.forEach(card => {
+                const h3 = card.querySelector('h3');
+                if (h3 && h3.textContent.includes('Detalles del Carácter:')) {
+                    card.remove();
+                }
+            });
+
+            // Also remove connections view if open
+            const connectionsView = document.getElementById('connections-view');
+            if (connectionsView) {
+                connectionsView.remove();
+            }
+            
+            // Insert create form HTML
+            const columnRight = document.querySelector('.column-right');
+            if (columnRight && data.html) {
+                columnRight.insertAdjacentHTML('afterbegin', data.html);
+            }
+            
+            // Update character list to show incomplete status
+            if (data.characterId) {
+                const charRow = document.querySelector(`tr[data-character-id="${data.characterId}"]`);
+                if (charRow) {
+                    charRow.classList.add('character-incomplete');
+                    const nameCell = charRow.querySelector('td:nth-child(2)');
+                    if (nameCell && !nameCell.querySelector('.incomplete-badge')) {
+                        nameCell.innerHTML += ' <span class="incomplete-badge" title="Carácter incompleto">⚠️</span>';
+                    }
+                }
+            }
+        } else {
+            showNotification(data.error || 'Error al cerrar carácter', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error de conexión', 'error');
     });
 }
 
@@ -1496,33 +1582,24 @@ function reloadTransitionSelectors() {
                 });
                 container.innerHTML = html;
 
-            // Update the "no genes" warning if necessary
-            let warning = document.getElementById('no-genes-warning');
-            if (!warning) {
-                // Try to find it by text if ID is missing (for backward compatibility)
-                const pTags = document.querySelectorAll('#add-connection-form ~ p');
-                pTags.forEach(p => {
-                    if (p.textContent.includes('crear genes')) {
-                        p.id = 'no-genes-warning';
-                        warning = p;
-                    }
-                });
-            }
+            // Update connections content visibility and warnings
+            const connectionsContent = document.getElementById('connections-content');
+            const connectionFormContainer = document.getElementById('connection-form-container');
+            const warning = document.getElementById('no-genes-warning');
+            const warningForm = document.getElementById('no-genes-warning-form');
 
             if (data.genes.length > 0) {
+                // Show the connections content and form, hide warnings
+                if (connectionsContent) connectionsContent.style.display = '';
+                if (connectionFormContainer) connectionFormContainer.style.display = '';
                 if (warning) warning.style.display = 'none';
+                if (warningForm) warningForm.style.display = 'none';
             } else {
-                if (warning) {
-                    warning.style.display = 'block';
-                } else {
-                    // Create it if it doesn't exist
-                    const newWarning = document.createElement('p');
-                    newWarning.id = 'no-genes-warning';
-                    newWarning.className = 'text-center';
-                    newWarning.style.color = 'var(--color-warning)';
-                    newWarning.textContent = 'Primero debes crear genes para este carácter.';
-                    document.getElementById('add-connection-form').after(newWarning);
-                }
+                // Hide the connections content and form, show warnings
+                if (connectionsContent) connectionsContent.style.display = 'none';
+                if (connectionFormContainer) connectionFormContainer.style.display = 'none';
+                if (warning) warning.style.display = '';
+                if (warningForm) warningForm.style.display = '';
             }
             
             // Redraw Petri net after updating transition selectors

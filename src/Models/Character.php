@@ -351,4 +351,12 @@ class Character
 
         return $errors;
     }
+
+    /**
+     * Check if a character is complete (has genes, all genes have alleles, all genes are in connections)
+     */
+    public function isComplete(int $characterId): bool
+    {
+        return empty($this->validateCharacterCompletion($characterId));
+    }
 }
