@@ -1,6 +1,33 @@
 # Changelog
 
-## [Unreleased] - 2025-12-09
+## [1.1.0] - 2025-12-28
+
+### Added - Frecuencias Alélicas y Limpieza
+
+#### Frecuencias Alélicas
+- ✅ Nueva tabla `project_allele_frequencies` para frecuencias por proyecto
+- ✅ Interfaz de configuración de frecuencias en la página de proyectos
+- ✅ Integración con gengine para generaciones con distribución no uniforme
+- ✅ Validación de frecuencias (suma = 1.0 por gen)
+
+#### Documentación
+- ✅ Nueva documentación técnica completa (`docs/ESTRUCTURA.md`)
+- ✅ README.md actualizado y simplificado
+- ✅ Instrucciones de instalación de gengine
+
+#### Limpieza del Proyecto
+- ✅ Eliminados archivos de test y debug
+- ✅ Eliminados directorios vacíos
+- ✅ Agregado `index.php` en raíz para redirección limpia
+- ✅ Acceso simplificado: `/ngw/` redirige a `/ngw/public/`
+
+### Changed
+- 🔄 Actualizado dump de base de datos (`data/ngw.sql`)
+- 🔄 Reorganizada documentación bajo `docs/`
+
+---
+
+## [1.0.0] - 2025-12-09
 
 ### Added - Sprint B: Independencia Total y Sistema de Aprobación
 

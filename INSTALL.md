@@ -1,277 +1,141 @@
-# GenWeb NG - Installation & Setup
+# GenWeb NG - Guía de Instalación
+
+Guía rápida para instalar GenWeb NG. Para documentación completa, ver [docs/ESTRUCTURA.md](docs/ESTRUCTURA.md).
 
 ## Requisitos
 
-- PHP >= 8.0 with SQLite support (php-sqlite3)
+- PHP >= 8.0 con extensión SQLite (`php-sqlite3`)
 - Servidor web (Apache/Nginx)
-- (Opcional) Composer - o usa el autoloader incluido
+- **gengine** - Motor de simulación genética
 
-## Instalación
+## Instalación Rápida
 
-### 1. Clonar el repositorio
+### 1. Clonar e instalar NGW
 
 ```bash
 git clone https://github.com/HexaCuant/ngw.git
 cd ngw
+./setup.sh
 ```
 
-### 2. Instalar dependencias (Opcional)
+El script automáticamente:
+- Copia la configuración de ejemplo
+- Inicializa la base de datos SQLite
+- Crea el usuario admin por defecto
 
-Si tienes Composer instalado:
+### 2. Instalar gengine
 
 ```bash
-composer install
+git clone https://github.com/HexaCuant/gengine.git
+cd gengine
+./compila
+sudo cp gengine /usr/local/bin/ngengine
+sudo cp ngen2web /usr/local/bin/
+sudo chmod +x /usr/local/bin/ngen2web
 ```
 
-Si no tienes Composer, ya hay un autoloader simple incluido en `vendor/autoload.php` que funciona perfectamente.
-
-### 3. Configurar la aplicación
-
-Copia el archivo de configuración ejemplo:
+### 3. Crear directorio de proyectos
 
 ```bash
-cp config/config.ini.example config/config.ini
+sudo mkdir -p /var/www/proyectosGengine
+sudo chown http:http /var/www/proyectosGengine
 ```
 
-Edita `config/config.ini` si necesitas cambiar rutas o configuración:
+### 4. Configurar (opcional)
+
+Edita `config/config.ini`:
 
 ```ini
 [database]
-DB_DRIVER=sqlite  ; Usa SQLite por defecto (también soporta pgsql)
-DB_PATH=data/ngw.db
+DB_PATH=/srv/http/ngw/data/ngw.db
 
-[app]
-SESSION_LIFETIME=86400
+[paths]
 PROJECTS_PATH=/var/www/proyectosGengine
+GENGINE_SCRIPT=/usr/local/bin/ngen2web
 ```
 
-### 4. Inicializar base de datos SQLite
+### 5. Configurar servidor web
 
-Ejecuta el script de inicialización:
-
-```bash
-php database/init.php
-```
-
-Esto creará:
-- El directorio `data/`
-- La base de datos SQLite `data/ngw.db`
-- Todas las tablas necesarias
-- Un usuario administrador por defecto
-
-**Credenciales del admin por defecto:**
-- Usuario: `admin`
-- Contraseña: `admin123`
-
-⚠️ **IMPORTANTE:** Cambia la contraseña del admin inmediatamente después del primer login.
-
-### 5. Configurar permisos
-
-```bash
-# Permisos para el directorio de datos
-chmod 755 data
-chmod 664 data/ngw.db
-
-# Directorio de proyectos (si usas la funcionalidad de proyectos)
-mkdir -p /var/www/proyectosGengine
-chown -R www-data:www-data /var/www/proyectosGengine
-chmod 755 /var/www/proyectosGengine
-```
-
-### 6. Configurar servidor web
-
-#### Apache
-
-Crea un VirtualHost apuntando a `public/`:
+#### Apache (Alias)
 
 ```apache
-<VirtualHost *:80>
-    ServerName ngw.local
-    DocumentRoot /srv/http/ngw/public
-    
-    <Directory /srv/http/ngw/public>
-        AllowOverride All
-        Require all granted
-        
-        # Rewrite rules para URLs limpias
-        RewriteEngine On
-        RewriteCond %{REQUEST_FILENAME} !-f
-        RewriteCond %{REQUEST_FILENAME} !-d
-        RewriteRule ^(.*)$ index.php [QSA,L]
-    </Directory>
-    
-    # Proteger archivos sensibles
-    <FilesMatch "\.ini$">
-        Require all denied
-    </FilesMatch>
-</VirtualHost>
+Alias /ngw /srv/http/ngw
+
+<Directory /srv/http/ngw>
+    Options -Indexes +FollowSymLinks
+    AllowOverride None
+    Require all granted
+</Directory>
 ```
 
 #### Nginx
 
 ```nginx
-server {
-    listen 80;
-    server_name ngw.local;
-    root /srv/http/ngw/public;
+location /ngw {
+    alias /srv/http/ngw;
     index index.php;
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.0-fpm.sock;
-        fastcgi_index index.php;
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-    }
     
-    # Proteger archivos sensibles
-    location ~ /\.ini$ {
-        deny all;
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php-fpm/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $request_filename;
+        include fastcgi_params;
     }
 }
 ```
 
-### 7. Sistema de registro con aprobación de administrador
+## Credenciales por defecto
 
-NGW implementa un sistema de registro donde nuevos usuarios deben ser aprobados por un administrador:
+- **Usuario:** `admin`
+- **Contraseña:** `admin123`
 
-1. **Usuarios nuevos** hacen clic en "Solicitar nueva cuenta" en la página de login
-2. Llenan el formulario de registro (usuario, email, contraseña)
-3. La solicitud queda **pendiente de aprobación**
-4. El **administrador** accede al panel de administración y:
-   - Ve todas las solicitudes pendientes
-   - Puede **aprobar** o **rechazar** cada solicitud
-5. Una vez aprobada, el usuario puede iniciar sesión normalmente
+⚠️ **Cambia la contraseña inmediatamente después del primer login.**
 
-Para acceder al panel de administración:
-- Inicia sesión como admin
-- Verás un badge "Admin" en la navegación
-- Haz clic en "Panel Admin" para gestionar solicitudes
-
-## Uso
-
-Accede a `http://ngw.local` (o tu dominio configurado).
-
-### Primer uso:
-
-1. Inicia sesión con las credenciales del admin por defecto
-2. **Cambia la contraseña del admin inmediatamente**
-3. Los nuevos usuarios pueden solicitar cuentas que tú aprobarás
-
-### Usuarios nuevos:
-
-1. Haz clic en "Solicitar nueva cuenta"
-2. Llena el formulario de registro
-3. Espera a que el administrador apruebe tu cuenta
-4. Recibirás acceso una vez aprobado (implementación de notificaciones pendiente)
-
-## Mejoras implementadas
-
-✅ **Seguridad (Sprint A + B):**
-- Password hashing con `password_hash()`/`password_verify()`
-- Prepared statements (PDO) para prevenir SQL Injection
-- Escape de output con `htmlspecialchars()`
-- Sesiones seguras con regeneración en login
-- Sistema de aprobación de usuarios por administrador
-
-✅ **Arquitectura (Sprint A + B):**
-- PSR-4 autoloading
-- Separación MVC (Models, Controllers, Templates)
-- Database wrapper con PDO (soporta SQLite y PostgreSQL)
-- SessionManager con API limpia
-- Models: Project, Character, RegistrationRequest
-
-✅ **Base de datos (Sprint B):**
-- SQLite para máxima portabilidad (sin servidor de BD)
-- Esquema normalizado con foreign keys
-- Soporte para PostgreSQL como fallback
-- Índices optimizados
-
-✅ **UI/UX (Sprint A):**
-- CSS moderno y responsive
-- Diseño mobile-first
-- Accesibilidad mejorada
-- Contraste de colores adecuado (WCAG AA)
-- Panel de administración intuitivo
-
-## Migración desde el sistema antiguo (gw)
-
-Si tienes datos en el sistema antiguo con PostgreSQL, puedes migrarlos:
-
-1. Exporta tus datos desde PostgreSQL
-2. Adapta el formato al esquema SQLite (ver `database/schema.sql`)
-3. Importa a SQLite usando el cliente `sqlite3`
-
-Nota: Las contraseñas del sistema antiguo (texto plano) deberán ser regeneradas. Contacta al administrador para que apruebe tu nueva cuenta.
-
-## Testing
+## Permisos
 
 ```bash
-composer test  # Si usas Composer
-# O implementa tests manualmente
+chown -R http:http data/
+chmod 755 data/
+chmod 664 data/ngw.db
 ```
 
-## Estructura del proyecto
+## Verificar instalación
 
-```
-ngw/
-├── config/              # Configuración
-│   └── config.ini.example
-├── data/                # Base de datos SQLite (creado al inicializar)
-│   └── ngw.db
-├── database/            # Scripts de BD
-│   ├── schema.sql
-│   └── init.php
-├── public/              # Document root
-│   ├── css/
-│   │   └── style.css
-│   └── index.php
-├── src/                 # Código fuente
-│   ├── Auth/
-│   │   ├── Auth.php
-│   │   └── SessionManager.php
-│   ├── Database/
-│   │   └── Database.php
-│   ├── Models/
-│   │   ├── Character.php
-│   │   ├── Project.php
-│   │   └── RegistrationRequest.php
-│   └── bootstrap.php
-├── templates/           # Plantillas
-│   └── pages/
-│       ├── admin.php
-│       ├── characters.php
-│       ├── projects.php
-│       └── generations.php
-├── vendor/              # Autoloader
-│   └── autoload.php
-├── composer.json
-├── CHANGELOG.md
-└── README.md
+1. Accede a `https://tu-servidor/ngw/`
+2. Inicia sesión como admin
+3. Crea un proyecto de prueba
+4. Añade un carácter y crea una generación
+
+## Solución de problemas
+
+### Error: Base de datos no encontrada
+
+```bash
+php database/init.php
 ```
 
-## Ventajas de usar SQLite
+### Error: gengine no encontrado
 
-- ✅ **Sin servidor de BD:** No necesitas instalar PostgreSQL/MySQL
-- ✅ **Portabilidad:** Todo en un solo archivo `ngw.db`
-- ✅ **Backups fáciles:** Copia el archivo `.db`
-- ✅ **Ideal para desarrollo:** Setup instantáneo
-- ✅ **Suficiente para la mayoría de casos:** Hasta 1TB de datos
+Verifica que `ngen2web` esté instalado:
+```bash
+which ngen2web
+# Debe mostrar: /usr/local/bin/ngen2web
+```
 
-## Próximos pasos
+### Error: Permisos en directorio de proyectos
 
-- [ ] Sistema de notificaciones (email al aprobar registro)
-- [ ] Recuperación de contraseña
-- [ ] Implementar funcionalidad completa de Generaciones
-- [ ] Tests unitarios (PHPUnit)
-- [ ] CI/CD (GitHub Actions)
-- [ ] Docker/docker-compose
-- [ ] API REST opcional
+```bash
+sudo chown -R http:http /var/www/proyectosGengine
+sudo chmod 755 /var/www/proyectosGengine
+```
+
+## Documentación adicional
+
+- [docs/ESTRUCTURA.md](docs/ESTRUCTURA.md) - Estructura completa del proyecto
+- [docs/CONEXIONES.md](docs/CONEXIONES.md) - Sistema de conexiones epistáticas
+- [CHANGELOG.md](CHANGELOG.md) - Historial de cambios
 
 ## Soporte
 
-Para problemas o sugerencias, abre un issue en: https://github.com/HexaCuant/ngw/issues
+- Issues: https://github.com/HexaCuant/ngw/issues
+- gengine: https://github.com/HexaCuant/gengine
 
