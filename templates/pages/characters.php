@@ -452,35 +452,7 @@ function addConnectionToTable(connection) {
     }
 }
 
-// toggleGenesView and toggleConnectionsView are defined in ajax-handlers.js
-
-function toggleGene(geneId, btnElement) {
-    // If the button element is provided, use it; otherwise fall back to lookup by id
-    const btn = btnElement || document.getElementById('gene-toggle-' + geneId);
-    const allelesSection = document.getElementById('alleles-section');
-    console.debug('toggleGene called for', geneId, 'btnElement?', !!btnElement, 'existing allelesSection?', !!allelesSection);
-    
-    // Check if this gene is currently open
-    if (allelesSection) {
-        closeGene();
-        // Also update button state
-        if (btn) {
-            btn.textContent = 'Abrir';
-            btn.className = 'btn-primary btn-small';
-            console.debug('toggleGene: set to Abrir for gene', geneId);
-        }
-    } else {
-        openGene(geneId);
-        // Update button state optimistically
-        if (btn) {
-            btn.textContent = 'Cerrar';
-            btn.className = 'btn-secondary btn-small';
-            console.debug('toggleGene: optimistically set to Cerrar for gene', geneId);
-        }
-    }
-}
-
-// toggleConnectionsView, drawEmptyDiagram and drawPetriNet are defined in ajax-handlers.js
+// toggleGenesView, toggleGene, toggleConnectionsView, drawEmptyDiagram and drawPetriNet are defined in ajax-handlers.js
 
 // Disable same state selection (prevent state_a == state_b)
 // Use document-level event delegation (survives any DOM replacement)

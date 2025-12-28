@@ -91,6 +91,9 @@ $canViewDetails = $canEdit || (int)$activeCharacter['is_visible'] === 1;
                 </thead>
                 <tbody>
                     <?php foreach ($genes as $gene) : ?>
+                        <?php 
+                            $isGeneOpen = isset($activeGene) && (int)$activeGene['id'] === (int)$gene['id'];
+                        ?>
                         <tr>
                             <td><?= e($gene['id']) ?></td>
                             <td><?= e($gene['name']) ?></td>
@@ -108,7 +111,7 @@ $canViewDetails = $canEdit || (int)$activeCharacter['is_visible'] === 1;
                             ?></td>
                             <td><?= e($gene['position']) ?></td>
                             <td>
-                                <button type="button" onclick="openGene(<?= e($gene['id']) ?>)" class="btn-primary btn-small">Abrir</button>
+                                <button type="button" id="gene-toggle-<?= e($gene['id']) ?>" onclick="toggleGene(<?= e($gene['id']) ?>, this)" class="<?= $isGeneOpen ? 'btn-secondary' : 'btn-primary' ?> btn-small"><?= $isGeneOpen ? 'Cerrar' : 'Abrir' ?></button>
                                 <?php if ($canEdit) : ?>
                                     <button type="button" onclick="deleteGene(<?= e($gene['id']) ?>, '<?= e(addslashes($gene['name'])) ?>')" class="btn-danger btn-small">Borrar</button>
                                 <?php endif; ?>
@@ -157,7 +160,7 @@ $canViewDetails = $canEdit || (int)$activeCharacter['is_visible'] === 1;
     <!-- Vista de alelos de un gen abierto -->
     <?php if ($activeGene) : ?>
         <div style="margin-top: 1.5rem;">
-            <h4>Gen abierto: <?= e($activeGene['name']) ?></h4>
+            <h4>Alelos del gen: <?= e($activeGene['name']) ?></h4>
 
             <div style="margin: .5rem 0 1rem 0;">
                 <button type="button" onclick="closeGene()" class="btn-secondary btn-small">Cerrar Gen</button>

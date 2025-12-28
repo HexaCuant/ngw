@@ -307,7 +307,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
             // Generate create form HTML using helper
             $formHtml = generateCreateCharacterFormHtml($session);
             
-            echo json_encode(['success' => true, 'html' => $formHtml]);
+            // Return characterId so frontend can update the table row
+            echo json_encode(['success' => true, 'html' => $formHtml, 'characterId' => $characterId]);
         } catch (\Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
@@ -531,7 +532,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                 ob_start();
                 ?>
                 <div id="alleles-section" data-gene-id="<?= (int)$activeGene['id'] ?>" style="margin-top: 1.5rem;">
-                    <h4>Gen abierto: <?= htmlspecialchars($activeGene['name']) ?></h4>
+                    <h4>Alelos del gen: <?= htmlspecialchars($activeGene['name']) ?></h4>
                     <table style="width: 100%; margin-top: 1rem;">
                         <thead>
                             <tr>

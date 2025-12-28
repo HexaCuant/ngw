@@ -70,6 +70,44 @@ function toggleGenesView() {
 }
 
 /**
+ * Toggle gene open/close state
+ */
+function toggleGene(geneId, btnElement) {
+    // If the button element is provided, use it; otherwise fall back to lookup by id
+    const btn = btnElement || document.getElementById('gene-toggle-' + geneId);
+    const allelesSection = document.getElementById('alleles-section');
+    
+    // Check if this gene is currently open (alleles section exists AND belongs to this gene)
+    const openGeneId = allelesSection ? parseInt(allelesSection.getAttribute('data-gene-id') || '0', 10) : 0;
+    const isThisGeneOpen = openGeneId === Number(geneId);
+    
+    if (isThisGeneOpen) {
+        // Close this gene
+        closeGene();
+        if (btn) {
+            btn.textContent = 'Abrir';
+            btn.className = 'btn-primary btn-small';
+        }
+    } else {
+        // Close any other open gene first, then open this one
+        if (allelesSection) {
+            // Reset previous gene's button
+            const prevBtn = document.getElementById('gene-toggle-' + openGeneId);
+            if (prevBtn) {
+                prevBtn.textContent = 'Abrir';
+                prevBtn.className = 'btn-primary btn-small';
+            }
+        }
+        openGene(geneId);
+        // Update button state optimistically
+        if (btn) {
+            btn.textContent = 'Cerrar';
+            btn.className = 'btn-secondary btn-small';
+        }
+    }
+}
+
+/**
  * Toggle connections view visibility
  */
 function toggleConnectionsView() {
@@ -801,6 +839,26 @@ function closeCharacter() {
     .then(data => {
         if (data.success) {
             showNotification('Carácter cerrado', 'success');
+            
+            // Update character row to remove incomplete badge (character is now complete)
+            if (data.characterId) {
+                const charRow = document.querySelector(`tr[data-character-id="${data.characterId}"]`);
+                if (charRow) {
+                    charRow.classList.remove('character-incomplete');
+                    const badge = charRow.querySelector('.incomplete-badge');
+                    if (badge) badge.remove();
+                    
+                    // Also enable the "Añadir" button if it was disabled
+                    const addCell = charRow.querySelector('td:last-child');
+                    if (addCell) {
+                        const disabledSpan = addCell.querySelector('.text-muted');
+                        if (disabledSpan) {
+                            const charName = charRow.querySelector('td:nth-child(2)').textContent.trim();
+                            disabledSpan.outerHTML = `<button type="button" onclick="addCharacterToProject(${data.characterId}, '${charName.replace(/'/g, "\\'")}')" class="btn-success btn-small">Añadir</button>`;
+                        }
+                    }
+                }
+            }
             
             // Remove character details card
             const allCards = document.querySelectorAll('.column-right .card');
