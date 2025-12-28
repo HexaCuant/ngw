@@ -10,7 +10,7 @@ $session = $app['session'];
 $auth = $app['auth'];
 
 // Get request parameters
-$option = (int) ($_GET['option'] ?? 3); // Default to generations panel
+$option = (int) ($_GET['option'] ?? 1); // Default to characters panel
 $action = $_POST['action'] ?? '';
 
 // Handle login/logout/registration
@@ -64,6 +64,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'logout') {
         $session->logout();
         redirect('index.php');
+    } elseif ($action === 'reset_password' && $session->isAuthenticated()) {
+        // Reset password for a user (admin/teacher)
+        header('Content-Type: application/json');
+        try {
+            $targetUserId = (int) ($_POST['user_id'] ?? 0);
+            $newPassword = trim($_POST['new_password'] ?? '');
+            
+            if ($targetUserId <= 0 || empty($newPassword)) {
+                throw new \RuntimeException("Datos incompletos");
+            }
+            
+            $auth->resetPassword($targetUserId, $newPassword, $session->getUserId());
+            echo json_encode(['success' => true, 'message' => 'Contraseña reseteada correctamente']);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    } elseif ($action === 'change_password' && $session->isAuthenticated()) {
+        // Change own password
+        header('Content-Type: application/json');
+        try {
+            $currentPassword = $_POST['current_password'] ?? '';
+            $newPassword = trim($_POST['new_password'] ?? '');
+            $confirmPassword = trim($_POST['confirm_password'] ?? '');
+            $forcedChange = $session->mustChangePassword();
+            
+            if (empty($newPassword)) {
+                throw new \RuntimeException("La nueva contraseña no puede estar vacía");
+            }
+            
+            if ($newPassword !== $confirmPassword) {
+                throw new \RuntimeException("Las contraseñas no coinciden");
+            }
+            
+            $auth->changePassword($session->getUserId(), $currentPassword, $newPassword, $forcedChange);
+            $session->clearMustChangePassword();
+            
+            echo json_encode(['success' => true, 'message' => 'Contraseña cambiada correctamente']);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
     }
 }
 
@@ -202,8 +244,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                 $public = isset($_POST['public']) ? (int)$_POST['public'] : 0;
                 
                 $characterModel->update($charId, [
-                    'is_visible' => $visible,
-                    'is_public' => $public
+                    'visible' => $visible,
+                    'public' => $public
                 ]);
                 
                 echo json_encode(['success' => true]);
@@ -2266,6 +2308,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
         });
     }
     </script>
+    
+    <?php if ($session->isAuthenticated() && $session->mustChangePassword()): ?>
+    <!-- Modal de cambio de contraseña obligatorio -->
+    <div id="force-password-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+        <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 400px; width: 90%;">
+            <h3 style="margin-top: 0; color: var(--color-danger);">Cambio de Contraseña Requerido</h3>
+            <p>Tu contraseña ha sido reseteada. Debes establecer una nueva contraseña para continuar.</p>
+            <form id="force-change-password-form">
+                <div class="form-group">
+                    <label for="new_password">Nueva contraseña</label>
+                    <input type="password" id="new_password" name="new_password" required minlength="4">
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirmar contraseña</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required minlength="4">
+                </div>
+                <div id="password-error" style="color: var(--color-danger); margin-bottom: 1rem; display: none;"></div>
+                <button type="submit" class="btn-success" style="width: 100%;">Guardar Nueva Contraseña</button>
+            </form>
+        </div>
+    </div>
+    <script>
+    document.getElementById('force-change-password-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const newPass = document.getElementById('new_password').value;
+        const confirmPass = document.getElementById('confirm_password').value;
+        const errorDiv = document.getElementById('password-error');
+        
+        if (newPass !== confirmPass) {
+            errorDiv.textContent = 'Las contraseñas no coinciden';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        if (newPass.length < 4) {
+            errorDiv.textContent = 'La contraseña debe tener al menos 4 caracteres';
+            errorDiv.style.display = 'block';
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('action', 'change_password');
+        formData.append('current_password', '');
+        formData.append('new_password', newPass);
+        formData.append('confirm_password', confirmPass);
+        
+        fetch('index.php', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('force-password-modal').style.display = 'none';
+                    if (typeof showNotification === 'function') {
+                        showNotification('Contraseña cambiada correctamente', 'success');
+                    }
+                } else {
+                    errorDiv.textContent = data.error || 'Error al cambiar la contraseña';
+                    errorDiv.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                errorDiv.textContent = 'Error de conexión';
+                errorDiv.style.display = 'block';
+            });
+    });
+    </script>
+    <?php endif; ?>
+    
     <script>
     // Smooth page transitions
     document.addEventListener('DOMContentLoaded', function() {

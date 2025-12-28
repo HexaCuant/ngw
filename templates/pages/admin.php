@@ -161,7 +161,18 @@ $allUsers = $auth->getAllUsers();
 <div class="card">
     <h2>Gestión de Usuarios</h2>
     
-    <?php if ($isAdmin) : ?>
+    <?php 
+    // Get users based on role
+    if ($isAdmin) {
+        $managedUsers = $auth->getAllUsers();
+    } else if ($isTeacher) {
+        $managedUsers = $auth->getStudentsByTeacher($session->getUserId());
+    } else {
+        $managedUsers = [];
+    }
+    ?>
+    
+    <?php if (!empty($managedUsers)) : ?>
     <table>
         <thead>
             <tr>
@@ -169,21 +180,19 @@ $allUsers = $auth->getAllUsers();
                 <th>Usuario</th>
                 <th>Email</th>
                 <th>Tipo</th>
-                <th>Admin</th>
-                <th>Estado</th>
-                <th>Fecha creación</th>
+                <?php if ($isAdmin) : ?><th>Admin</th><?php endif; ?>
                 <th>Acciones</th>
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($allUsers as $user) : ?>
+            <?php foreach ($managedUsers as $user) : ?>
                 <tr>
                     <td><?= e($user['id']) ?></td>
                     <td><strong><?= e($user['username']) ?></strong></td>
                     <td><?= e($user['email'] ?: '-') ?></td>
                     <td>
                         <?php
-                            $userIsAdmin = (int)$user['is_admin'] === 1;
+                            $userIsAdmin = (int)($user['is_admin'] ?? 0) === 1;
                             $userRole = $user['role'] ?? 'student';
                             if ($userIsAdmin) {
                                 $roleLabel = 'Admin';
@@ -195,17 +204,30 @@ $allUsers = $auth->getAllUsers();
                         ?>
                         <span style="<?= $roleColor ?>"><?= e($roleLabel) ?></span>
                     </td>
-                    <td><?= $userIsAdmin ? '✓ Admin' : '-' ?></td>
+                    <?php if ($isAdmin) : ?>
+                        <td><?= $userIsAdmin ? '✓ Admin' : '-' ?></td>
+                    <?php endif; ?>
                     <td>
-                        <?php if ((int)$user['is_approved'] === 1) : ?>
-                            <span style="color: var(--success-color);">✓ Aprobado</span>
-                        <?php else : ?>
-                            <span style="color: var(--warning-color);">⏳ Pendiente</span>
+                        <?php 
+                        // Can reset password if:
+                        // - Admin can reset anyone except other admins (and not self)
+                        // - Teacher can reset their students only
+                        $canReset = false;
+                        if ($isAdmin && !$userIsAdmin) {
+                            $canReset = true;
+                        } else if ($isTeacher && $userRole === 'student') {
+                            $canReset = true;
+                        }
+                        ?>
+                        
+                        <?php if ($canReset) : ?>
+                            <button type="button" class="btn-primary btn-small" 
+                                    onclick="openResetPasswordModal(<?= e($user['id']) ?>, '<?= e(addslashes($user['username'])) ?>')">
+                                Resetear Contraseña
+                            </button>
                         <?php endif; ?>
-                    </td>
-                    <td><?= e($user['created_at']) ?></td>
-                    <td>
-                        <?php if ((int)$user['is_admin'] === 0 && (int)$user['id'] !== $session->getUserId()) : ?>
+                        
+                        <?php if ($isAdmin && !$userIsAdmin && (int)$user['id'] !== $session->getUserId()) : ?>
                             <form method="post" style="display: inline; background: none; padding: 0; margin: 0; box-shadow: none;"
                                   class="delete-user-form" data-username="<?= e($user['username']) ?>">
                                 <input type="hidden" name="admin_action" value="delete_user">
@@ -213,7 +235,9 @@ $allUsers = $auth->getAllUsers();
                                 <input type="hidden" name="confirm" value="1">
                                 <button type="submit" class="btn-danger btn-small">Eliminar</button>
                             </form>
-                        <?php else : ?>
+                        <?php endif; ?>
+                        
+                        <?php if (!$canReset && (!$isAdmin || $userIsAdmin || (int)$user['id'] === $session->getUserId())) : ?>
                             <span style="color: var(--text-muted);">-</span>
                         <?php endif; ?>
                     </td>
@@ -223,10 +247,14 @@ $allUsers = $auth->getAllUsers();
     </table>
     
     <p style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
-        <strong>Nota:</strong> No puedes eliminar administradores ni tu propia cuenta.
+        <?php if ($isAdmin) : ?>
+            <strong>Nota:</strong> No puedes eliminar administradores ni tu propia cuenta. Puedes resetear contraseñas de usuarios no admin.
+        <?php else : ?>
+            <strong>Nota:</strong> Puedes resetear contraseñas de tus alumnos. El alumno deberá cambiar la contraseña la primera vez que entre.
+        <?php endif; ?>
     </p>
     <?php else : ?>
-        <p style="color: var(--text-muted);">La gestión de usuarios solo está disponible para administradores.</p>
+        <p class="text-center">No hay usuarios para gestionar.</p>
     <?php endif; ?>
 </div>
 
@@ -295,7 +323,80 @@ $allUsers = $auth->getAllUsers();
     <?php endif; ?>
 </div>
 
+<!-- Modal para resetear contraseña -->
+<div id="reset-password-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 400px; width: 90%;">
+        <h3 style="margin-top: 0;">Resetear Contraseña</h3>
+        <p>Usuario: <strong id="reset-username"></strong></p>
+        <form id="reset-password-form">
+            <input type="hidden" id="reset-user-id" name="user_id">
+            <div class="form-group">
+                <label for="reset-new-password">Nueva contraseña temporal</label>
+                <input type="text" id="reset-new-password" name="new_password" required minlength="4" placeholder="Escribe la nueva contraseña">
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                El usuario deberá cambiar esta contraseña la primera vez que entre.
+            </p>
+            <div id="reset-error" style="color: var(--color-danger); margin-bottom: 1rem; display: none;"></div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button type="submit" class="btn-success">Resetear Contraseña</button>
+                <button type="button" class="btn-secondary" onclick="closeResetPasswordModal()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+function openResetPasswordModal(userId, username) {
+    document.getElementById('reset-user-id').value = userId;
+    document.getElementById('reset-username').textContent = username;
+    document.getElementById('reset-new-password').value = '';
+    document.getElementById('reset-error').style.display = 'none';
+    document.getElementById('reset-password-modal').style.display = 'flex';
+}
+
+function closeResetPasswordModal() {
+    document.getElementById('reset-password-modal').style.display = 'none';
+}
+
+document.getElementById('reset-password-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const userId = document.getElementById('reset-user-id').value;
+    const newPassword = document.getElementById('reset-new-password').value;
+    const errorDiv = document.getElementById('reset-error');
+    
+    if (newPassword.length < 4) {
+        errorDiv.textContent = 'La contraseña debe tener al menos 4 caracteres';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('action', 'reset_password');
+    formData.append('user_id', userId);
+    formData.append('new_password', newPassword);
+    
+    fetch('index.php', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeResetPasswordModal();
+                if (typeof showNotification === 'function') {
+                    showNotification(data.message || 'Contraseña reseteada correctamente', 'success');
+                } else {
+                    alert(data.message || 'Contraseña reseteada correctamente');
+                }
+            } else {
+                errorDiv.textContent = data.error || 'Error al resetear la contraseña';
+                errorDiv.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            errorDiv.textContent = 'Error de conexión';
+            errorDiv.style.display = 'block';
+        });
+});
+
 // Handle delete user confirmation
 document.querySelectorAll('.delete-user-form').forEach(function(form) {
     form.addEventListener('submit', function(e) {
@@ -322,5 +423,19 @@ document.querySelectorAll('.admin-approve-form, .admin-reject-form').forEach(fun
             form.submit();
         });
     });
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeResetPasswordModal();
+    }
+});
+
+// Close modal on backdrop click
+document.getElementById('reset-password-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeResetPasswordModal();
+    }
 });
 </script>

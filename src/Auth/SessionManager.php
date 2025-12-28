@@ -126,6 +126,23 @@ class SessionManager
         $this->set('is_admin', $userData['is_admin'] ?? 0);
         $this->set('role', $userData['role'] ?? 'student'); // student, teacher, admin
         $this->set('assigned_teacher_id', $userData['assigned_teacher_id'] ?? null);
+        $this->set('must_change_password', $userData['must_change_password'] ?? 0);
+    }
+
+    /**
+     * Check if user must change password
+     */
+    public function mustChangePassword(): bool
+    {
+        return $this->isAuthenticated() && (int) $this->get('must_change_password') === 1;
+    }
+
+    /**
+     * Clear the must_change_password flag in session
+     */
+    public function clearMustChangePassword(): void
+    {
+        $this->set('must_change_password', 0);
     }
 
     /**

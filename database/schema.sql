@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_admin INTEGER DEFAULT 0,
     role TEXT DEFAULT 'student', -- admin, teacher, student
     assigned_teacher_id INTEGER, -- teacher responsible for this student
+    must_change_password INTEGER DEFAULT 0, -- force password change on next login
     is_approved INTEGER DEFAULT 0,
     requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     approved_at DATETIME,
