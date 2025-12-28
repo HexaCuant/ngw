@@ -37,8 +37,8 @@ sudo chmod +x /usr/local/bin/ngen2web
 ### 3. Crear directorio de proyectos
 
 ```bash
-sudo mkdir -p /var/www/proyectosGengine
-sudo chown http:http /var/www/proyectosGengine
+sudo mkdir -p /var/www/proyectosNGengine
+sudo chown http:http /var/www/proyectosNGengine
 ```
 
 ### 4. Configurar (opcional)
@@ -50,7 +50,7 @@ Edita `config/config.ini`:
 DB_PATH=/srv/http/ngw/data/ngw.db
 
 [paths]
-PROJECTS_PATH=/var/www/proyectosGengine
+PROJECTS_PATH=/var/www/proyectosNGengine
 GENGINE_SCRIPT=/usr/local/bin/ngen2web
 ```
 
@@ -124,8 +124,8 @@ which ngen2web
 ### Error: Permisos en directorio de proyectos
 
 ```bash
-sudo chown -R http:http /var/www/proyectosGengine
-sudo chmod 755 /var/www/proyectosGengine
+sudo chown -R http:http /var/www/proyectosNGengine
+sudo chmod 755 /var/www/proyectosNGengine
 ```
 
 ## Documentación adicional

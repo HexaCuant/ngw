@@ -179,52 +179,66 @@ function attachCreateProjectFormListener() {
  * Delete project via AJAX
  */
 function deleteProject(projectId, projectName) {
-    confirmAction('¿Estás seguro de eliminar el proyecto "' + projectName + '"?\n\nEsta acción no se puede deshacer y eliminará todos los caracteres asociados al proyecto.', 'Eliminar', 'Cancelar')
-    .then(ok => {
+    confirmAction(
+        '¿Estás seguro de eliminar el proyecto "' + projectName + '"?\n\nEsta acción no se puede deshacer y eliminará todos los caracteres asociados al proyecto.',
+        'Eliminar',
+        'Cancelar'
+    ).then(ok => {
         if (!ok) return;
-    
-    const formData = new FormData();
-    formData.append('project_action', 'delete_project_ajax');
-    formData.append('project_id', projectId);
-    
-        fetch('index.php?option=2', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('Proyecto eliminado', 'success');
-                
-                // Remove row from table
-                const rows = document.querySelectorAll('table tbody tr');
-                rows.forEach(row => {
-                    const cells = row.cells;
-                    if (cells && cells[0] && cells[0].textContent == projectId) {
-                        row.remove();
+        
+        // Ask if user wants to delete the directory too
+        confirmAction(
+            '¿Deseas eliminar también el directorio del proyecto del servidor?\n\nEsto borrará permanentemente todos los archivos generados (individuos, cruzamientos, etc.).',
+            'Sí, borrar archivos',
+            'No, conservar archivos'
+        ).then(deleteDir => {
+            const formData = new FormData();
+            formData.append('project_action', 'delete_project_ajax');
+            formData.append('project_id', projectId);
+            formData.append('delete_directory', deleteDir ? 'true' : 'false');
+            
+            fetch('index.php?option=2', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const msg = deleteDir 
+                        ? 'Proyecto y archivos eliminados' 
+                        : 'Proyecto eliminado (archivos conservados)';
+                    showNotification(msg, 'success');
+                    
+                    // Remove row from table
+                    const rows = document.querySelectorAll('table tbody tr');
+                    rows.forEach(row => {
+                        const cells = row.cells;
+                        if (cells && cells[0] && cells[0].textContent == projectId) {
+                            row.remove();
+                        }
+                    });
+                    
+                    // Check if table is empty
+                    const tbody = document.querySelector('table tbody');
+                    if (tbody && tbody.children.length === 0) {
+                        const emptyRow = document.createElement('tr');
+                        emptyRow.innerHTML = '<td colspan="3" class="text-center">No tienes proyectos creados</td>';
+                        tbody.appendChild(emptyRow);
                     }
-                });
-                
-                // Check if table is empty
-                const tbody = document.querySelector('table tbody');
-                if (tbody && tbody.children.length === 0) {
-                    const emptyRow = document.createElement('tr');
-                    emptyRow.innerHTML = '<td colspan="3" class="text-center">No tienes proyectos creados</td>';
-                    tbody.appendChild(emptyRow);
+                    
+                    // Close project details if this was the active project
+                    const detailsDiv = document.getElementById('active-project-details');
+                    if (detailsDiv) {
+                        detailsDiv.remove();
+                    }
+                } else {
+                    showNotification(data.error || 'Error al eliminar proyecto', 'error');
                 }
-                
-                // Close project details if this was the active project
-                const detailsDiv = document.getElementById('active-project-details');
-                if (detailsDiv) {
-                    detailsDiv.remove();
-                }
-            } else {
-                showNotification(data.error || 'Error al eliminar proyecto', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Error de conexión', 'error');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error de conexión', 'error');
+            });
         });
     });
 }

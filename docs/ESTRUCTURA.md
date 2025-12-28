@@ -112,7 +112,7 @@ APP_DEBUG=false
 APP_NAME=GenWeb NG
 
 [paths]
-PROJECTS_PATH=/var/www/proyectosGengine
+PROJECTS_PATH=/var/www/proyectosNGengine
 GENGINE_SCRIPT=/usr/local/bin/ngen2web
 
 [admin]
@@ -287,7 +287,7 @@ sudo chmod +x /usr/local/bin/ngen2web
 
 ```bash
 #!/bin/bash
-export HOME=/var/www/proyectosGengine/
+export HOME=/var/www/proyectosNGengine/
 nice ngengine $1 > /dev/null 2>&1
 ```
 
@@ -299,7 +299,7 @@ El script:
 ### Directorio de proyectos
 
 ```
-/var/www/proyectosGengine/
+/var/www/proyectosNGengine/
 ├── 1/                      # Proyecto ID 1
 │   └── .1/                 # Directorio oculto de datos
 │       ├── 1.poc1          # Configuración generación 1
@@ -343,8 +343,8 @@ $
 
 ```bash
 # El usuario del servidor web necesita permisos
-sudo chown -R http:http /var/www/proyectosGengine
-sudo chmod -R 755 /var/www/proyectosGengine
+sudo chown -R http:http /var/www/proyectosNGengine
+sudo chmod -R 755 /var/www/proyectosNGengine
 ```
 
 ---
@@ -404,9 +404,9 @@ sudo chmod +x /usr/local/bin/ngen2web
 ### 7. Crear directorio de proyectos
 
 ```bash
-sudo mkdir -p /var/www/proyectosGengine
-sudo chown http:http /var/www/proyectosGengine
-sudo chmod 755 /var/www/proyectosGengine
+sudo mkdir -p /var/www/proyectosNGengine
+sudo chown http:http /var/www/proyectosNGengine
+sudo chmod 755 /var/www/proyectosNGengine
 ```
 
 ### 8. Configurar servidor web

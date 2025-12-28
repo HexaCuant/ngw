@@ -55,11 +55,61 @@ class Project
 
     /**
      * Delete project
+     * @param int $id Project ID
+     * @param bool $deleteDirectory Whether to also delete the project directory
+     * @return bool True if project was deleted
      */
-    public function delete(int $id): bool
+    public function delete(int $id, bool $deleteDirectory = false): bool
     {
+        // Delete from database first
         $sql = "DELETE FROM projects WHERE id = :id";
-        return $this->db->execute($sql, ['id' => $id]) > 0;
+        $deleted = $this->db->execute($sql, ['id' => $id]) > 0;
+        
+        // If requested and DB delete succeeded, also delete directory
+        if ($deleted && $deleteDirectory) {
+            $this->deleteProjectDirectory($id);
+        }
+        
+        return $deleted;
+    }
+    
+    /**
+     * Delete project directory from filesystem
+     */
+    private function deleteProjectDirectory(int $projectId): bool
+    {
+        $config = parse_ini_file(__DIR__ . '/../../config/config.ini');
+        $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
+        $projectPath = rtrim($basePath, '/') . '/' . $projectId;
+        
+        if (!is_dir($projectPath)) {
+            return true; // Directory doesn't exist, nothing to delete
+        }
+        
+        // Recursively delete directory
+        return $this->recursiveDelete($projectPath);
+    }
+    
+    /**
+     * Recursively delete a directory and its contents
+     */
+    private function recursiveDelete(string $path): bool
+    {
+        if (!is_dir($path)) {
+            return unlink($path);
+        }
+        
+        $items = array_diff(scandir($path), ['.', '..']);
+        foreach ($items as $item) {
+            $itemPath = $path . '/' . $item;
+            if (is_dir($itemPath)) {
+                $this->recursiveDelete($itemPath);
+            } else {
+                unlink($itemPath);
+            }
+        }
+        
+        return rmdir($path);
     }
 
     /**
@@ -78,7 +128,7 @@ class Project
     private function validateProjectsBasePath(): void
     {
         $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
-        $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+        $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
 
         if (!is_dir($basePath)) {
             throw new \RuntimeException("Base projects path does not exist: " . $basePath);
@@ -95,7 +145,7 @@ class Project
     private function createProjectDirectory(int $projectId): void
     {
         $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
-        $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+        $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
         $projectPath = rtrim($basePath, '/') . '/' . $projectId;
 
         $realBase = realpath($basePath);
@@ -220,7 +270,7 @@ class Project
         }
 
         $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
-        $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+        $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
         $projectPath = rtrim($basePath, '/') . '/' . $projectId;
         $pocPath = $projectPath . '/' . $projectId . '.poc';
 

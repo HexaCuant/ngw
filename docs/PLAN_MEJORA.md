@@ -67,7 +67,7 @@ Plan de mejora detallado (por prioridades)
   - Considerar usar Bootstrap (o similar) para acelerar el diseño moderno y responsive.
 
 5) Archivos & Permisos (Prioridad: Media, Tiempo estimado: 1–2 días)
-  - Validación de rutas y permiso de creación de carpetas bajo `/var/www/proyectosGengine/`.
+  - Validación de rutas y permiso de creación de carpetas bajo `/var/www/proyectosNGengine/`.
   - Evitar que un usuario cree directorios arbitrarios fuera del path configurado.
   - Asegurar permisos de ficheros y propiedad.
 

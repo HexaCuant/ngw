@@ -113,7 +113,7 @@ class Generation
     {
         $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
         $gengineScript = $config['GENGINE_SCRIPT'] ?? '/srv/http/gw/bin/gen2web';
-        $projectsPath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+        $projectsPath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
 
         // Execute gengine with proper HOME environment and redirect all output to /dev/null
         $command = 'HOME=' . escapeshellarg($projectsPath) . ' ' . escapeshellcmd($gengineScript) . ' ' . escapeshellarg($projectId) . ' > /dev/null 2>&1';
@@ -133,7 +133,7 @@ class Generation
     public function parseGenerationOutput(int $projectId, int $generationNumber): array
     {
         $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
-        $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+        $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
         $outputFile = rtrim($basePath, '/') . '/' . $projectId . '/' . $projectId . '.dat' . $generationNumber;
 
         if (!file_exists($outputFile)) {

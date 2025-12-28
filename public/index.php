@@ -703,7 +703,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['project_action']) && $_
 
         // Determine projects folder and candidate filenames
         $cfg = parse_ini_file(__DIR__ . '/../config/config.ini');
-        $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+        $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
         $projectFolder = rtrim($projectsPath, '/') . '/' . $projectId;
 
         // Filenames observed in project output
@@ -818,9 +818,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
         header('Content-Type: application/json');
         try {
             $projectId = (int)($_POST['project_id'] ?? 0);
+            $deleteDirectory = ($_POST['delete_directory'] ?? 'false') === 'true';
             
             if ($projectId > 0 && $projectModel->isOwner($projectId, $userId)) {
-                $projectModel->delete($projectId);
+                $projectModel->delete($projectId, $deleteDirectory);
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'No tienes permiso']);
@@ -1364,7 +1365,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
 
             // Check for pre-generated CSV files and provide download URLs when present
             $cfg = parse_ini_file(__DIR__ . '/../config/config.ini');
-            $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+            $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
             $projectFolder = rtrim($projectsPath, '/') . '/' . $projectId;
             $csvDotPath = $projectFolder . '/' . $projectId . '_' . $generationNumber . '_datos.csv';
             $csvCommaPath = $projectFolder . '/' . $projectId . '_' . $generationNumber . '_datos_coma.csv';
@@ -1609,7 +1610,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
 
             // Check for pre-generated CSV files and provide download URLs when present
             $cfg = parse_ini_file(__DIR__ . '/../config/config.ini');
-            $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+            $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
             $projectFolder = rtrim($projectsPath, '/') . '/' . $projectId;
             $csvDotPath = $projectFolder . '/' . $projectId . '_' . $generation['generation_number'] . '_datos.csv';
             $csvCommaPath = $projectFolder . '/' . $projectId . '_' . $generation['generation_number'] . '_datos_coma.csv';
@@ -1679,7 +1680,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
 
             // Determine projects folder and candidate filenames
             $cfg = parse_ini_file(__DIR__ . '/../config/config.ini');
-            $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosGengine';
+            $projectsPath = $cfg['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
             $projectFolder = rtrim($projectsPath, '/') . '/' . $projectId;
 
             // Filenames observed in project output
