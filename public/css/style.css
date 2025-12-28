@@ -1,30 +1,30 @@
 :root {
-    /* Paleta de colores estilo GTK/Qt oscuro */
-    --color-primary: #3b82f6;
-    --color-primary-dark: #1f5fb8;
+    /* Paleta de colores - tema oscuro con tinte azulado */
+    --color-primary: #5c9eff;          /* Azul menos saturado, más suave */
+    --color-primary-dark: #3d7dd4;
     --color-secondary: #10b981;
-    --color-danger: #ef4444;
-    --color-warning: #f59e0b;
-    --color-success: #22c55e;
+    --color-danger: #f87171;            /* Rojo ligeramente suavizado */
+    --color-warning: #fbbf24;
+    --color-success: #34d399;
     
-    /* Fondo tipo escritorio */
-    --color-bg: #2a2a2a;
-    --color-bg-secondary: #323232;
-    --color-bg-dark: #1e1e1e;
-    --color-surface: #3c3c3c;
-    --color-surface-light: #464646;
-    --color-surface-dark: #2d2d2d;
+    /* Fondos con tinte azulado (estilo VS Code/Discord) */
+    --color-bg: #1e2228;                /* Fondo principal */
+    --color-bg-secondary: #252a31;
+    --color-bg-dark: #181b20;
+    --color-surface: #2d333b;           /* Cards y superficies */
+    --color-surface-light: #373e47;
+    --color-surface-dark: #22272e;
     
     /* Texto */
-    --color-text: #e5e5e5;
-    --color-text-secondary: #b0b0b0;
-    --color-text-light: #808080;
-    --color-text-muted: #606060;
+    --color-text: #e6edf3;              /* Texto principal con tinte azul */
+    --color-text-secondary: #9ba4af;
+    --color-text-light: #768390;
+    --color-text-muted: #545d68;
     
-    /* Bordes estilo GTK */
-    --color-border: #4a4a4a;
-    --color-border-dark: #333333;
-    --color-border-light: #555555;
+    /* Bordes con tinte azulado */
+    --color-border: #3d444d;
+    --color-border-dark: #2d333b;
+    --color-border-light: #4d555e;
     
     /* Espaciados (más compactos) */
     --spacing-xs: 0.2rem;
@@ -75,22 +75,35 @@ body {
 
 /* Typography */
 h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1.1rem;
+    font-weight: 600;
     color: var(--color-text);
-    margin-bottom: var(--spacing-lg);
-    padding: 0;
-    height: 200px;
-    background: url('GW200.png'), url('calc.png'), url('hist.png'), #ffffff;
-    background-repeat: no-repeat;
-    background-position: left center, center center, right center;
-    background-size: auto 200px, auto 200px, auto 200px;
-    border-bottom: 2px solid var(--color-border-light);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-md);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    height: auto;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: var(--spacing-md);
+}
+
+h1::before {
+    content: 'GenWeb';
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding-left: 52px;
+    height: 40px;
+    background: url('GWlogo.png') no-repeat left center;
+    background-size: auto 40px;
+    flex-shrink: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #c41e3a;
+    letter-spacing: 0.05em;
 }
 
 h2 {
@@ -192,6 +205,7 @@ label {
 
 input[type="text"],
 input[type="password"],
+input[type="email"],
 input[type="number"],
 select,
 textarea {
@@ -209,6 +223,7 @@ textarea {
 
 input[type="text"]:focus,
 input[type="password"]:focus,
+input[type="email"]:focus,
 input[type="number"]:focus,
 select:focus,
 textarea:focus {
@@ -667,6 +682,7 @@ a:visited {
 .compact-ui .card { padding: var(--spacing-md); }
 .compact-ui input[type="text"],
 .compact-ui input[type="password"],
+.compact-ui input[type="email"],
 .compact-ui input[type="number"],
 .compact-ui select,
 .compact-ui textarea { padding: var(--control-padding-y) var(--control-padding-x); font-size: var(--font-size-sm); min-height: var(--control-height); }

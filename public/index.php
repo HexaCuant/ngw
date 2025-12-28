@@ -2152,8 +2152,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             
         <?php else: ?>
             <!-- Login/Register form -->
-            <div class="text-right mb-1" id="ui-density-toggle">
-                <label class="switch flex items-center gap-1" style="justify-content: flex-end;">
+            <div class="mb-1" id="ui-density-toggle">
+                <label class="switch flex items-center gap-1">
                     <input type="checkbox" id="compactToggle" aria-label="Modo compacto">
                     <span>Modo compacto</span>
                     <span id="compactStatus" class="switch-status off">OFF</span>
@@ -2179,6 +2179,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                             Entrar
                         </button>
                     </div>
+                    
+                    <p class="text-muted" style="font-size: 0.9em; margin-top: 1rem;">
+                        Si has olvidado tu contraseña, contacta con tu profesor.
+                    </p>
                 </form>
             </div>
             
@@ -2194,8 +2198,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                     </div>
                     
                     <div class="form-group">
-                        <label for="email">Email (opcional)</label>
-                        <input type="email" id="email" name="email">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required>
                     </div>
                     
                     <div class="form-group">
@@ -2317,10 +2321,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                 passwordInput.addEventListener('input', checkPasswordMatch);
                 confirmInput.addEventListener('input', checkPasswordMatch);
                 </script>
-            </div>
-            
-            <div class="alert alert-info" style="max-width: 500px; margin: 0 auto;">
-                <strong>Nota:</strong> Esta es la versión mejorada de GenWeb con base de datos SQLite independiente y sistema de registro con aprobación de administrador.
             </div>
         <?php endif; ?>
     </div>

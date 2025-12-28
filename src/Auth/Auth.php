@@ -41,6 +41,15 @@ class Auth
 
         // Verify password using password_verify for hashed passwords
         if (password_verify($password, $user['password'])) {
+            // Check if admin is using default password and force change
+            if ($user['is_admin'] && $password === 'admin123' && (int)$user['must_change_password'] === 0) {
+                $this->db->execute(
+                    "UPDATE users SET must_change_password = 1 WHERE id = :id",
+                    ['id' => $user['id']]
+                );
+                $user['must_change_password'] = 1;
+            }
+            
             // Remove password from returned data
             unset($user['password']);
             return $user;
