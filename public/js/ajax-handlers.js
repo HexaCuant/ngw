@@ -1201,8 +1201,6 @@ function updateCharacterProps(charId, visible, isPublic) {
  * Open gene via AJAX
  */
 function openGene(geneId, silent = false) {
-    console.debug('openGene: called with geneId', geneId, 'silent', silent);
-    
     const formData = new FormData();
     formData.append('char_action', 'open_gene_ajax');
     formData.append('gene_id', geneId);
@@ -1213,7 +1211,6 @@ function openGene(geneId, silent = false) {
     })
     .then(response => response.json())
     .then(data => {
-        console.debug('openGene: response received', data);
         if (data.success) {
             if (!silent) showNotification('Gen abierto', 'success');
             
@@ -1225,20 +1222,16 @@ function openGene(geneId, silent = false) {
             
             // Remove existing alleles section if any
             const existingAlleles = document.getElementById('alleles-section');
-            console.debug('openGene: existingAlleles found?', !!existingAlleles);
             if (existingAlleles) {
                 existingAlleles.remove();
-                console.debug('openGene: removed existing alleles section');
             }
             
             // Insert alleles HTML inside genes-view
             const genesView = document.getElementById('genes-view');
-            console.debug('openGene: genesView found?', !!genesView, 'data.html?', !!data.html);
             if (genesView && data.html) {
                 const allelesDiv = document.createElement('div');
                 allelesDiv.innerHTML = data.html;
                 genesView.appendChild(allelesDiv.firstElementChild);
-                console.debug('openGene: appended new alleles section');
 
                 // Attach add-allele form handler if present
                 setupAddAlleleHandler();
@@ -1246,11 +1239,9 @@ function openGene(geneId, silent = false) {
 
             // Change this gene's button to 'Cerrar'
             const btn = document.getElementById('gene-toggle-' + geneId);
-            console.debug('openGene: setting button state for gene', geneId, 'found btn?', !!btn);
             if (btn) {
                 btn.textContent = 'Cerrar';
                 btn.className = 'btn-secondary btn-small';
-                console.debug('openGene: button updated to Cerrar for gene', geneId);
             }
         } else {
             showNotification(data.error || 'Error al abrir gen', 'error');
@@ -1775,8 +1766,6 @@ function deleteAllele(alleleId, onSuccess) {
         return;
     }
     
-    console.debug('deleteAllele: starting deletion for allele', alleleId);
-    
     const formData = new FormData();
     formData.append('char_action', 'remove_allele_ajax');
     formData.append('allele_id', alleleId);
@@ -1787,20 +1776,14 @@ function deleteAllele(alleleId, onSuccess) {
     })
     .then(response => response.json())
     .then(data => {
-        console.debug('deleteAllele: response received', data);
         if (data.success) {
             showNotification('Alelo eliminado', 'success');
-            
-            // Try to call the success callback to refresh the gene view
             if (onSuccess) {
-                console.debug('deleteAllele: calling onSuccess callback');
                 try {
                     onSuccess(data);
                 } catch (e) {
                     console.error('Error in deleteAllele onSuccess callback:', e);
                 }
-            } else {
-                console.debug('deleteAllele: no onSuccess callback provided');
             }
         } else {
             showNotification(data.error || 'Error al eliminar alelo', 'error');
