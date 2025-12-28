@@ -307,9 +307,15 @@ class Project
                 fwrite($fh, "0:");
             }
 
-            // Get genes for this character
-            $sqlGenes = "SELECT gene_id FROM character_genes WHERE character_id = :character_id ORDER BY gene_id";
-            $genes = $this->db->fetchAll($sqlGenes, ['character_id' => $characterId]);
+            // Get genes for this character, ordered by their position in the Petri net
+            // (i.e., by the state_a from which they receive input in connections)
+            $sqlGenes = "SELECT DISTINCT cg.gene_id, COALESCE(MIN(conn.state_a), 999999) as min_state_a
+                         FROM character_genes cg
+                         LEFT JOIN connections conn ON conn.transition = cg.gene_id AND conn.character_id = :character_id
+                         WHERE cg.character_id = :character_id2
+                         GROUP BY cg.gene_id
+                         ORDER BY min_state_a, cg.gene_id";
+            $genes = $this->db->fetchAll($sqlGenes, ['character_id' => $characterId, 'character_id2' => $characterId]);
 
             foreach ($genes as $gene) {
                 $geneId = $gene['gene_id'];

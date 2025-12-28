@@ -239,34 +239,6 @@ $canViewDetails = $canEdit || (int)$activeCharacter['is_visible'] === 1;
                     </div>
                     <button type="submit" class="btn-success btn-small">Añadir Alelo</button>
                 </form>
-                <script>
-                (function() {
-                    const additiveCheckbox = document.getElementById('allele_additive');
-                    const epistasisInput = document.getElementById('allele_epistasis');
-                    
-                    if (additiveCheckbox && epistasisInput) {
-                        // When additive is checked, disable epistasis
-                        additiveCheckbox.addEventListener('change', function() {
-                            if (this.checked) {
-                                epistasisInput.value = '';
-                                epistasisInput.disabled = true;
-                            } else {
-                                epistasisInput.disabled = false;
-                            }
-                        });
-                        
-                        // When epistasis has a value, disable additive
-                        epistasisInput.addEventListener('input', function() {
-                            if (this.value !== '' && this.value !== null) {
-                                additiveCheckbox.checked = false;
-                                additiveCheckbox.disabled = true;
-                            } else {
-                                additiveCheckbox.disabled = false;
-                            }
-                        });
-                    }
-                })();
-                </script>
             <?php endif; ?>
         </div>
     <?php endif; ?>

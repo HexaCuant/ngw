@@ -568,9 +568,11 @@ function setupAddAlleleHandler() {
     const formClone = addAlleleForm.cloneNode(true);
     addAlleleForm.parentNode.replaceChild(formClone, addAlleleForm);
 
+    // Setup additive/epistasis mutual exclusion
+    setupAdditiveEpistasisExclusion();
+
     formClone.addEventListener('submit', function(e) {
         e.preventDefault();
-        console.debug('addAllele form submit');
 
         const formData = new FormData(this);
         formData.set('char_action', 'add_allele_ajax');
@@ -579,7 +581,6 @@ function setupAddAlleleHandler() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    console.debug('addAllele success', data);
                     showNotification('Alelo añadido', 'success');
 
                     // Find geneId to refresh the section
@@ -591,13 +592,15 @@ function setupAddAlleleHandler() {
                     }
 
                     if (geneId) {
-                        console.debug('addAllele: refreshing alleles section for gene', geneId);
                         openGene(geneId, true);
-                    } else {
-                        console.debug('addAllele: geneId not found, skipping refresh');
                     }
 
                     formClone.reset();
+                    // Re-enable fields after reset
+                    const additiveCheckbox = document.getElementById('allele_additive');
+                    const epistasisInput = document.getElementById('allele_epistasis');
+                    if (additiveCheckbox) additiveCheckbox.disabled = false;
+                    if (epistasisInput) epistasisInput.disabled = false;
                 } else {
                     showNotification(data.error || 'Error al añadir alelo', 'error');
                 }
@@ -610,6 +613,36 @@ function setupAddAlleleHandler() {
 }
 
 /**
+ * Setup mutual exclusion between additive checkbox and epistasis input
+ */
+function setupAdditiveEpistasisExclusion() {
+    const additiveCheckbox = document.getElementById('allele_additive');
+    const epistasisInput = document.getElementById('allele_epistasis');
+    
+    if (!additiveCheckbox || !epistasisInput) return;
+    
+    // When additive is checked, disable epistasis
+    additiveCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            epistasisInput.value = '';
+            epistasisInput.disabled = true;
+        } else {
+            epistasisInput.disabled = false;
+        }
+    });
+    
+    // When epistasis has a value, disable additive
+    epistasisInput.addEventListener('input', function() {
+        if (this.value !== '' && this.value !== null) {
+            additiveCheckbox.checked = false;
+            additiveCheckbox.disabled = true;
+        } else {
+            additiveCheckbox.disabled = false;
+        }
+    });
+}
+
+/**
  * Initialize character UI dynamic behaviors (idempotent)
  */
 function initializeCharacterUI() {
@@ -617,6 +650,12 @@ function initializeCharacterUI() {
     if (typeof setupStateValidation === 'function') {
         setupStateValidation();
     }
+    
+    // Setup add-allele form if present
+    setupAddAlleleHandler();
+    
+    // Setup additive/epistasis mutual exclusion
+    setupAdditiveEpistasisExclusion();
 
     // Set up substrates input handlers
     const substratesInput = document.getElementById('substrates-input');
