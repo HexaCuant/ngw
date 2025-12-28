@@ -157,17 +157,33 @@ class Character
 
     /**
      * Add allele and link to gene
+     * 
+     * Dominance encoding:
+     * - Base dominance value: 0-999 (3 digits max)
+     * - 4th digit indicates special behavior:
+     *   - 1 = additive (e.g., dominance=50, additive=true -> stored=1050)
+     *   - >2 = epistasis (epistasis_input + 1, e.g., epistasis=2, dominance=50 -> stored=3050)
+     * - Additive and epistasis are mutually exclusive
      */
     public function addAllele(int $geneId, string $name, ?float $value = null, ?float $dominance = null, bool $additive = false, ?string $epistasis = null): int
     {
-        // If allele is additive, concatenate a leading '1' to the dominance value (e.g. dominance=100, additive=1 -> stored=1100)
         $dominanceToStore = null;
         if ($dominance !== null) {
+            // Ensure dominance base is within 0-999
+            $dominanceBase = (int) $dominance;
+            
             if ($additive) {
-                // Use string concatenation to preserve decimals if any, then cast to float
-                $dominanceToStore = (float) ('1' . strval($dominance));
+                // Additive: 4th digit = 1
+                // e.g., dominance=50 -> 1050, dominance=100 -> 1100
+                $dominanceToStore = 1000 + $dominanceBase;
+            } elseif ($epistasis !== null && $epistasis !== '' && is_numeric($epistasis)) {
+                // Epistasis: 4th digit = epistasis_input + 1 (to ensure >2)
+                // e.g., epistasis=2, dominance=50 -> 3050
+                $epistasisDigit = (int) $epistasis + 1;
+                $dominanceToStore = ($epistasisDigit * 1000) + $dominanceBase;
             } else {
-                $dominanceToStore = $dominance;
+                // No modifier: just the base value
+                $dominanceToStore = $dominanceBase;
             }
         }
 

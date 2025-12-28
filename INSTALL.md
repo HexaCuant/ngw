@@ -34,14 +34,55 @@ sudo cp ngen2web /usr/local/bin/
 sudo chmod +x /usr/local/bin/ngen2web
 ```
 
-### 3. Crear directorio de proyectos
+### 3. Configurar el script ngen2web
+
+El script `ngen2web` es un wrapper que ejecuta ngengine con el entorno correcto.
+Edita `/usr/local/bin/ngen2web` para configurar la ruta del directorio de proyectos:
 
 ```bash
-sudo mkdir -p /var/www/proyectosNGengine
-sudo chown http:http /var/www/proyectosNGengine
+#!/bin/bash
+export HOME=/var/www/proyectosNGengine/
+nice ngengine $1 > /dev/null 2>&1
 ```
 
-### 4. Configurar (opcional)
+⚠️ **Importante:** La variable `HOME` debe apuntar al directorio de proyectos donde ngengine
+buscará el archivo de semilla para el generador de números aleatorios.
+
+### 4. Crear directorio de proyectos
+
+```bash
+# Crear directorio principal
+sudo mkdir -p /var/www/proyectosNGengine
+
+# Crear directorio de configuración de gengine y archivo de semilla
+sudo mkdir -p /var/www/proyectosNGengine/.gengine
+echo "12345" | sudo tee /var/www/proyectosNGengine/.gengine/seed
+
+# Configurar propietario y grupo
+# Nota: Tanto el usuario del servidor web (http) como los desarrolladores
+# deben poder escribir en este directorio. Recomendamos crear un grupo 'web'
+# y añadir ambos usuarios.
+sudo groupadd -f web
+sudo usermod -aG web http
+sudo usermod -aG web $USER
+
+# Aplicar permisos
+sudo chown -R http:web /var/www/proyectosNGengine
+sudo chmod -R g+rwX /var/www/proyectosNGengine
+```
+
+**Estructura resultante:**
+```
+/var/www/proyectosNGengine/
+├── .gengine/
+│   └── seed          # Archivo de semilla para números aleatorios
+└── {project_id}/     # Directorios de proyectos (se crean automáticamente)
+    ├── {id}.poc      # Archivo de configuración del proyecto
+    ├── {id}.g1       # Resultados de la generación 1
+    └── {id}.dat1     # Datos estadísticos de la generación 1
+```
+
+### 5. Configurar (opcional)
 
 Edita `config/config.ini`:
 
@@ -54,7 +95,10 @@ PROJECTS_PATH=/var/www/proyectosNGengine
 GENGINE_SCRIPT=/usr/local/bin/ngen2web
 ```
 
-### 5. Configurar servidor web
+⚠️ **Nota:** La ruta `PROJECTS_PATH` debe coincidir con el directorio configurado
+en el script `ngen2web` y con el directorio creado en el paso 4.
+
+### 6. Configurar servidor web
 
 #### Apache (Alias)
 
@@ -121,11 +165,48 @@ which ngen2web
 # Debe mostrar: /usr/local/bin/ngen2web
 ```
 
+### Error: Cannot create/open seed file
+
+ngengine necesita un archivo de semilla para el generador de números aleatorios.
+Verifica que existe el directorio `.gengine` y el archivo `seed`:
+
+```bash
+# Verificar que existe
+ls -la /var/www/proyectosNGengine/.gengine/seed
+
+# Si no existe, crearlo
+sudo mkdir -p /var/www/proyectosNGengine/.gengine
+echo "12345" | sudo tee /var/www/proyectosNGengine/.gengine/seed
+sudo chown -R http:web /var/www/proyectosNGengine/.gengine
+sudo chmod -R g+rwX /var/www/proyectosNGengine/.gengine
+```
+
+### Error: Cannot open gen file (código 1)
+
+ngengine no puede escribir los archivos de resultado. Verifica los permisos:
+
+```bash
+# El grupo 'web' debe tener permisos de escritura
+sudo chown -R http:web /var/www/proyectosNGengine
+sudo chmod -R g+rwX /var/www/proyectosNGengine
+```
+
 ### Error: Permisos en directorio de proyectos
 
 ```bash
-sudo chown -R http:http /var/www/proyectosNGengine
-sudo chmod 755 /var/www/proyectosNGengine
+sudo chown -R http:web /var/www/proyectosNGengine
+sudo chmod -R g+rwX /var/www/proyectosNGengine
+```
+
+### Probar ngengine manualmente
+
+Para verificar que ngengine funciona correctamente:
+
+```bash
+cd /var/www/proyectosNGengine
+HOME=/var/www/proyectosNGengine ngengine {project_id}
+echo "Exit code: $?"
+# Debe mostrar: Exit code: 0
 ```
 
 ## Documentación adicional

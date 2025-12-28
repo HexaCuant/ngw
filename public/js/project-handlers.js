@@ -226,10 +226,16 @@ function deleteProject(projectId, projectName) {
                         tbody.appendChild(emptyRow);
                     }
                     
-                    // Close project details if this was the active project
-                    const detailsDiv = document.getElementById('active-project-details');
-                    if (detailsDiv) {
-                        detailsDiv.remove();
+                    // If the deleted project was the active one, reload the page
+                    // to show the project list and create form
+                    if (data.was_active) {
+                        window.location.reload();
+                    } else {
+                        // Just remove the project details div if it exists
+                        const detailsDiv = document.getElementById('active-project-details');
+                        if (detailsDiv) {
+                            detailsDiv.remove();
+                        }
                     }
                 } else {
                     showNotification(data.error || 'Error al eliminar proyecto', 'error');

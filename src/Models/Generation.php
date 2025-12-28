@@ -111,7 +111,7 @@ class Generation
      */
     public function executeGengine(int $projectId): array
     {
-        $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
+        $config = parse_ini_file(__DIR__ . '/../../config/config.ini');
         $gengineScript = $config['GENGINE_SCRIPT'] ?? '/srv/http/gw/bin/gen2web';
         $projectsPath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
 
@@ -132,7 +132,7 @@ class Generation
      */
     public function parseGenerationOutput(int $projectId, int $generationNumber): array
     {
-        $config = parse_ini_file(__DIR__ . '/../../config/config.ini.example');
+        $config = parse_ini_file(__DIR__ . '/../../config/config.ini');
         $basePath = $config['PROJECTS_PATH'] ?? '/var/www/proyectosNGengine';
         $outputFile = rtrim($basePath, '/') . '/' . $projectId . '/' . $projectId . '.dat' . $generationNumber;
 

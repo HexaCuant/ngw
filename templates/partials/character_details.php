@@ -159,7 +159,7 @@ $canViewDetails = $canEdit || (int)$activeCharacter['is_visible'] === 1;
 
     <!-- Vista de alelos de un gen abierto -->
     <?php if ($activeGene) : ?>
-        <div style="margin-top: 1.5rem;">
+        <div id="alleles-section" data-gene-id="<?= (int)$activeGene['id'] ?>" style="margin-top: 1.5rem;">
             <h4>Alelos del gen: <?= e($activeGene['name']) ?></h4>
 
             <div style="margin: .5rem 0 1rem 0;">
@@ -182,12 +182,12 @@ $canViewDetails = $canEdit || (int)$activeCharacter['is_visible'] === 1;
                     <?php if (!empty($alleles)) : ?>
                         <?php foreach ($alleles as $al) : ?>
                         <?php 
+                            // Extract display dominance (base value, 0-999)
+                            // Stored format: modifier*1000 + base (modifier: 0=none, 1=additive, >2=epistasis)
                             $displayDominance = $al['dominance'];
-                            if ((int)$al['additive'] === 1 && $displayDominance !== null) {
-                                $strDom = (string)$displayDominance;
-                                if (strpos($strDom, '1') === 0) {
-                                    $displayDominance = substr($strDom, 1);
-                                }
+                            if ($displayDominance !== null) {
+                                $storedValue = (int)$displayDominance;
+                                $displayDominance = $storedValue % 1000; // Get base value (last 3 digits)
                             }
                         ?>
                         <tr>
@@ -226,18 +226,47 @@ $canViewDetails = $canEdit || (int)$activeCharacter['is_visible'] === 1;
                     </div>
                     <div class="form-group">
                         <label>Aditivo</label>
-                        <label><input type="checkbox" name="allele_additive" value="1"> Sí</label>
+                        <label><input type="checkbox" name="allele_additive" id="allele_additive" value="1"> Sí</label>
                     </div>
                     <div class="form-group">
-                        <label>Dominancia</label>
-                        <input type="text" name="allele_dominance">
+                        <label>Dominancia (0-999)</label>
+                        <input type="number" name="allele_dominance" min="0" max="999">
                     </div>
                     <div class="form-group">
                         <label>Epistasis</label>
-                        <input type="text" name="allele_epistasis">
+                        <input type="number" name="allele_epistasis" id="allele_epistasis" min="1">
+                        <small style="display: block; color: #666;">Se sumará 1 al valor introducido para asegurar que sea >2</small>
                     </div>
                     <button type="submit" class="btn-success btn-small">Añadir Alelo</button>
                 </form>
+                <script>
+                (function() {
+                    const additiveCheckbox = document.getElementById('allele_additive');
+                    const epistasisInput = document.getElementById('allele_epistasis');
+                    
+                    if (additiveCheckbox && epistasisInput) {
+                        // When additive is checked, disable epistasis
+                        additiveCheckbox.addEventListener('change', function() {
+                            if (this.checked) {
+                                epistasisInput.value = '';
+                                epistasisInput.disabled = true;
+                            } else {
+                                epistasisInput.disabled = false;
+                            }
+                        });
+                        
+                        // When epistasis has a value, disable additive
+                        epistasisInput.addEventListener('input', function() {
+                            if (this.value !== '' && this.value !== null) {
+                                additiveCheckbox.checked = false;
+                                additiveCheckbox.disabled = true;
+                            } else {
+                                additiveCheckbox.disabled = false;
+                            }
+                        });
+                    }
+                })();
+                </script>
             <?php endif; ?>
         </div>
     <?php endif; ?>
