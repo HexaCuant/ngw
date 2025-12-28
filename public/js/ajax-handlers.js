@@ -1546,28 +1546,46 @@ function reloadTransitionSelectors() {
 function reloadSubstrateSelectors(numSubstrates) {
     const stateAContainer = document.getElementById('state-a-container');
     const stateBContainer = document.getElementById('state-b-container');
+    const saveBtn = document.getElementById('save-connection-btn');
     
-    if (!stateAContainer || !stateBContainer) return;
-    
-    let html = '';
-    for (let i = 0; i < numSubstrates; i++) {
-        html += `
-            <label>
-                <input type="radio" name="state_a" value="${i}" required> S${i}
-            </label>
-        `;
+    // Update state A container
+    if (stateAContainer) {
+        if (numSubstrates > 0) {
+            let html = '';
+            for (let i = 0; i < numSubstrates; i++) {
+                html += `
+                    <label>
+                        <input type="radio" name="state_a" value="${i}" required> S${i}
+                    </label>
+                `;
+            }
+            stateAContainer.innerHTML = html;
+        } else {
+            stateAContainer.innerHTML = '<span id="no-substrates-a" class="text-muted" style="color: var(--color-text-muted); font-style: italic;">Sin sustratos definidos</span>';
+        }
     }
-    stateAContainer.innerHTML = html;
     
-    html = '';
-    for (let i = 0; i < numSubstrates; i++) {
-        html += `
-            <label>
-                <input type="radio" name="state_b" value="${i}" required> S${i}
-            </label>
-        `;
+    // Update state B container
+    if (stateBContainer) {
+        if (numSubstrates > 0) {
+            let html = '';
+            for (let i = 0; i < numSubstrates; i++) {
+                html += `
+                    <label>
+                        <input type="radio" name="state_b" value="${i}" required> S${i}
+                    </label>
+                `;
+            }
+            stateBContainer.innerHTML = html;
+        } else {
+            stateBContainer.innerHTML = '<span id="no-substrates-b" class="text-muted" style="color: var(--color-text-muted); font-style: italic;">Sin sustratos definidos</span>';
+        }
     }
-    stateBContainer.innerHTML = html;
+    
+    // Show/hide save button
+    if (saveBtn) {
+        saveBtn.style.display = numSubstrates > 0 ? '' : 'none';
+    }
     
     // Reset validation configuration flag before reconfiguring
     if (typeof _stateValidationConfigured !== 'undefined') {
@@ -1579,15 +1597,6 @@ function reloadSubstrateSelectors(numSubstrates) {
         setTimeout(function() {
             setupStateValidation();
         }, 0);
-    }
-    
-    // Show/hide no-substrates message, but always show the form
-    const noSubstratesMsg = document.getElementById('no-substrates-message');
-    
-    if (numSubstrates > 0) {
-        if (noSubstratesMsg) noSubstratesMsg.style.display = 'none';
-    } else {
-        if (noSubstratesMsg) noSubstratesMsg.style.display = 'block';
     }
 }
 

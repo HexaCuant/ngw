@@ -315,18 +315,22 @@ $canViewDetails = $canEdit || (int)$activeCharacter['is_visible'] === 1;
                 </div>
             </form>
 
-            <?php if ($numSubstrates > 0 && !empty($genes)) : ?>
+            <?php if (!empty($genes)) : ?>
                 <form method="post" id="add-connection-form">
                     <input type="hidden" name="char_action" value="add_connection">
                     
-                    <div class="form-group">
+                    <div class="form-group" id="state-a-group">
                         <label>Estado inicial (S):</label>
                         <div id="state-a-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <?php for ($i = 0; $i < $numSubstrates; $i++) : ?>
-                                <label>
-                                    <input type="radio" name="state_a" value="<?= $i ?>" required> S<?= $i ?>
-                                </label>
-                            <?php endfor; ?>
+                            <?php if ($numSubstrates > 0) : ?>
+                                <?php for ($i = 0; $i < $numSubstrates; $i++) : ?>
+                                    <label>
+                                        <input type="radio" name="state_a" value="<?= $i ?>" required> S<?= $i ?>
+                                    </label>
+                                <?php endfor; ?>
+                            <?php else : ?>
+                                <span id="no-substrates-a" class="text-muted" style="color: var(--color-text-muted); font-style: italic;">Sin sustratos definidos</span>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -341,22 +345,24 @@ $canViewDetails = $canEdit || (int)$activeCharacter['is_visible'] === 1;
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="state-b-group">
                         <label>Estado final (S):</label>
                         <div id="state-b-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                            <?php for ($i = 0; $i < $numSubstrates; $i++) : ?>
-                                <label>
-                                    <input type="radio" name="state_b" value="<?= $i ?>" required> S<?= $i ?>
-                                </label>
-                            <?php endfor; ?>
+                            <?php if ($numSubstrates > 0) : ?>
+                                <?php for ($i = 0; $i < $numSubstrates; $i++) : ?>
+                                    <label>
+                                        <input type="radio" name="state_b" value="<?= $i ?>" required> S<?= $i ?>
+                                    </label>
+                                <?php endfor; ?>
+                            <?php else : ?>
+                                <span id="no-substrates-b" class="text-muted" style="color: var(--color-text-muted); font-style: italic;">Sin sustratos definidos</span>
+                            <?php endif; ?>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-success">Guardar Conexión</button>
+                    <button type="submit" class="btn-success" id="save-connection-btn" style="<?= $numSubstrates > 0 ? '' : 'display: none;' ?>">Guardar Conexión</button>
                 </form>
-            <?php elseif ($numSubstrates === 0) : ?>
-                <p id="no-substrates-message" class="text-center" style="color: var(--color-warning);">Primero debes establecer el número de sustratos.</p>
-            <?php elseif (empty($genes)) : ?>
+            <?php else : ?>
                 <p id="no-genes-warning" class="text-center" style="color: var(--color-warning);">Primero debes crear genes para este carácter.</p>
             <?php endif; ?>
         </div>
