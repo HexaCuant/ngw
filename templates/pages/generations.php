@@ -114,6 +114,73 @@ if ($activeProjectId) {
                     </form>
                 </div>
 
+                <div class="card">
+                    <h3>Crear Cruces Seriados</h3>
+                    <p class="text-muted" style="font-size:0.9em; margin-bottom:1rem;">
+                        Genera generaciones sucesivas aplicando selección por truncamiento automáticamente.
+                    </p>
+                    <form id="formSerialCrosses" onsubmit="return false;">
+                        <div class="form-group">
+                            <label for="serial_source_gen">Generación de partida:</label>
+                            <select id="serial_source_gen" name="serial_source_gen">
+                                <?php foreach ($generations as $g) : ?>
+                                    <option value="<?= e($g['generation_number']) ?>"><?= e($g['generation_number']) ?> - <?= e($g['type']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1">
+                                <label for="serial_truncation">Truncamiento (%):</label>
+                                <input type="number" id="serial_truncation" value="10" min="1" max="100">
+                            </div>
+                            <div class="form-group" style="flex:1">
+                                <label for="serial_direction">Dirección:</label>
+                                <select id="serial_direction">
+                                    <option value="top">Superior (mayor fenotipo)</option>
+                                    <option value="bottom">Inferior (menor fenotipo)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="serial_population">Tamaño población (cada generación):</label>
+                            <input type="number" id="serial_population" value="100" min="1">
+                        </div>
+                        <fieldset style="border:1px solid var(--color-border); padding:0.8rem; border-radius:4px; margin-bottom:1rem;">
+                            <legend style="font-weight:bold; padding:0 0.5rem;">Condición de finalización</legend>
+                            <div class="form-group" style="margin-bottom:0.5rem;">
+                                <label>
+                                    <input type="radio" name="serial_stop_condition" value="max_generations" checked>
+                                    Número máximo de generaciones:
+                                    <input type="number" id="serial_max_generations" value="10" min="1" style="width:80px; margin-left:0.5rem;">
+                                </label>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0.5rem;">
+                                <label>
+                                    <input type="radio" name="serial_stop_condition" value="mean_increase">
+                                    La media fenotípica de la nueva generación sea <strong>mayor</strong> que la anterior
+                                </label>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label>
+                                    <input type="radio" name="serial_stop_condition" value="mean_decrease">
+                                    La media fenotípica de la nueva generación sea <strong>menor</strong> que la anterior
+                                </label>
+                            </div>
+                        </fieldset>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <button type="button" onclick="startSerialCrosses()" class="btn-primary">Iniciar cruces seriados</button>
+                            <button type="button" id="btnStopSerial" onclick="stopSerialCrosses()" class="btn-danger" style="display:none;">Detener</button>
+                            <div id="serialCrossSpinner" style="display:none;">⏳ Procesando...</div>
+                        </div>
+                        <div id="serialCrossProgress" style="margin-top:0.5rem; display:none;">
+                            <div style="background:var(--color-border); border-radius:4px; height:20px; overflow:hidden;">
+                                <div id="serialProgressBar" style="background:var(--color-primary); height:100%; width:0%; transition:width 0.3s;"></div>
+                            </div>
+                            <p id="serialProgressText" style="font-size:0.9em; margin-top:0.3rem;"></p>
+                        </div>
+                    </form>
+                </div>
+
                 <?php if (!empty($generations)) : ?>
                     <div class="card">
                         <div class="generations-list-header">
@@ -159,6 +226,10 @@ if ($activeProjectId) {
                     <p><strong>Población:</strong> <span id="genPopulation"></span> individuos</p>
                     <p><strong>Tipo:</strong> <span id="genType"></span></p>
                     <p><strong>Fecha:</strong> <span id="genDate"></span></p>
+                    
+                    <!-- Contenedor para parentales de generaciones cross -->
+                    <div id="generationParentals" style="margin-top: 10px;"></div>
+                    
                     <div id="downloadLinks" style="margin-top:10px;">
                         <strong>Descargar datos:</strong>
                         <a id="linkCsvDot" href="#" onclick="downloadGenerationCSV('dot'); return false;" class="btn-secondary">CSV ; (punto decimal)</a>
@@ -570,7 +641,7 @@ function createRandomGeneration() {
 
             if (tbody) {
                 const rowHtml = `\n                    <tr id="gen-row-${genNum}">\n                        <td>${genNum}</td>\n                        <td>${escapeHtml(type)}</td>\n                        <td>${escapeHtml(pop)}</td>\n                        <td class="actions-cell">\n                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>\n                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>\n                        </td>\n                    </tr>`;
-                tbody.insertAdjacentHTML('afterbegin', rowHtml);
+                tbody.insertAdjacentHTML('beforeend', rowHtml);
                 // Rebuild parent generation selects so the new generation is available as a source
                 refreshGenerationSelects();
             } else {
@@ -625,7 +696,8 @@ function createRandomGeneration() {
                 type: data.type,
                 created_at: data.created_at,
                 individuals: data.individuals,
-                parentals: data.parentals || {}
+                parentals: data.parentals || {},
+                stats: data.stats || {}
             });
             // Show success toast
             showToast('Generación ' + data.generation_number + ' creada con éxito', 'success');
@@ -789,7 +861,7 @@ function refreshGenerationSelects() {
         // sort descending by generation number
         gens.sort((a,b) => Number(b.num) - Number(a.num));
 
-        const selIds = ['cross_parent_gen', 'multi_source_gen'];
+        const selIds = ['cross_parent_gen', 'multi_source_gen', 'serial_source_gen'];
         selIds.forEach(id => {
             const s = document.getElementById(id);
             if (!s) return;
@@ -1300,7 +1372,7 @@ function createCrossGeneration() {
 
             if (tbody) {
                 const rowHtml = `\n                    <tr id="gen-row-${genNum}">\n                        <td>${genNum}</td>\n                        <td>${escapeHtml(type)}</td>\n                        <td>${escapeHtml(pop)}</td>\n                        <td class="actions-cell">\n                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>\n                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>\n                        </td>\n                    </tr>`;
-                tbody.insertAdjacentHTML('afterbegin', rowHtml);
+                tbody.insertAdjacentHTML('beforeend', rowHtml);
                 // Rebuild parent generation selects so the new generation is available as a source
                 refreshGenerationSelects();
             } else {
@@ -1353,8 +1425,17 @@ function createCrossGeneration() {
                 type: data.type,
                 created_at: data.created_at,
                 individuals: data.individuals,
-                parentals: data.parentals || {}
+                parentals: data.parentals || {},
+                stats: data.stats || {},
+                parental_stats: data.parental_stats || {}
             });
+
+            // Clear parentals list to allow new crosses
+            const parentalsContainer = document.getElementById('parentalsList');
+            if (parentalsContainer) parentalsContainer.innerHTML = '';
+            parentalsVisible = false;
+            const btnToggle = document.getElementById('btnToggleParentals');
+            if (btnToggle) btnToggle.textContent = 'Mostrar parentales';
 
             showToast('Generación por cruce ' + data.generation_number + ' creada con éxito', 'success');
         } else {
@@ -1438,7 +1519,7 @@ function createMultipleCrosses() {
                 }
                 if (tbody) {
                     const rowHtml = `\n                    <tr id="gen-row-${genNum}">\n                        <td>${genNum}</td>\n                        <td>${escapeHtml('cross')}</td>\n                        <td>${escapeHtml(pop)}</td>\n                        <td class="actions-cell">\n                            <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>\n                            <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>\n                        </td>\n                    </tr>`;
-                    tbody.insertAdjacentHTML('afterbegin', rowHtml);
+                    tbody.insertAdjacentHTML('beforeend', rowHtml);
                 }
                 showToast('Cruce creado: ' + genNum, 'success');
                 if (!firstCreated) {
@@ -1462,7 +1543,9 @@ function createMultipleCrosses() {
                 type: 'cross',
                 created_at: firstCreated.created_at,
                 individuals: firstCreated.individuals,
-                parentals: firstCreated.parentals || {}
+                parentals: firstCreated.parentals || {},
+                stats: firstCreated.stats || {},
+                parental_stats: firstCreated.parental_stats || {}
             });
         }
     })
@@ -1626,8 +1709,215 @@ try {
     window.createMultipleCrosses = createMultipleCrosses;
     window.addSelectedParentals = addSelectedParentals;
     window.downloadGenerationCSV = downloadGenerationCSV;
+    window.startSerialCrosses = startSerialCrosses;
+    window.stopSerialCrosses = stopSerialCrosses;
     console.debug('Exposed functions on window for inline handlers');
 } catch (err) {
     console.error('Error exposing functions to window', err);
+}
+
+// ==== Serial Crosses Logic ====
+let serialCrossesRunning = false;
+let serialCrossesAbort = false;
+
+async function startSerialCrosses() {
+    if (serialCrossesRunning) {
+        showToast('Ya hay un proceso de cruces seriados en ejecución', 'error');
+        return;
+    }
+
+    const sourceGen = Number(document.getElementById('serial_source_gen').value);
+    const truncation = Number(document.getElementById('serial_truncation').value);
+    const direction = document.getElementById('serial_direction').value;
+    const population = Number(document.getElementById('serial_population').value);
+    const stopCondition = document.querySelector('input[name="serial_stop_condition"]:checked')?.value;
+    const maxGenerations = Number(document.getElementById('serial_max_generations').value);
+
+    if (!sourceGen || sourceGen <= 0) { showToast('Generación de partida inválida', 'error'); return; }
+    if (!truncation || truncation <= 0 || truncation > 100) { showToast('Truncamiento inválido (1-100%)', 'error'); return; }
+    if (!population || population <= 0) { showToast('Tamaño de población inválido', 'error'); return; }
+    if (!stopCondition) { showToast('Selecciona una condición de finalización', 'error'); return; }
+    if (stopCondition === 'max_generations' && (!maxGenerations || maxGenerations <= 0)) {
+        showToast('Número máximo de generaciones inválido', 'error');
+        return;
+    }
+
+    serialCrossesRunning = true;
+    serialCrossesAbort = false;
+
+    // Show UI
+    document.getElementById('btnStopSerial').style.display = 'inline-block';
+    document.getElementById('serialCrossSpinner').style.display = 'inline-block';
+    document.getElementById('serialCrossProgress').style.display = 'block';
+
+    let currentSourceGen = sourceGen;
+    let generationsCreated = 0;
+    let previousMean = null;
+    const limit = (stopCondition === 'max_generations') ? maxGenerations : 1000; // safety limit
+
+    updateSerialProgress(0, limit, 'Iniciando...');
+
+    try {
+        while (generationsCreated < limit && !serialCrossesAbort) {
+            // Check for pause every 5 generations
+            if (generationsCreated > 0 && generationsCreated % 5 === 0) {
+                const continuar = await showSerialContinueModal(generationsCreated);
+                if (!continuar) {
+                    showToast(`Proceso detenido por el usuario después de ${generationsCreated} generaciones`, 'info');
+                    break;
+                }
+            }
+
+            updateSerialProgress(generationsCreated, limit, `Creando generación ${generationsCreated + 1}...`);
+
+            // Create one serial cross generation
+            const result = await createOneSerialCross(currentSourceGen, truncation, direction, population);
+            
+            if (!result.success) {
+                showToast('Error: ' + (result.error || 'Error desconocido'), 'error');
+                break;
+            }
+
+            generationsCreated++;
+            const newGenNum = result.generation_number;
+            const newMean = result.mean;
+
+            // Add to UI list
+            addGenerationToList(newGenNum, result.population_size, 'cross');
+
+            // Check stop conditions based on mean
+            if (stopCondition === 'mean_increase' && previousMean !== null && newMean > previousMean) {
+                showToast(`Condición cumplida: media aumentó (${previousMean.toFixed(2)} → ${newMean.toFixed(2)}) después de ${generationsCreated} generaciones`, 'success');
+                break;
+            }
+            if (stopCondition === 'mean_decrease' && previousMean !== null && newMean < previousMean) {
+                showToast(`Condición cumplida: media disminuyó (${previousMean.toFixed(2)} → ${newMean.toFixed(2)}) después de ${generationsCreated} generaciones`, 'success');
+                break;
+            }
+
+            previousMean = newMean;
+            currentSourceGen = newGenNum;
+        }
+
+        if (generationsCreated >= limit && stopCondition === 'max_generations') {
+            showToast(`Se alcanzó el máximo de ${maxGenerations} generaciones`, 'info');
+        }
+
+        updateSerialProgress(generationsCreated, limit, `Completado: ${generationsCreated} generaciones creadas`);
+
+        // Refresh generation selects
+        refreshGenerationSelects();
+
+    } catch (err) {
+        console.error('startSerialCrosses error', err);
+        showToast('Error en cruces seriados: ' + (err.message || String(err)), 'error');
+    } finally {
+        serialCrossesRunning = false;
+        document.getElementById('btnStopSerial').style.display = 'none';
+        document.getElementById('serialCrossSpinner').style.display = 'none';
+    }
+}
+
+function stopSerialCrosses() {
+    serialCrossesAbort = true;
+    showToast('Deteniendo proceso...', 'info');
+}
+
+async function createOneSerialCross(sourceGen, truncation, direction, population) {
+    const form = new FormData();
+    form.append('project_action', 'create_serial_cross');
+    form.append('source_generation', sourceGen);
+    form.append('truncation_percent', truncation);
+    form.append('truncation_direction', direction);
+    form.append('population_size', population);
+
+    const response = await fetch('index.php?option=2', { method: 'POST', body: form });
+    const data = await response.json();
+    return data;
+}
+
+function updateSerialProgress(current, total, text) {
+    const percent = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
+    document.getElementById('serialProgressBar').style.width = percent + '%';
+    document.getElementById('serialProgressText').textContent = text;
+}
+
+function addGenerationToList(genNum, pop, type) {
+    let tbody = document.querySelector('#generationsList tbody');
+    if (!tbody) {
+        // Create the list if it doesn't exist
+        const leftPanel = document.querySelector('.left-panel');
+        if (leftPanel) {
+            const listCardHtml = `
+            <div class="card">
+                <div class="generations-list-header">
+                    <h3>Generaciones Existentes</h3>
+                    <button onclick="toggleGenerationsList()" id="toggleListBtn">Ocultar</button>
+                </div>
+                <div id="generationsList">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nº</th>
+                                <th>Tipo</th>
+                                <th>Pob.</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>`;
+            leftPanel.insertAdjacentHTML('beforeend', listCardHtml);
+            tbody = document.querySelector('#generationsList tbody');
+        }
+    }
+
+    if (tbody) {
+        const rowHtml = `
+            <tr id="gen-row-${genNum}">
+                <td>${genNum}</td>
+                <td>${escapeHtml(type)}</td>
+                <td>${escapeHtml(String(pop))}</td>
+                <td class="actions-cell">
+                    <button onclick="viewGeneration(${genNum})" title="Abrir">👁️</button>
+                    <button onclick="deleteGeneration(${genNum})" title="Borrar" class="btn-danger">🗑️</button>
+                </td>
+            </tr>`;
+        tbody.insertAdjacentHTML('beforeend', rowHtml);
+    }
+}
+
+function showSerialContinueModal(generationsCreated) {
+    return new Promise((resolve) => {
+        // Create modal
+        const modal = document.createElement('div');
+        modal.id = 'serial-continue-modal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: flex; align-items: center;
+            justify-content: center; z-index: 10000;
+        `;
+        modal.innerHTML = `
+            <div style="background: var(--color-surface, #fff); padding: 2rem; border-radius: 8px; max-width: 400px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+                <h3 style="margin-bottom: 1rem;">Cruces Seriados</h3>
+                <p style="margin-bottom: 1.5rem;">Se han creado <strong>${generationsCreated}</strong> generaciones.<br>¿Deseas continuar?</p>
+                <div style="display: flex; gap: 1rem; justify-content: center;">
+                    <button id="serial-continue-yes" class="btn-primary" style="padding: 0.5rem 1.5rem;">Continuar</button>
+                    <button id="serial-continue-no" class="btn-secondary" style="padding: 0.5rem 1.5rem;">Detener</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        document.getElementById('serial-continue-yes').onclick = () => {
+            modal.remove();
+            resolve(true);
+        };
+        document.getElementById('serial-continue-no').onclick = () => {
+            modal.remove();
+            resolve(false);
+        };
+    });
 }
 </script>

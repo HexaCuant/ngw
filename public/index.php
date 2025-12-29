@@ -567,10 +567,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['char_action']) && $se
                                     <tr>
                                         <td><?= htmlspecialchars($al['id']) ?></td>
                                         <td><?= htmlspecialchars($al['name']) ?></td>
-                                        <td><?= htmlspecialchars($al['value']) ?></td>
+                                        <td><?= htmlspecialchars($al['value'] ?? '') ?></td>
                                         <td><?= htmlspecialchars((int)$al['additive'] === 1 ? 'Sí' : 'No') ?></td>
                                         <td><?= htmlspecialchars($displayDominance) ?></td>
-                                        <td><?= htmlspecialchars($al['epistasis']) ?></td>
+                                        <td><?= htmlspecialchars($al['epistasis'] ?? '') ?></td>
                                         <td>
                                             <?php if ($session->isTeacher() || $session->isAdmin() || (int)$activeCharacter['creator_id'] === $userId) : ?>
                                                 <button onclick="deleteAllele(<?= $al['id'] ?>, () => openGene(<?= (int)$activeGene['id'] ?>, true))" class="btn-danger btn-small">Eliminar</button>
@@ -1587,6 +1587,139 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
 
             ob_end_clean();
             echo json_encode(['success' => true, 'results' => $results]);
+        } catch (\Exception $e) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'create_serial_cross') {
+        header('Content-Type: application/json');
+        ob_start();
+
+        try {
+            $projectId = $session->get('active_project_id');
+            if (!$projectId) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'No hay proyecto activo']);
+                exit;
+            }
+
+            $sourceGen = (int)($_POST['source_generation'] ?? 0);
+            $truncationPercent = (int)($_POST['truncation_percent'] ?? 10);
+            $truncationDirection = ($_POST['truncation_direction'] ?? 'top'); // 'top' or 'bottom'
+            $populationSize = (int)($_POST['population_size'] ?? 0);
+
+            if ($sourceGen <= 0 || $populationSize <= 0) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Parámetros inválidos']);
+                exit;
+            }
+
+            if ($truncationPercent < 1 || $truncationPercent > 100) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Truncamiento debe estar entre 1 y 100']);
+                exit;
+            }
+
+            require_once __DIR__ . '/../src/Models/Generation.php';
+            require_once __DIR__ . '/../src/Models/Project.php';
+            $generationModel = new \Ngw\Models\Generation($db);
+            $projectModel = new \Ngw\Models\Project($db);
+
+            // Ensure source generation exists
+            $src = $generationModel->getByNumber($projectId, $sourceGen);
+            if (!$src) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Generación fuente no encontrada']);
+                exit;
+            }
+
+            // Get ordered individuals for source generation (already sorted by phenotype)
+            $orderedIndividuals = $generationModel->parseGenerationOutput($projectId, $sourceGen);
+            $orderedIds = array_keys($orderedIndividuals);
+            $total = count($orderedIds);
+
+            if ($total === 0) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'La generación fuente no tiene individuos']);
+                exit;
+            }
+
+            // Calculate how many individuals to select based on truncation
+            $selectCount = max(1, (int)round(($truncationPercent / 100) * $total));
+
+            // Select individuals based on direction
+            if ($truncationDirection === 'top') {
+                // Top = first N (highest phenotype values, since data is sorted descending)
+                $selectedIds = array_slice($orderedIds, 0, $selectCount);
+            } else {
+                // Bottom = last N (lowest phenotype values)
+                $selectedIds = array_slice($orderedIds, -$selectCount);
+            }
+
+            // Get next generation number
+            $targetGen = $generationModel->getNextGenerationNumber($projectId);
+
+            // Check target doesn't exist
+            $existing = $generationModel->getByNumber($projectId, $targetGen);
+            if ($existing) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'La generación destino ya existe']);
+                exit;
+            }
+
+            // Add selected individuals as parentals for the new generation
+            $generationModel->addParentals($projectId, $targetGen, $sourceGen, array_map('intval', $selectedIds));
+
+            // Build POC and execute engine
+            try {
+                $poc = $projectModel->generatePocFile($projectId, $populationSize, $targetGen, 'cross');
+            } catch (\RuntimeException $e) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+                exit;
+            }
+
+            $execRes = $generationModel->executeGengine($projectId);
+            if (!$execRes['success']) {
+                ob_end_clean();
+                echo json_encode(['success' => false, 'error' => 'Error al ejecutar gengine (código ' . $execRes['return_code'] . ')']);
+                exit;
+            }
+
+            // Create generation record and parse output
+            $generationModel->create($projectId, $targetGen, $populationSize, 'cross');
+            $generation = $generationModel->getByNumber($projectId, $targetGen);
+            $individuals = $generationModel->parseGenerationOutput($projectId, $targetGen);
+
+            // Calculate mean of first phenotype for stop condition check
+            $mean = 0;
+            if (!empty($individuals)) {
+                $sum = 0;
+                foreach ($individuals as $phenotypes) {
+                    // Get first phenotype value
+                    $firstVal = reset($phenotypes);
+                    $sum += $firstVal;
+                }
+                $mean = $sum / count($individuals);
+            }
+
+            $individualsList = [];
+            foreach ($individuals as $id => $phenotypes) {
+                $individualsList[] = ['id' => $id, 'phenotypes' => $phenotypes];
+            }
+
+            ob_end_clean();
+            echo json_encode([
+                'success' => true,
+                'generation_number' => $targetGen,
+                'population_size' => count($individualsList),
+                'created_at' => $generation['created_at'] ?? null,
+                'mean' => $mean,
+                'parentals_count' => count($selectedIds),
+                'individuals' => $individualsList
+            ]);
         } catch (\Exception $e) {
             ob_end_clean();
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
