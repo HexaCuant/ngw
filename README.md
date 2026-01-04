@@ -76,6 +76,13 @@ sudo cp ngen2web /usr/local/bin/
 
 ## 🚀 Uso
 
+**Tema claro/oscuro**
+
+- NGW ahora incluye un selector de tema (Claro/Oscuro) en la barra de usuario y en la pantalla de login.
+- Activa el tema claro marcando el toggle "☀️ Claro"; la preferencia se guarda en `localStorage` y se aplica automáticamente en la carga para evitar parpadeos.
+
+
+
 ### Servidor de desarrollo PHP
 
 ```bash
