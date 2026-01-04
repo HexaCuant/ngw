@@ -125,8 +125,8 @@ h1 {
     gap: var(--spacing-md);
 }
 
-h1::before {
-    content: 'GenWeb';
+/* Brand link inside header */
+h1 .brand-link {
     display: inline-flex;
     align-items: center;
     gap: var(--spacing-sm);
@@ -134,11 +134,15 @@ h1::before {
     height: 40px;
     background: url('GWlogo.png') no-repeat left center;
     background-size: auto 40px;
-    flex-shrink: 0;
     font-size: 1.3rem;
     font-weight: 700;
     color: #c41e3a;
     letter-spacing: 0.05em;
+    text-decoration: none;
+}
+
+h1 .brand-link:hover {
+    text-decoration: underline;
 }
 
 h2 {

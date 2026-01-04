@@ -2379,7 +2379,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
 </head>
 <body>
     <div class="container">
-        <h1></h1>
+        <h1><a href="ngw/" class="brand-link" title="Ir al directorio ngw">GenWeb</a></h1>
         <div id="global-toast"></div>
         <!-- Global confirmation modal -->
         <div id="global-confirm-modal" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:10000;">
