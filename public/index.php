@@ -2196,6 +2196,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
     <meta http-equiv="cache-control" content="no-cache">
     <title>GenWeb NG - Sistema de Generaciones Genéticas</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <script>
+        // Apply theme immediately to prevent flash of wrong theme
+        (function() {
+            var theme = localStorage.getItem('ngw-theme');
+            if (theme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+            // Also apply compact mode if saved
+            if (localStorage.getItem('ngw-compact-ui') === '1') {
+                document.documentElement.classList.add('compact-ui');
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="css/style.css?v=<?= time() ?>">
     <script src="js/ajax-handlers.js?v=<?= time() ?>" defer></script>
     <script src="js/project-handlers.js?v=<?= time() ?>" defer></script>
@@ -2240,6 +2253,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                     <?php if ($session->isAdmin()): ?>
                         <span style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin-left: 0.5rem; font-size: 0.875rem;">ADMIN</span>
                     <?php endif; ?>
+                    <label for="themeToggle" class="switch flex items-center gap-1" style="margin-left: 0.75rem;">
+                        <input type="checkbox" id="themeToggle" aria-label="Tema claro">
+                        <span>☀️ Claro</span>
+                        <span id="themeStatus" class="switch-status off">OFF</span>
+                    </label>
                     <label for="compactToggle" class="switch flex items-center gap-1" style="margin-left: 0.75rem;">
                         <input type="checkbox" id="compactToggle" aria-label="Modo compacto">
                         <span>Modo compacto</span>
@@ -2348,7 +2366,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
             
         <?php else: ?>
             <!-- Login/Register form -->
-            <div class="mb-1" id="ui-density-toggle">
+            <div class="mb-1" id="ui-density-toggle" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <label class="switch flex items-center gap-1">
+                    <input type="checkbox" id="themeToggle" aria-label="Tema claro">
+                    <span>☀️ Claro</span>
+                    <span id="themeStatus" class="switch-status off">OFF</span>
+                </label>
                 <label class="switch flex items-center gap-1">
                     <input type="checkbox" id="compactToggle" aria-label="Modo compacto">
                     <span>Modo compacto</span>
@@ -2522,6 +2545,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
     </div>
     <script>
     (function() {
+        // === Theme Toggle ===
+        const themeToggle = document.getElementById('themeToggle');
+        const themeStatus = document.getElementById('themeStatus');
+        const html = document.documentElement;
+        const savedTheme = localStorage.getItem('ngw-theme');
+
+        // Aplica preferencia guardada o detecta preferencia del sistema
+        if (savedTheme === 'light') {
+            html.setAttribute('data-theme', 'light');
+            if (themeToggle) themeToggle.checked = true;
+        } else if (savedTheme === 'dark') {
+            html.removeAttribute('data-theme');
+            if (themeToggle) themeToggle.checked = false;
+        }
+        // Si no hay preferencia guardada, usa el tema oscuro por defecto
+
+        function setTheme(light) {
+            if (light) {
+                html.setAttribute('data-theme', 'light');
+                localStorage.setItem('ngw-theme', 'light');
+            } else {
+                html.removeAttribute('data-theme');
+                localStorage.setItem('ngw-theme', 'dark');
+            }
+        }
+
+        function updateThemeStatus() {
+            if (!themeStatus || !themeToggle) return;
+            const on = themeToggle.checked;
+            themeStatus.textContent = on ? 'ON' : 'OFF';
+            themeStatus.classList.toggle('on', on);
+            themeStatus.classList.toggle('off', !on);
+        }
+
+        // Inicializar estado visual
+        updateThemeStatus();
+
+        if (themeToggle) {
+            themeToggle.addEventListener('change', function() {
+                setTheme(themeToggle.checked);
+                updateThemeStatus();
+            });
+        }
+
+        // === Compact Mode Toggle ===
         const toggle = document.getElementById('compactToggle');
         const status = document.getElementById('compactStatus');
         const root = document.documentElement; // aplica la clase al <html>
