@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1] - 2026-01-04
+
+### Added - UI
+- ✅ Tema claro con variables CSS y esquema de color claro
+- ✅ Toggle de tema (Claro/Oscuro) persistente en `localStorage` y aplicado en el arranque para evitar flash de tema
+- ✅ Toggle disponible en la barra de usuario y en la página de login
+
 ## [1.1.0] - 2025-12-28
 
 ### Added - Frecuencias Alélicas y Limpieza
