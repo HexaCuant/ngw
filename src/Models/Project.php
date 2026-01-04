@@ -21,8 +21,40 @@ class Project
      */
     public function getUserProjects(int $userId): array
     {
-        $sql = "SELECT * FROM projects WHERE user_id = :user_id ORDER BY id";
+        $sql = "SELECT p.*, g.name as group_name, g.color as group_color 
+                FROM projects p 
+                LEFT JOIN project_groups g ON p.group_id = g.id 
+                WHERE p.user_id = :user_id 
+                ORDER BY p.id";
         return $this->db->fetchAll($sql, ['user_id' => $userId]);
+    }
+
+    /**
+     * Get projects for a user filtered by group
+     * @param int $userId User ID
+     * @param int|null $groupId Group ID (null for ungrouped projects, -1 for all projects)
+     */
+    public function getUserProjectsByGroup(int $userId, ?int $groupId = -1): array
+    {
+        if ($groupId === -1) {
+            // All projects
+            return $this->getUserProjects($userId);
+        } elseif ($groupId === null) {
+            // Ungrouped projects
+            $sql = "SELECT p.*, NULL as group_name, NULL as group_color 
+                    FROM projects p 
+                    WHERE p.user_id = :user_id AND p.group_id IS NULL 
+                    ORDER BY p.name";
+            return $this->db->fetchAll($sql, ['user_id' => $userId]);
+        } else {
+            // Projects in specific group
+            $sql = "SELECT p.*, g.name as group_name, g.color as group_color 
+                    FROM projects p 
+                    LEFT JOIN project_groups g ON p.group_id = g.id 
+                    WHERE p.user_id = :user_id AND p.group_id = :group_id 
+                    ORDER BY p.name";
+            return $this->db->fetchAll($sql, ['user_id' => $userId, 'group_id' => $groupId]);
+        }
     }
 
     /**
@@ -36,14 +68,23 @@ class Project
 
     /**
      * Create new project
+     * @param string $name Project name
+     * @param int $userId User ID
+     * @param string $description Project description
+     * @param int|null $groupId Optional group ID
      */
-    public function create(string $name, int $userId, string $description = ''): int
+    public function create(string $name, int $userId, string $description = '', ?int $groupId = null): int
     {
         // Validate base path BEFORE creating DB record
         $this->validateProjectsBasePath();
 
-        $sql = "INSERT INTO projects (name, description, user_id) VALUES (:name, :description, :user_id)";
-        $this->db->execute($sql, ['name' => $name, 'description' => $description, 'user_id' => $userId]);
+        $sql = "INSERT INTO projects (name, description, user_id, group_id) VALUES (:name, :description, :user_id, :group_id)";
+        $this->db->execute($sql, [
+            'name' => $name,
+            'description' => $description,
+            'user_id' => $userId,
+            'group_id' => $groupId
+        ]);
 
         $projectId = (int) $this->db->lastInsertId();
 
@@ -51,6 +92,15 @@ class Project
         $this->createProjectDirectory($projectId);
 
         return $projectId;
+    }
+
+    /**
+     * Update project group assignment
+     */
+    public function setGroup(int $projectId, ?int $groupId): bool
+    {
+        $sql = "UPDATE projects SET group_id = :group_id, updated_at = CURRENT_TIMESTAMP WHERE id = :id";
+        return $this->db->execute($sql, ['group_id' => $groupId, 'id' => $projectId]) > 0;
     }
 
     /**

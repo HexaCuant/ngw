@@ -113,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $projectModel = null;
 $characterModel = null;
 $requestModel = null;
+$projectGroupModel = null;
 
 // Get teachers for registration form (available for non-authenticated users)
 $teachers = $auth->getTeachers();
@@ -121,6 +122,7 @@ if ($session->isAuthenticated()) {
     $projectModel = new \Ngw\Models\Project($db);
     $characterModel = new \Ngw\Models\Character($db);
     $requestModel = new \Ngw\Models\RegistrationRequest($db);
+    $projectGroupModel = new \Ngw\Models\ProjectGroup($db);
 }
 
 /**
@@ -844,13 +846,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
         header('Content-Type: application/json');
         try {
             $name = trim($_POST['project_name']);
-            $projectId = $projectModel->create($name, $userId);
+            $groupId = isset($_POST['group_id']) && $_POST['group_id'] !== '' ? (int)$_POST['group_id'] : null;
+            
+            // If groupId is provided, verify ownership
+            if ($groupId !== null && !$projectGroupModel->isOwner($groupId, $userId)) {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso para usar este grupo']);
+                exit;
+            }
+            
+            $projectId = $projectModel->create($name, $userId, '', $groupId);
             
             echo json_encode([
                 'success' => true,
                 'project' => [
                     'id' => $projectId,
-                    'name' => $name
+                    'name' => $name,
+                    'group_id' => $groupId
                 ]
             ]);
         } catch (\Exception $e) {
@@ -2184,6 +2195,159 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
         }
         exit;
     }
+    // Project Groups handlers
+    elseif ($projectAction === 'get_groups') {
+        header('Content-Type: application/json');
+        try {
+            $groups = $projectGroupModel->getUserGroups($userId);
+            $ungroupedCount = $projectGroupModel->countUngroupedProjects($userId);
+            
+            echo json_encode([
+                'success' => true,
+                'groups' => $groups,
+                'ungroupedCount' => $ungroupedCount,
+                'colors' => \Ngw\Models\ProjectGroup::getAvailableColors()
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'create_group') {
+        header('Content-Type: application/json');
+        try {
+            $name = trim($_POST['group_name'] ?? '');
+            $color = trim($_POST['color'] ?? '#6366f1');
+            
+            if (empty($name)) {
+                echo json_encode(['success' => false, 'error' => 'El nombre del grupo es obligatorio']);
+                exit;
+            }
+            
+            $groupId = $projectGroupModel->create($name, $userId, $color);
+            
+            echo json_encode([
+                'success' => true,
+                'group' => [
+                    'id' => $groupId,
+                    'name' => $name,
+                    'color' => $color,
+                    'project_count' => 0
+                ]
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'update_group') {
+        header('Content-Type: application/json');
+        try {
+            $groupId = (int)($_POST['group_id'] ?? 0);
+            $name = trim($_POST['group_name'] ?? '');
+            $color = trim($_POST['color'] ?? null);
+            
+            if ($groupId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'ID de grupo inválido']);
+                exit;
+            }
+            
+            if (!$projectGroupModel->isOwner($groupId, $userId)) {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso para editar este grupo']);
+                exit;
+            }
+            
+            if (empty($name)) {
+                echo json_encode(['success' => false, 'error' => 'El nombre del grupo es obligatorio']);
+                exit;
+            }
+            
+            $projectGroupModel->update($groupId, $name, $color);
+            
+            echo json_encode(['success' => true]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'delete_group') {
+        header('Content-Type: application/json');
+        try {
+            $groupId = (int)($_POST['group_id'] ?? 0);
+            
+            if ($groupId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'ID de grupo inválido']);
+                exit;
+            }
+            
+            if (!$projectGroupModel->isOwner($groupId, $userId)) {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso para borrar este grupo']);
+                exit;
+            }
+            
+            $projectGroupModel->delete($groupId);
+            
+            echo json_encode(['success' => true]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'move_project_to_group') {
+        header('Content-Type: application/json');
+        try {
+            $projectId = (int)($_POST['project_id'] ?? 0);
+            $groupId = isset($_POST['group_id']) && $_POST['group_id'] !== '' ? (int)$_POST['group_id'] : null;
+            
+            if ($projectId <= 0) {
+                echo json_encode(['success' => false, 'error' => 'ID de proyecto inválido']);
+                exit;
+            }
+            
+            if (!$projectModel->isOwner($projectId, $userId)) {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso para mover este proyecto']);
+                exit;
+            }
+            
+            // If groupId is provided, verify ownership
+            if ($groupId !== null && !$projectGroupModel->isOwner($groupId, $userId)) {
+                echo json_encode(['success' => false, 'error' => 'No tienes permiso para usar este grupo']);
+                exit;
+            }
+            
+            $projectModel->setGroup($projectId, $groupId);
+            
+            echo json_encode(['success' => true]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+    elseif ($projectAction === 'get_projects_by_group') {
+        header('Content-Type: application/json');
+        try {
+            // groupId: -1 = all, null = ungrouped, number = specific group
+            $groupId = $_POST['group_id'] ?? '-1';
+            
+            if ($groupId === '-1' || $groupId === '') {
+                $groupId = -1;
+            } elseif ($groupId === 'null' || $groupId === '0') {
+                $groupId = null;
+            } else {
+                $groupId = (int)$groupId;
+            }
+            
+            $projects = $projectModel->getUserProjectsByGroup($userId, $groupId);
+            
+            echo json_encode([
+                'success' => true,
+                'projects' => $projects
+            ]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
 }
 
 ?>
@@ -2253,16 +2417,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['project_action']) && 
                     <?php if ($session->isAdmin()): ?>
                         <span style="background: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; margin-left: 0.5rem; font-size: 0.875rem;">ADMIN</span>
                     <?php endif; ?>
-                    <label for="themeToggle" class="switch flex items-center gap-1" style="margin-left: 0.75rem;">
-                        <input type="checkbox" id="themeToggle" aria-label="Tema claro">
-                        <span>☀️ Claro</span>
-                        <span id="themeStatus" class="switch-status off">OFF</span>
-                    </label>
-                    <label for="compactToggle" class="switch flex items-center gap-1" style="margin-left: 0.75rem;">
-                        <input type="checkbox" id="compactToggle" aria-label="Modo compacto">
-                        <span>Modo compacto</span>
-                        <span id="compactStatus" class="switch-status off">OFF</span>
-                    </label>
+                    <span style="display: inline-flex; gap: 0.75rem; margin-left: 0.75rem;">
+                        <label for="themeToggle" class="switch flex items-center gap-1">
+                            <input type="checkbox" id="themeToggle" aria-label="Tema claro">
+                            <span>☀️ Claro</span>
+                            <span id="themeStatus" class="switch-status off">OFF</span>
+                        </label>
+                        <label for="compactToggle" class="switch flex items-center gap-1">
+                            <input type="checkbox" id="compactToggle" aria-label="Modo compacto">
+                            <span>Modo compacto</span>
+                            <span id="compactStatus" class="switch-status off">OFF</span>
+                        </label>
+                    </span>
                 </div>
                 <form method="post" style="margin: 0; padding: 0; background: none; box-shadow: none;">
                     <input type="hidden" name="action" value="logout">

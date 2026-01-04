@@ -36,15 +36,28 @@ CREATE TABLE IF NOT EXISTS registration_requests (
     FOREIGN KEY (assigned_teacher_id) REFERENCES users(id)
 );
 
+-- Project groups for organizing projects
+CREATE TABLE IF NOT EXISTS project_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT DEFAULT '#6366f1', -- hex color for visual distinction
+    sort_order INTEGER DEFAULT 0, -- for custom ordering
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Projects table
 CREATE TABLE IF NOT EXISTS projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     description TEXT,
     user_id INTEGER NOT NULL,
+    group_id INTEGER, -- optional group assignment
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES project_groups(id) ON DELETE SET NULL
 );
 
 -- Characters table

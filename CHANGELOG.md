@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0] - 2026-01-04
+
+### Added - Grupos de Proyectos
+- ✅ Nueva tabla `project_groups` para organizar proyectos en carpetas/grupos
+- ✅ Los proyectos pueden asignarse a un grupo o estar "sin grupo"
+- ✅ Filtrado de proyectos por grupo en la pestaña de proyectos
+- ✅ Creación de grupos con nombre y color personalizable
+- ✅ Gestión de grupos: renombrar, eliminar, cambiar color
+- ✅ Mover proyectos entre grupos desde un modal
+- ✅ Los proyectos huérfanos (cuando se borra un grupo) quedan sin grupo
+- ✅ Script de migración `database/migrate_project_groups.php`
+
+### Changed
+- Actualizada la tabla de proyectos con columna de grupo
+- El formulario de crear proyecto permite seleccionar grupo
+
 ## [1.1.1] - 2026-01-04
 
 ### Added - UI

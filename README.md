@@ -12,6 +12,8 @@
 
 - **Gestión de proyectos genéticos:**
   - Crear y administrar proyectos de simulación
+  - **Organizar proyectos en grupos/carpetas** con colores personalizables
+  - Filtrar proyectos por grupo y moverlos entre grupos
   - Asignar caracteres hereditarios a proyectos
   - Configurar frecuencias alélicas personalizadas
 
@@ -78,8 +80,15 @@ sudo cp ngen2web /usr/local/bin/
 
 **Tema claro/oscuro**
 
-- NGW ahora incluye un selector de tema (Claro/Oscuro) en la barra de usuario y en la pantalla de login.
-- Activa el tema claro marcando el toggle "☀️ Claro"; la preferencia se guarda en `localStorage` y se aplica automáticamente en la carga para evitar parpadeos.
+- NGW incluye un selector de tema (Claro/Oscuro) en la barra de usuario y en la pantalla de login.
+- Activa el tema claro marcando el toggle "☀️ Claro"; la preferencia se guarda en `localStorage`.
+
+**Grupos de proyectos**
+
+- Organiza tus proyectos en grupos con nombres y colores personalizados.
+- Filtra la lista de proyectos por grupo desde el selector en la pestaña de Proyectos.
+- Crea, renombra y elimina grupos desde el botón "Gestionar".
+- Mueve proyectos entre grupos con el botón 📁 en cada fila.
 
 
 

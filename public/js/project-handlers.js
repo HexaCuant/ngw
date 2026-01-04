@@ -130,6 +130,12 @@ function attachCreateProjectFormListener() {
             const formData = new FormData(this);
             formData.set('project_action', 'create_project_ajax');
             
+            // Get group_id if present
+            const groupSelect = document.getElementById('project_group');
+            if (groupSelect) {
+                formData.set('group_id', groupSelect.value);
+            }
+            
             fetch('index.php?option=2', {
                 method: 'POST',
                 body: formData
@@ -139,30 +145,8 @@ function attachCreateProjectFormListener() {
                 if (data.success) {
                     showNotification('Proyecto creado', 'success');
                     
-                    // Add row to projects table
-                    const tbody = document.querySelector('table tbody');
-                    if (tbody) {
-                        // Remove "no projects" row if exists
-                        const emptyRow = tbody.querySelector('td[colspan]');
-                        if (emptyRow) {
-                            emptyRow.closest('tr').remove();
-                        }
-                        
-                        const project = data.project;
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${project.id}</td>
-                            <td>${project.name}</td>
-                            <td>
-                                <button type="button" onclick="openProject(${project.id})" class="btn-primary btn-small">Abrir</button>
-                                <button type="button" onclick="deleteProject(${project.id}, '${project.name.replace(/'/g, "\\'")}')" class="btn-danger btn-small">Borrar</button>
-                            </td>
-                        `;
-                        tbody.appendChild(row);
-                    }
-                    
-                    // Reset form
-                    createProjectForm.reset();
+                    // Reload page to update table and counters
+                    location.reload();
                 } else {
                     showNotification(data.error || 'Error al crear proyecto', 'error');
                 }
